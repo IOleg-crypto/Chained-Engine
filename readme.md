@@ -8,8 +8,8 @@
 [![raylib](https://img.shields.io/badge/raylib-5.5--dev-red?logo=raylib)](https://www.raylib.com/)
 
 
-> [!NOTE]
-> **Active Development Notice**: This engine and game are under active development. Some information in this README may be outdated as features are continuously being added, refactored, and improved. Check the latest commits and [implementation plans](https://github.com/IOleg-crypto/Chained-Decos/tree/refactor-branch) for the most current state.
+> [!WARNING]
+> **Deprecated Branch**: This branch is old and **no longer supported**. The engine is currently being completely rewritten and migrated to a new modern architecture using pure OpenGL. Please check other active branches for the latest development.
 
 **Chained Decos** is a 3D parkour game built from the ground up using **Chained Engine**, a custom modular C++23 game engine. It features advanced physics, an ECS-driven architecture, native C++ scripting, and integrated development tools.
 

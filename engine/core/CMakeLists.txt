@@ -53,8 +53,10 @@ target_include_directories(engine_core PUBLIC
 # Core module uses yaml-cpp for some configurations
 target_link_libraries(engine_core PUBLIC yaml-cpp raylib imguilib EnTT Coral.Native nfd assimp)
 
-# Apply common macro configurations and compiler flags
-# (Redundant /bigobj flags removed - now in CompilerSettings.cmake)
+target_compile_definitions(engine_core PUBLIC
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+)
 
 # We apply optimizations and precompiled headers specific to core
 if(COMMAND apply_engine_optimizations)

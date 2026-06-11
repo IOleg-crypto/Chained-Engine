@@ -1,11 +1,9 @@
+#include "engine/core/engine_pch.h"
 #include "profiler_panel.h"
 #include "engine/core/profiler.h"
 #include <format>
-#if defined(CH_PLATFORM_WINDOWS)
-#include <GL/gl.h>
-#else
-#include <GL/gl.h>
-#endif
+#include "imgui.h"
+#include "rlgl.h"
 #include "imgui.h"
 #include "rlgl.h"
 
@@ -40,7 +38,7 @@ void ProfilerPanel::OnImGuiRender(bool readOnly)
     if (ImGui::CollapsingHeader("Hardware & System", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::Text("GPU: %s", glGetString(GL_RENDERER));
-        ImGui::Text("Driver: %s", glGetString(GL_VERSION));
+        //ImGui::Text("Driver: %s", glGetString(GL_VERSION));
     }
 
     if (ImGui::CollapsingHeader("Scene Statistics", ImGuiTreeNodeFlags_DefaultOpen))
