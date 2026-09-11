@@ -13,6 +13,11 @@
 namespace Chained
 {
 	static constexpr float kMouseSensitivity = 0.003f;
+	// WSLg / XWayland can report very large mouse deltas on the first frame after
+	// cursor capture or button press (cursor-warp artefact).  Clamp raw pixel
+	// delta to this limit so the camera never jumps more than a comfortable arc
+	// in a single frame regardless of platform.
+	static constexpr float kMaxMouseDeltaPixels = 50.0f;
 
 	// Pan speed: viewport-independent polynomial curve (empirically tuned)
 	static constexpr float kPanSpeedDivisor = 1000.0f;
@@ -132,14 +137,47 @@ namespace Chained
 		}
 
 		glm::vec2 delta = {0.0f, 0.0f};
-		if (hasImGui)
+
+#if CH_PLATFORM_LINUX
+		// WSLg / XWayland cursor-warp artefact:
+		// On the first frame a mouse button is pressed, XWayland reports the
+		// accumulated distance from the last tracked cursor position to the click
+		// point — often hundreds of pixels — causing a violent camera jump.
+		// Skip delta that frame and clamp subsequent frames to kMaxMouseDeltaPixels.
+		bool rightJustPressed = rightDown && !m_WasRightDown;
+		bool middleJustPressed = middleDown && !m_WasMiddleDown;
+		bool leftJustPressed = leftDown && !m_WasLeftDown;
+		m_WasRightDown = rightDown;
+		m_WasMiddleDown = middleDown;
+		m_WasLeftDown = leftDown;
+		bool skipDelta = rightJustPressed || middleJustPressed || leftJustPressed;
+#else
+		constexpr bool skipDelta = false;
+#endif
+
+		if (!skipDelta)
 		{
-			ImVec2 imguiDelta = ImGui::GetIO().MouseDelta;
-			delta = {imguiDelta.x * kMouseSensitivity, imguiDelta.y * kMouseSensitivity};
-		}
-		else
-		{
-			delta = Core::Input::GetMouseDelta() * kMouseSensitivity;
+			if (hasImGui)
+			{
+				ImVec2 raw = ImGui::GetIO().MouseDelta;
+#if CH_PLATFORM_LINUX
+				float dx = std::clamp(raw.x, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
+				float dy = std::clamp(raw.y, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
+#else
+				float dx = raw.x;
+				float dy = raw.y;
+#endif
+				delta = {dx * kMouseSensitivity, dy * kMouseSensitivity};
+			}
+			else
+			{
+				glm::vec2 raw = Core::Input::GetMouseDelta();
+#if CH_PLATFORM_LINUX
+				raw.x = std::clamp(raw.x, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
+				raw.y = std::clamp(raw.y, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
+#endif
+				delta = raw * kMouseSensitivity;
+			}
 		}
 
 		if (rightDown)
