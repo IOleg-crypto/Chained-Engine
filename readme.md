@@ -61,11 +61,7 @@ Chained Decos and Chained Engine target Windows and Linux.
 
 ## Download
 
-### Chained Decos (Game)
-- [Windows / Linux](https://www.mediafire.com/folder/upu4y995ivl26/releases) — pre-built binaries
-
-### ChainedEngine (Editor)
-- [GitHub Releases](https://github.com/IOleg-crypto/Chained-Engine/releases) — Windows + Linux builds
+Pre-built binaries for **Chained Decos** (game) and **ChainedEngine** (editor) for Windows and Linux are available on [GitHub Releases](https://github.com/IOleg-crypto/Chained-Engine/releases).
 
 ## Quick Start
 
@@ -179,12 +175,10 @@ Binaries are generated under `build/{preset}/bin/{Debug|Release}/` (or `build/{p
 ./build/linux-clang/bin/Debug/ChainedEditor
 .\build\windows-clang\bin\Debug\ChainedEditor.exe
 
-# Runtime
-./build/linux-clang/bin/Debug/ChainedRuntime path/to/project.chproject
-.\build\windows-clang\bin\Debug\ChainedRuntime.exe --project path\to\project.chproject --name "My Runtime" --width 1600 --height 900
+# Standalone Game (Chained Decos)
+./build/linux-clang/bin/Debug/ChainedDecos
+.\build\windows-clang\bin\Debug\ChainedDecos.exe
 ```
-
-Runtime CLI: `--project` / `-p`, `--name`, `--width`, `--height`.
 
 ## Working with Projects
 
@@ -233,7 +227,7 @@ Each game has a YAML metadata file defining its entry scene, physics, rendering,
 
 - `engine/` — core engine modules (graphics, scene, physics, audio, platform, assets, networking)
 - `editor/` — ChainedEditor application and editor panels/tools
-- `runtime/` — ChainedRuntime application and runtime layer
+- `engine/runtime/` — runtime execution layer and standalone game host
 - `engine/scripting/` — script host, glue bindings, and managed build integration
 - `game/chaineddecos/` — main game project
 - `game/testproject/` — alternate sandbox project
@@ -433,7 +427,7 @@ CI workflow (`.github/workflows/ci.yml`) fans out to:
 
 Debug builds use `-DENABLE_SANITIZERS=ON` (ASan + UBSan). CTest output is captured as JUnit XML.
 
-Deploy workflow (`.github/workflows/deploy-sdk.yml`): triggered by `v*` tags, packages ChainedEditor + ChainedRuntime artifacts.
+Deploy workflow (`.github/workflows/deploy-sdk.yml`): triggered by `v*` tags, packages ChainedEditor + ChainedDecos artifacts.
 
 ## Troubleshooting
 

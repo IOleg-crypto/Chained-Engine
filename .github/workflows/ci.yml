@@ -8,6 +8,8 @@ on:
       - "**/*.h"
       - "**/*.hpp"
       - "**/*.c"
+      - "**/*.cc"
+      - "**/*.cxx"
       - "**/*.inl"
       - "**/*.cs"
       - "**/*.csproj"
@@ -18,7 +20,10 @@ on:
       - "**/CMakeLists.txt"
       - "**/CMakePresets.json"
       - "cmake/**"
-      - ".github/**"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/format.yml"
+      - ".github/workflows/linux.yml"
+      - ".github/workflows/windows.yml"
   pull_request:
     branches: [main, develop, opengl]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -27,6 +32,8 @@ on:
       - "**/*.h"
       - "**/*.hpp"
       - "**/*.c"
+      - "**/*.cc"
+      - "**/*.cxx"
       - "**/*.inl"
       - "**/*.cs"
       - "**/*.csproj"
@@ -37,7 +44,10 @@ on:
       - "**/CMakeLists.txt"
       - "**/CMakePresets.json"
       - "cmake/**"
-      - ".github/**"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/format.yml"
+      - ".github/workflows/linux.yml"
+      - ".github/workflows/windows.yml"
   workflow_dispatch:
 
 concurrency:
