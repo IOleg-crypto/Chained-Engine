@@ -11,9 +11,6 @@ namespace ChainedDecos.Scripts
     ///   chat_input     - InputTextControl (text entry field)
     ///   btn_send_chat  - ButtonControl (Send button)
     ///   btn_skin_N     - ButtonControl (skin colour pickers, N = 0..7)
-    /// Optional ICE entities:
-    ///   label_ice_token  - LabelControl  (shows truncated ICE SDP token)
-    ///   btn_copy_token   - ButtonControl (copies full ICE SDP token to clipboard)
     /// </summary>
     public class LobbyUI : Script
     {
@@ -25,8 +22,6 @@ namespace ChainedDecos.Scripts
         private int m_DisconnectGraceFrames = 0;
         private const int DisconnectGraceLimit = 15;
         private bool m_WasEnterDown = false;
-        private string m_CachedIceToken = "";
-        private string m_LastIceTokenLabel = "";
 
         public override void OnCreate()
         {
@@ -76,9 +71,6 @@ namespace ChainedDecos.Scripts
 
             // 2b. Server Info Label (IP & Port)
             UpdateServerInfo();
-
-            // 2c. ICE Token display (host only)
-            UpdateIceTokenDisplay();
 
             // 3. Skin buttons - highlight selected skin
             for (int i = 0; i < SkinDatabase.SkinCount; i++)
@@ -196,9 +188,10 @@ namespace ChainedDecos.Scripts
                 string local = Network.GetListenAddress();
                 if (string.IsNullOrEmpty(local)) local = $"127.0.0.1:{LobbyManager.SelectedPort}";
                 string upnp = Network.IsUpnpAvailable ? "UPnP: OK" : "UPnP: Off";
-                string ice = Network.IsIceActive ? " | ICE: Active" : "";
                 string nat = Network.HasStunResult ? " | STUN: Ready" : (fetching ? "" : " | STUN: Direct");
-                text = $"LAN: {local} | WAN: {pub} | {players} | {upnp}{nat}{ice}";
+                uint roomCode = Network.GetRoomCode();
+                string room = roomCode > 0 ? $" | ROOM: {roomCode:D4}" : "";
+                text = $"LAN: {local} | WAN: {pub} | {players} | {upnp}{nat}{room}";
                 if (!fetching && text == m_LastDisplayedInfo) return;
             }
             else if (Network.IsClient)
@@ -219,52 +212,7 @@ namespace ChainedDecos.Scripts
 
         private void UpdateIceTokenDisplay()
         {
-            if (!Network.IsHost || !Network.IsIceActive) return;
-
-            Entity? tokenEntity = Scene.FindEntityByTag("label_ice_token");
-            Entity? copyBtnEntity = Scene.FindEntityByTag("btn_copy_token");
-
-            // Cache the token
-            string token = Network.GetIceSessionToken();
-            if (!string.IsNullOrEmpty(token))
-            {
-                m_CachedIceToken = token;
-            }
-
-            // Update label (show truncated token)
-            if (tokenEntity != null && tokenEntity.IsValid)
-            {
-                LabelControl? lc = tokenEntity.GetComponent<LabelControl>();
-                if (lc != null)
-                {
-                    string display = m_CachedIceToken.Length > 80
-                        ? m_CachedIceToken.Substring(0, 80) + "..."
-                        : m_CachedIceToken;
-                    string label = string.IsNullOrEmpty(m_CachedIceToken)
-                        ? "ICE Token: Gathering..."
-                        : $"ICE Token: {display}";
-                    if (label != m_LastIceTokenLabel)
-                    {
-                        m_LastIceTokenLabel = label;
-                        lc.Text = label;
-                    }
-                }
-            }
-
-            // Handle copy button
-            if (copyBtnEntity != null && copyBtnEntity.IsValid)
-            {
-                ButtonControl? bc = copyBtnEntity.GetComponent<ButtonControl>();
-                if (bc != null)
-                {
-                    if (bc.IsClicked && !string.IsNullOrEmpty(m_CachedIceToken))
-                    {
-                        Clipboard.SetText(m_CachedIceToken);
-                        bc.Label = "Copied!";
-                        Log.Info("[LobbyUI] ICE session token copied to clipboard.");
-                    }
-                }
-            }
+            // ICE/libjuice removed — method kept as stub so call sites compile.
         }
     }
 }

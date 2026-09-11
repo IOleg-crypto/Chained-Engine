@@ -1,0 +1,23 @@
+<Project>
+  <!-- When CH_MANAGED_OBJ_DIR is set (e.g. by build_managed.py on WSL2/Linux
+       to avoid NTFS DrvFs utime() restrictions that cause MSB3374), redirect
+       MSBuild intermediate output to a native Linux path.  Each project gets
+       its own named subfolder via MSBuildProjectName so that project.assets.json
+       is not shared between Chained.Managed and its referenced sub-projects
+       (avoids NETSDK1005). On Windows this env var is never set so the default
+       obj/ location is used unchanged. -->
+  <PropertyGroup Condition="'$(CH_MANAGED_OBJ_DIR)' != ''">
+    <BaseIntermediateOutputPath>$(CH_MANAGED_OBJ_DIR)/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <!-- Exclude ALL obj/ subdirectory .cs files from compilation.
+       This prevents CS0579 duplicate attribute errors when stale auto-generated
+       files (AssemblyInfo.cs, *.AssemblyAttributes.cs) from a previous build with
+       a different BaseIntermediateOutputPath linger in the source tree's obj/ folder
+       and get picked up alongside the current build's generated files. -->
+  <ItemGroup>
+    <Compile Remove="obj/**/*.cs" />
+    <Compile Remove="**/obj/**/*.cs" />
+  </ItemGroup>
+</Project>
+

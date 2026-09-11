@@ -46,178 +46,80 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 1418306851656295354
-    CameraComponent:
-      Primary: true
-      FixedAspectRatio: false
-      IsOrbitCamera: false
-      TargetEntityTag: Player
-      OrbitDistance: 10
-      OrbitYaw: 0
-      OrbitPitch: 20
-      LookSensitivity: 0.899999976
+  - Entity: 8219895157982558792
     TransformComponent:
-      Translation: [0, 0, 10]
+      Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: Main Camera
+      Tag: avatar_3
     IDComponent:
       {}
-  - Entity: 9224019793487630226
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.LobbyManager
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 5839768795410184732
     TransformComponent:
-      Translation: [0, 0, 0]
+      Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: LobbyRoot
+      Tag: avatar_2
     IDComponent:
       {}
-  - Entity: 6415632843371252301
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.LobbyUI
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 11501576161532787228
     TransformComponent:
-      Translation: [0, 0, 0]
+      Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: LobbyUIRoot
+      Tag: avatar_1
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0, 0]
-        AnchorMax: [1, 1]
-        OffsetMin: [20, 20]
-        OffsetMax: [-20, -20]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 10
-      IsActive: true
-      HiddenInHierarchy: false
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 9602968260172400354
+    TransformComponent:
+      Translation: [0, -100, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: avatar_0
+    IDComponent:
+      {}
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 13094770424270891923
     WidgetComponent:
       Box Style:
-        BG Color: [20, 22, 30, 200]
-        Hover Color: [20, 22, 30, 200]
-        Pressed Color: [20, 22, 30, 200]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 0]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 10
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 18
-        Text Color: [235, 238, 242, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 8
-      Texture Path: ""
-      Full Screen: false
-  - Entity: 1314361411680777196
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: label_server_info
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.25, 0.0500000007]
-        AnchorMax: [0.649999976, 0.119999997]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [30, 35, 48, 180]
-        Hover Color: [30, 35, 48, 180]
-        Pressed Color: [30, 35, 48, 180]
+        BG Color: [255, 128, 0, 255]
+        Hover Color: [230, 115, 0, 255]
+        Pressed Color: [200, 100, 0, 255]
         Rounding: 6
-        Border Size: 1
-        Border Color: [70, 75, 100, 255]
+        Border Size: 2
+        Border Color: [150, 80, 0, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
-        Font Size: 16
-        Text Color: [110, 231, 211, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 3
-      Text: "Server IP & Port"
-      Auto Size: false
-  - Entity: 17005230014403248580
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.StartGameButton
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_start_game
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.699999988, 0.0500000007]
-        AnchorMax: [0.949999988, 0.119999997]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [40, 160, 80, 255]
-        Hover Color: [50, 180, 90, 255]
-        Pressed Color: [30, 130, 60, 255]
-        Rounding: 8
-        Border Size: 0
-        Border Color: [255, 255, 255, 0]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.03000009
-        Pressed Scale: 0.970000029
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 20
+        Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
@@ -227,54 +129,54 @@ Entities:
         H Align: 1
         V Align: 1
       Widget Type: 1
-      Label: Start Game
+      Label: Orange
       Interactable: true
       Auto Size: false
-  - Entity: 12883455625891140505
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.819999993, 0.850000024]
+        AnchorMax: [0.920000017, 0.920000017]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_7
+    IDComponent:
+      {}
     ManagedScriptComponent:
       Scripts:
-        - ClassName: ChainedDecos.Scripts.DisconnectButton
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
           Fields:
-            - Name: MenuScene
-              Type: 4
-              Value: scenes/multiplayer_menu.chscene
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_disconnect
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.0500000007, 0.0500000007]
-        AnchorMax: [0.200000003, 0.119999997]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
+            - Name: SkinIndex
+              Type: 2
+              Value: 7
+  - Entity: 18062999030053109456
     WidgetComponent:
       Box Style:
-        BG Color: [180, 50, 50, 255]
-        Hover Color: [200, 60, 60, 255]
-        Pressed Color: [150, 40, 40, 255]
-        Rounding: 8
-        Border Size: 0
-        Border Color: [255, 255, 255, 0]
+        BG Color: [0, 204, 204, 255]
+        Hover Color: [0, 180, 180, 255]
+        Pressed Color: [0, 150, 150, 255]
+        Rounding: 6
+        Border Size: 2
+        Border Color: [0, 120, 120, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1.03000009
-        Pressed Scale: 0.970000029
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
-        Font Size: 18
+        Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
@@ -284,48 +186,55 @@ Entities:
         H Align: 1
         V Align: 1
       Widget Type: 1
-      Label: Disconnect
+      Label: Cyan
       Interactable: true
       Auto Size: false
-  - Entity: 13281084427355810938
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: chat_panel
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.140000001]
-        AnchorMax: [0.980000019, 0.819999993]
+        AnchorMin: [0.709999979, 0.850000024]
+        AnchorMax: [0.810000002, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
-      ZOrder: 15
+      ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_6
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 6
+  - Entity: 1784520826731827447
     WidgetComponent:
       Box Style:
-        BG Color: [18, 20, 28, 210]
-        Hover Color: [18, 20, 28, 210]
-        Pressed Color: [18, 20, 28, 210]
-        Rounding: 10
-        Border Size: 1
-        Border Color: [60, 62, 80, 255]
+        BG Color: [204, 51, 255, 255]
+        Hover Color: [180, 50, 230, 255]
+        Pressed Color: [150, 40, 200, 255]
+        Rounding: 6
+        Border Size: 2
+        Border Color: [120, 30, 150, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
-        Padding: 10
-        Hover Scale: 1
-        Pressed Scale: 1
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
         Font Size: 14
-        Text Color: [200, 200, 210, 255]
+        Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
@@ -333,22 +242,14 @@ Entities:
         Line Height: 1.20000005
         H Align: 1
         V Align: 1
-      Widget Type: 8
-      Texture Path: ""
-      Full Screen: false
-  - Entity: 12394029669239048155
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: label_chat_title
-    IDComponent:
-      {}
+      Widget Type: 1
+      Label: Purple
+      Interactable: true
+      Auto Size: false
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.75]
-        AnchorMax: [0.980000019, 0.819999993]
+        AnchorMin: [0.600000024, 0.850000024]
+        AnchorMax: [0.699999988, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -357,145 +258,55 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 27, 38, 0]
-        Hover Color: [25, 27, 38, 0]
-        Pressed Color: [25, 27, 38, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 0]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 8
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 15
-        Text Color: [140, 145, 175, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 3
-      Text: CHAT
-      Auto Size: false
-  - Entity: 13071741079051619414
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: label_players_count
+      Tag: btn_skin_5
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.0500000007, 0.75]
-        AnchorMax: [0.300000012, 0.819999993]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 5
+  - Entity: 5376914906278293850
     WidgetComponent:
       Box Style:
-        BG Color: [18, 20, 28, 210]
-        Hover Color: [18, 20, 28, 210]
-        Pressed Color: [18, 20, 28, 210]
+        BG Color: [255, 204, 0, 255]
+        Hover Color: [230, 180, 0, 255]
+        Pressed Color: [200, 160, 0, 255]
         Rounding: 6
-        Border Size: 1
-        Border Color: [60, 62, 80, 255]
+        Border Size: 2
+        Border Color: [150, 120, 0, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
-        Padding: 6
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 18
-        Text Color: [110, 231, 211, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 3
-      Text: "PLAYERS: 1 / 4"
-      Auto Size: false
-  - Entity: 2558024183992982990
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: chat_messages
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.670000017, 0.289999992]
-        AnchorMax: [0.980000019, 0.74000001]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 1]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [12, 14, 20, 180]
-        Hover Color: [12, 14, 20, 180]
-        Pressed Color: [12, 14, 20, 180]
-        Rounding: 6
-        Border Size: 0
-        Border Color: [255, 255, 255, 0]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 8
-        Hover Scale: 1
-        Pressed Scale: 1
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
         Font Size: 14
-        Text Color: [210, 215, 230, 255]
+        Text Color: [30, 30, 30, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
         Letter Spacing: 1
         Line Height: 1.20000005
-        H Align: 0
-        V Align: 0
-      Widget Type: 3
-      Text: ""
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Yellow
+      Interactable: true
       Auto Size: false
-  - Entity: 3153595900794296750
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: chat_input
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.200000003]
-        AnchorMax: [0.879999995, 0.270000011]
+        AnchorMin: [0.49000001, 0.850000024]
+        AnchorMax: [0.589999974, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -504,6 +315,300 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_4
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 4
+  - Entity: 8509799466560337105
+    WidgetComponent:
+      Box Style:
+        BG Color: [51, 102, 255, 255]
+        Hover Color: [50, 90, 230, 255]
+        Pressed Color: [40, 80, 200, 255]
+        Rounding: 6
+        Border Size: 2
+        Border Color: [30, 60, 150, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 14
+        Text Color: [255, 255, 255, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Blue
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.379999995, 0.850000024]
+        AnchorMax: [0.479999989, 0.920000017]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_3
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 3
+  - Entity: 9979604263234168691
+    WidgetComponent:
+      Box Style:
+        BG Color: [51, 204, 51, 255]
+        Hover Color: [50, 180, 50, 255]
+        Pressed Color: [40, 150, 40, 255]
+        Rounding: 6
+        Border Size: 2
+        Border Color: [30, 100, 30, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 14
+        Text Color: [255, 255, 255, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Green
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.270000011, 0.850000024]
+        AnchorMax: [0.370000005, 0.920000017]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_2
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 2
+  - Entity: 304485699082955946
+    WidgetComponent:
+      Box Style:
+        BG Color: [255, 51, 51, 255]
+        Hover Color: [230, 50, 50, 255]
+        Pressed Color: [200, 40, 40, 255]
+        Rounding: 6
+        Border Size: 2
+        Border Color: [100, 30, 30, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 14
+        Text Color: [255, 255, 255, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Red
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.159999996, 0.850000024]
+        AnchorMax: [0.25999999, 0.920000017]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_1
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 1
+  - Entity: 13418816367905996251
+    WidgetComponent:
+      Box Style:
+        BG Color: [255, 255, 255, 255]
+        Hover Color: [230, 230, 230, 255]
+        Pressed Color: [200, 200, 200, 255]
+        Rounding: 6
+        Border Size: 2
+        Border Color: [100, 100, 100, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 14
+        Text Color: [30, 30, 30, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: White
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.0500000007, 0.850000024]
+        AnchorMax: [0.150000006, 0.920000017]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_0
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 0
+  - Entity: 8173008099772800295
+    WidgetComponent:
+      Box Style:
+        BG Color: [60, 100, 200, 255]
+        Hover Color: [75, 120, 225, 255]
+        Pressed Color: [50, 85, 175, 255]
+        Rounding: 6
+        Border Size: 0
+        Border Color: [255, 255, 255, 0]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.04999995
+        Pressed Scale: 0.949999988
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 14
+        Text Color: [255, 255, 255, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Send
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.889999986, 0.200000003]
+        AnchorMax: [0.980000019, 0.270000011]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_send_chat
+    IDComponent:
+      {}
+  - Entity: 16555843832417342604
     WidgetComponent:
       Box Style:
         BG Color: [30, 32, 44, 255]
@@ -537,19 +642,10 @@ Entities:
       Multiline: false
       Read Only: false
       Password: false
-  - Entity: 485726660537156622
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_send_chat
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.889999986, 0.200000003]
-        AnchorMax: [0.980000019, 0.270000011]
+        AnchorMin: [0.670000017, 0.200000003]
+        AnchorMax: [0.879999995, 0.270000011]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -558,23 +654,228 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: chat_input
+    IDComponent:
+      {}
+  - Entity: 12986039170504622839
     WidgetComponent:
       Box Style:
-        BG Color: [60, 100, 200, 255]
-        Hover Color: [75, 120, 225, 255]
-        Pressed Color: [50, 85, 175, 255]
+        BG Color: [12, 14, 20, 180]
+        Hover Color: [12, 14, 20, 180]
+        Pressed Color: [12, 14, 20, 180]
         Rounding: 6
         Border Size: 0
         Border Color: [255, 255, 255, 0]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
+        Padding: 8
+        Hover Scale: 1
+        Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
         Font Size: 14
+        Text Color: [210, 215, 230, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 0
+      Widget Type: 3
+      Text: ""
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.670000017, 0.289999992]
+        AnchorMax: [0.980000019, 0.74000001]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 1]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: chat_messages
+    IDComponent:
+      {}
+  - Entity: 5622786046136279372
+    WidgetComponent:
+      Box Style:
+        BG Color: [18, 20, 28, 210]
+        Hover Color: [18, 20, 28, 210]
+        Pressed Color: [18, 20, 28, 210]
+        Rounding: 6
+        Border Size: 1
+        Border Color: [60, 62, 80, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 6
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 18
+        Text Color: [110, 231, 211, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 3
+      Text: "PLAYERS: 1 / 4"
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.0500000007, 0.75]
+        AnchorMax: [0.300000012, 0.819999993]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: label_players_count
+    IDComponent:
+      {}
+  - Entity: 3243140455516661595
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 27, 38, 0]
+        Hover Color: [25, 27, 38, 0]
+        Pressed Color: [25, 27, 38, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 0]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 8
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 15
+        Text Color: [140, 145, 175, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 3
+      Text: CHAT
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.670000017, 0.75]
+        AnchorMax: [0.980000019, 0.819999993]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: label_chat_title
+    IDComponent:
+      {}
+  - Entity: 14207474856315999375
+    WidgetComponent:
+      Box Style:
+        BG Color: [18, 20, 28, 210]
+        Hover Color: [18, 20, 28, 210]
+        Pressed Color: [18, 20, 28, 210]
+        Rounding: 10
+        Border Size: 1
+        Border Color: [60, 62, 80, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 10
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 14
+        Text Color: [200, 200, 210, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 8
+      Texture Path: ""
+      Full Screen: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.670000017, 0.140000001]
+        AnchorMax: [0.980000019, 0.819999993]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 15
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: chat_panel
+    IDComponent:
+      {}
+  - Entity: 10124174963513324297
+    WidgetComponent:
+      Box Style:
+        BG Color: [180, 50, 50, 255]
+        Hover Color: [200, 60, 60, 255]
+        Pressed Color: [150, 40, 40, 255]
+        Rounding: 8
+        Border Size: 0
+        Border Color: [255, 255, 255, 0]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.03000009
+        Pressed Scale: 0.970000029
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 18
         Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
@@ -584,29 +885,13 @@ Entities:
         H Align: 1
         V Align: 1
       Widget Type: 1
-      Label: Send
+      Label: Disconnect
       Interactable: true
       Auto Size: false
-  - Entity: 12198104549970468309
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 0
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_0
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.0500000007, 0.850000024]
-        AnchorMax: [0.150000006, 0.920000017]
+        AnchorMin: [0.0500000007, 0.0500000007]
+        AnchorMax: [0.200000003, 0.119999997]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -615,80 +900,39 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [255, 255, 255, 255]
-        Hover Color: [230, 230, 230, 255]
-        Pressed Color: [200, 200, 200, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [100, 100, 100, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [30, 30, 30, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: White
-      Interactable: true
-      Auto Size: false
-  - Entity: 17227587088998785993
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 1
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: btn_skin_1
+      Tag: btn_disconnect
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.159999996, 0.850000024]
-        AnchorMax: [0.25999999, 0.920000017]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.DisconnectButton
+          Fields:
+            - Name: MenuScene
+              Type: 4
+              Value: scenes/multiplayer_menu.chscene
+  - Entity: 7330845542082217534
     WidgetComponent:
       Box Style:
-        BG Color: [255, 51, 51, 255]
-        Hover Color: [230, 50, 50, 255]
-        Pressed Color: [200, 40, 40, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [100, 30, 30, 255]
+        BG Color: [40, 160, 80, 255]
+        Hover Color: [50, 180, 90, 255]
+        Pressed Color: [30, 130, 60, 255]
+        Rounding: 8
+        Border Size: 0
+        Border Color: [255, 255, 255, 0]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
+        Hover Scale: 1.03000009
+        Pressed Scale: 0.970000029
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
-        Font Size: 14
+        Font Size: 20
         Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
@@ -698,29 +942,13 @@ Entities:
         H Align: 1
         V Align: 1
       Widget Type: 1
-      Label: Red
+      Label: Start Game
       Interactable: true
       Auto Size: false
-  - Entity: 14936857684455987788
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 2
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_2
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.270000011, 0.850000024]
-        AnchorMax: [0.370000005, 0.920000017]
+        AnchorMin: [0.699999988, 0.0500000007]
+        AnchorMax: [0.949999988, 0.119999997]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -729,24 +957,36 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_start_game
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.StartGameButton
+  - Entity: 1886632723851404709
     WidgetComponent:
       Box Style:
-        BG Color: [51, 204, 51, 255]
-        Hover Color: [50, 180, 50, 255]
-        Pressed Color: [40, 150, 40, 255]
+        BG Color: [30, 35, 48, 180]
+        Hover Color: [30, 35, 48, 180]
+        Pressed Color: [30, 35, 48, 180]
         Rounding: 6
-        Border Size: 2
-        Border Color: [30, 100, 30, 255]
+        Border Size: 1
+        Border Color: [70, 75, 100, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
+        Hover Scale: 1
+        Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [255, 255, 255, 255]
+        Font Size: 16
+        Text Color: [110, 231, 211, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
@@ -754,30 +994,13 @@ Entities:
         Line Height: 1.20000005
         H Align: 1
         V Align: 1
-      Widget Type: 1
-      Label: Green
-      Interactable: true
+      Widget Type: 3
+      Text: "Server IP & Port"
       Auto Size: false
-  - Entity: 18427443006995559600
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 3
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_3
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.379999995, 0.850000024]
-        AnchorMax: [0.479999989, 0.920000017]
+        AnchorMin: [0.25, 0.0500000007]
+        AnchorMax: [0.649999976, 0.119999997]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -786,81 +1009,33 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [51, 102, 255, 255]
-        Hover Color: [50, 90, 230, 255]
-        Pressed Color: [40, 80, 200, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [30, 60, 150, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [255, 255, 255, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Blue
-      Interactable: true
-      Auto Size: false
-  - Entity: 5215997262083019075
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 4
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: btn_skin_4
+      Tag: label_server_info
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.49000001, 0.850000024]
-        AnchorMax: [0.589999974, 0.920000017]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
+  - Entity: 1833527042896378179
     WidgetComponent:
       Box Style:
-        BG Color: [255, 204, 0, 255]
-        Hover Color: [230, 180, 0, 255]
-        Pressed Color: [200, 160, 0, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [150, 120, 0, 255]
+        BG Color: [20, 22, 30, 200]
+        Hover Color: [20, 22, 30, 200]
+        Pressed Color: [20, 22, 30, 200]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 0]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
+        Padding: 10
+        Hover Scale: 1
+        Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [30, 30, 30, 255]
+        Font Size: 18
+        Text Color: [235, 238, 242, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
@@ -868,234 +1043,59 @@ Entities:
         Line Height: 1.20000005
         H Align: 1
         V Align: 1
-      Widget Type: 1
-      Label: Yellow
-      Interactable: true
-      Auto Size: false
-  - Entity: 18118793894869179543
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 5
+      Widget Type: 8
+      Texture Path: ""
+      Full Screen: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0, 0]
+        AnchorMax: [1, 1]
+        OffsetMin: [20, 20]
+        OffsetMax: [-20, -20]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 10
+      IsActive: true
+      HiddenInHierarchy: false
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: btn_skin_5
+      Tag: LobbyUIRoot
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.600000024, 0.850000024]
-        AnchorMax: [0.699999988, 0.920000017]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [204, 51, 255, 255]
-        Hover Color: [180, 50, 230, 255]
-        Pressed Color: [150, 40, 200, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [120, 30, 150, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [255, 255, 255, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Purple
-      Interactable: true
-      Auto Size: false
-  - Entity: 10952992235000685012
     ManagedScriptComponent:
       Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 6
+        - ClassName: ChainedDecos.Scripts.LobbyUI
+  - Entity: 10636182072576429579
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: btn_skin_6
+      Tag: LobbyRoot
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.709999979, 0.850000024]
-        AnchorMax: [0.810000002, 0.920000017]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 204, 204, 255]
-        Hover Color: [0, 180, 180, 255]
-        Pressed Color: [0, 150, 150, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [0, 120, 120, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [255, 255, 255, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Cyan
-      Interactable: true
-      Auto Size: false
-  - Entity: 12936159464029008351
     ManagedScriptComponent:
       Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 7
+        - ClassName: ChainedDecos.Scripts.LobbyManager
+  - Entity: 7190329943476180267
     TransformComponent:
-      Translation: [0, 0, 0]
+      Translation: [0, 0, 10]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: btn_skin_7
+      Tag: Main Camera
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.819999993, 0.850000024]
-        AnchorMax: [0.920000017, 0.920000017]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [255, 128, 0, 255]
-        Hover Color: [230, 115, 0, 255]
-        Pressed Color: [200, 100, 0, 255]
-        Rounding: 6
-        Border Size: 2
-        Border Color: [150, 80, 0, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04999995
-        Pressed Scale: 0.949999988
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/arial.ttf
-        Font Size: 14
-        Text Color: [255, 255, 255, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Orange
-      Interactable: true
-      Auto Size: false
-  - Entity: 6521488293377963220
-    ModelComponent:
-      ModelPath: models/primitives/Sphere.obj
-      ModelUUID: 1095150319693539168
-      MaterialPaths:
-        []
-    TransformComponent:
-      Translation: [0, -100, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: avatar_0
-    IDComponent:
-      {}
-  - Entity: 13897156584407590886
-    ModelComponent:
-      ModelPath: models/primitives/Sphere.obj
-      ModelUUID: 1095150319693539168
-      MaterialPaths:
-        []
-    TransformComponent:
-      Translation: [0, -100, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: avatar_1
-    IDComponent:
-      {}
-  - Entity: 18272469835552822719
-    ModelComponent:
-      ModelPath: models/primitives/Sphere.obj
-      ModelUUID: 1095150319693539168
-      MaterialPaths:
-        []
-    TransformComponent:
-      Translation: [0, -100, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: avatar_2
-    IDComponent:
-      {}
-  - Entity: 5612050008884149410
-    ModelComponent:
-      ModelPath: models/primitives/Sphere.obj
-      ModelUUID: 1095150319693539168
-      MaterialPaths:
-        []
-    TransformComponent:
-      Translation: [0, -100, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: avatar_3
-    IDComponent:
-      {}
+    CameraComponent:
+      Primary: true
+      FixedAspectRatio: false
+      IsOrbitCamera: false
+      TargetEntityTag: Player
+      OrbitDistance: 10
+      OrbitYaw: 0
+      OrbitPitch: 20
+      LookSensitivity: 0.899999976

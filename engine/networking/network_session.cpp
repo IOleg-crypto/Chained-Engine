@@ -1,6 +1,5 @@
 #include "network_session.h"
 #include "enet_threaded_driver.h"
-#include "juice_ice_driver.h"
 
 namespace Chained
 {
@@ -24,42 +23,8 @@ namespace Chained
 
 		Shutdown();
 		m_DriverType = type;
-
-		if (type == DriverType::JuiceICE)
-		{
-			m_Driver = std::make_unique<JuiceIceDriver>();
-		}
-		else
-		{
-			m_Driver = std::make_unique<ENetThreadedDriver>();
-		}
+		m_Driver = std::make_unique<ENetThreadedDriver>();
 		m_Driver->Initialize();
-	}
-
-	std::string NetworkSession::GetIceSessionToken() const
-	{
-		if (m_DriverType == DriverType::JuiceICE && m_Driver)
-		{
-			auto* ice = dynamic_cast<JuiceIceDriver*>(m_Driver.get());
-			if (ice)
-			{
-				return ice->GetLocalSessionToken();
-			}
-		}
-		return "";
-	}
-
-	bool NetworkSession::SetRemoteIceToken(const std::string& token)
-	{
-		if (m_DriverType == DriverType::JuiceICE && m_Driver)
-		{
-			auto* ice = dynamic_cast<JuiceIceDriver*>(m_Driver.get());
-			if (ice)
-			{
-				return ice->SetRemoteSessionToken(token);
-			}
-		}
-		return false;
 	}
 
 	NetworkError NetworkSession::Initialize()
@@ -272,6 +237,14 @@ namespace Chained
 			{
 				m_DisconnectionCallback(peerIndex, 0);
 			}
+		}
+	}
+
+	void NetworkSession::PunchHole(const std::string& targetIP, uint16_t targetPort, int count)
+	{
+		if (m_Driver)
+		{
+			m_Driver->PunchHole(targetIP, targetPort, count);
 		}
 	}
 

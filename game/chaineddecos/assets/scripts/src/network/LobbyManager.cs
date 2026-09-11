@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Chained;
 
@@ -21,6 +21,7 @@ namespace ChainedDecos.Scripts
         public static int SelectedSkinIndex = 0;
         public static string SelectedMap = "scenes/rpg_strategy_scene_mp.chscene";
         public static int MaxClients = 4;
+        public static uint RoomCode = 0;
 
         private float m_RefreshTimer = 0.0f;
 
@@ -105,7 +106,7 @@ namespace ChainedDecos.Scripts
             {
                 if (m_SlotByNetId.ContainsKey(p.NetworkID))
                 {
-                    // Already has a slot — just update color
+                    // Already has a slot - just update color
                     int slot = m_SlotByNetId[p.NetworkID];
                     SetSlotColor(slot, p.SkinIndex);
                     continue;
@@ -128,9 +129,9 @@ namespace ChainedDecos.Scripts
                     continue;
                 }
 
-			m_SlotNetIds[freeSlot] = p.NetworkID;
-			m_SlotByNetId[p.NetworkID] = freeSlot;
-			SetSlotPosition(freeSlot, freeSlot);
+                m_SlotNetIds[freeSlot] = p.NetworkID;
+                m_SlotByNetId[p.NetworkID] = freeSlot;
+                SetSlotPosition(freeSlot, freeSlot);
                 SetSlotColor(freeSlot, p.SkinIndex);
                 Log.Info($"LobbyManager: Assigned netID={p.NetworkID} to slot {freeSlot} (skin={p.SkinIndex})");
             }
@@ -163,7 +164,8 @@ namespace ChainedDecos.Scripts
             var t = avatar.GetComponent<TransformComponent>();
             if (t != null) t.Translation = new Vector3(0, -100, 0);
         }
-        private struct PlayerEntry
+
+        private struct PlayerEntry
         {
             public ulong NetworkID;
             public string Name;

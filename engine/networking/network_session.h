@@ -51,6 +51,7 @@ namespace Chained
 		int GetMaxClients() const;
 		uint16_t GetPort() const;
 		std::string GetListenAddress() const;
+		void PunchHole(const std::string& targetIP, uint16_t targetPort, int count = 10);
 
 		void SetEventCallback(EventCallback cb)
 		{
@@ -79,9 +80,6 @@ namespace Chained
 		{
 			return m_DriverType;
 		}
-
-		std::string GetIceSessionToken() const;
-		bool SetRemoteIceToken(const std::string& token);
 
 		bool IsClientConnected(int clientIndex) const;
 		uint32_t GetPeerRtt(int peerIndex) const;

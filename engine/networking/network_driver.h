@@ -38,6 +38,9 @@ namespace Chained
 		virtual std::string GetListenAddress() const = 0;
 		virtual uint32_t GetPeerRtt(int peerIndex) const = 0;
 		virtual bool IsPeerConnected(int peerIndex) const = 0;
+		virtual void PunchHole(const std::string& targetIP, uint16_t targetPort, int count = 10)
+		{
+		}
 	};
 } // namespace Chained
 

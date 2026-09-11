@@ -63,6 +63,7 @@ namespace Chained
 		std::string GetListenAddress() const override;
 		uint32_t GetPeerRtt(int peerIndex) const override;
 		bool IsPeerConnected(int peerIndex) const override;
+		void PunchHole(const std::string& targetIP, uint16_t targetPort, int count = 10) override;
 
 	private:
 		struct OutboundPacket
@@ -70,12 +71,16 @@ namespace Chained
 			enum class Type
 			{
 				Send,
-				DisconnectPeer
+				DisconnectPeer,
+				PunchHole
 			};
 			Type CmdType = Type::Send;
 			int PeerIndex = kInvalidPeerHandle;
 			ePacketChannel Channel = ePacketChannel::SYSTEM;
 			bool Reliable = true;
+			std::string PunchIP;
+			uint16_t PunchPort = 0;
+			int PunchCount = 10;
 			std::vector<uint8_t> Data;
 		};
 

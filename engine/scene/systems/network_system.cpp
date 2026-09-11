@@ -1,4 +1,4 @@
-#include "network_system.h"
+﻿#include "network_system.h"
 #include "engine/scene/components/gameplay/network_identity_component.h"
 #include "engine/scene/components/core/transform_component.h"
 #include "engine/scene/components/core/hierarchy_component.h"
@@ -921,8 +921,15 @@ namespace Chained
 			clientNetID = net->GetNetworkIDForConnection(clientIndex);
 		}
 
-		int count = 0;
-		if (clientNetID != 0)
+		// BUG #1 fix: if networkID not yet assigned, defer so EntitySpawn never arrives before PlayerAssign
+		if (clientNetID == 0)
+		{
+			CH_CORE_WARN("Network: ResyncClientEntities - no networkID for client {} yet, deferring.", clientIndex);
+			m_DeferredSceneLoaded[clientIndex] = scene->GetSettings().ScenePath;
+			return;
+		}
+
+		// Always send PlayerAssign FIRST, before any EntitySpawn
 		{
 			PlayerAssignMessage assignMsg;
 			assignMsg.NetworkID = clientNetID;
@@ -930,6 +937,8 @@ namespace Chained
 			assignMsg.Encode(w);
 			net->SendPacket(clientIndex, MessageType_PlayerAssign, w.Data().data(), w.Data().size(), true);
 		}
+
+		int count = 0;
 
 		entt::registry& reg = scene->GetRegistry();
 		auto view = reg.view<NetworkIdentityComponent>();
@@ -1266,20 +1275,34 @@ namespace Chained
 					if (msg.Decode(r))
 					{
 						std::string clientScene = msg.ScenePath;
-						std::string hostScene = m_ReplicationScene ? m_ReplicationScene->GetSettings().ScenePath : "";
 
-						if (AreScenePathsMatching(hostScene, clientScene))
+						// When host is still transitioning (m_ReplicationScene == nullptr),
+						// AreScenePathsMatching returns true for empty path — which causes
+						// ResyncClientEntities to be called with nullptr and silently drop all spawns.
+						// Always defer in this case so the resync fires after the host finishes loading.
+						if (!m_ReplicationScene)
 						{
-							CH_CORE_INFO("Network: Client {} loaded scene '{}' — resyncing entities.", clientIndex,
-										 clientScene);
-							ResyncClientEntities(clientIndex, m_ReplicationScene);
+							CH_CORE_INFO(
+								"Network: Client {} loaded scene '{}' — host still transitioning, deferring resync.",
+								clientIndex, clientScene);
+							m_DeferredSceneLoaded[clientIndex] = clientScene;
 						}
 						else
 						{
-							CH_CORE_INFO(
-								"Network: Client {} loaded scene '{}', but host is on '{}' — deferring resync.",
-								clientIndex, clientScene, hostScene);
-							m_DeferredSceneLoaded[clientIndex] = clientScene;
+							std::string hostScene = m_ReplicationScene->GetSettings().ScenePath;
+							if (AreScenePathsMatching(hostScene, clientScene))
+							{
+								CH_CORE_INFO("Network: Client {} loaded scene '{}' — resyncing entities.", clientIndex,
+											 clientScene);
+								ResyncClientEntities(clientIndex, m_ReplicationScene);
+							}
+							else
+							{
+								CH_CORE_INFO(
+									"Network: Client {} loaded scene '{}', but host is on '{}' — deferring resync.",
+									clientIndex, clientScene, hostScene);
+								m_DeferredSceneLoaded[clientIndex] = clientScene;
+							}
 						}
 					}
 					break;
@@ -1325,18 +1348,25 @@ namespace Chained
 					break;
 				}
 				case MessageType_EntitySpawn: {
-					EntitySpawnMessage msg;
-					if (msg.Decode(r))
+					EntitySpawnMessage spawnMsg;
+					if (spawnMsg.Decode(r))
 					{
-						ProcessEntitySpawnMessage(&msg, m_ReplicationScene);
+						if (m_ReplicationScene)
+						{
+							ProcessEntitySpawnMessage(&spawnMsg, m_ReplicationScene);
+						}
+						else
+						{
+							m_PendingEntitySpawns.push_back(spawnMsg);
+						}
 					}
 					break;
 				}
 				case MessageType_EntityDestroy: {
-					EntityDestroyMessage msg;
-					if (msg.Decode(r))
+					EntityDestroyMessage destroyMsg;
+					if (destroyMsg.Decode(r))
 					{
-						ProcessEntityDestroyMessage(&msg, m_ReplicationScene);
+						ProcessEntityDestroyMessage(&destroyMsg, m_ReplicationScene);
 					}
 					break;
 				}
@@ -1424,7 +1454,7 @@ namespace Chained
 
 		m_ClientTick = 0;
 		m_HostTick = 0;
-		m_CallbackRole = Role::Offline; // forces callback re-install on next session
+		m_CallbackRole = Role::Offline;
 		m_PeerToNetworkID.clear();
 		m_PeerToAvatar.clear();
 		m_PendingStates.clear();
@@ -1435,6 +1465,8 @@ namespace Chained
 		m_NetworkIDToEntity.clear();
 		m_LastActionFlags.clear();
 		m_WarnedInputNetID.clear();
+		m_DeferredSceneLoaded.clear();
+		m_PendingEntitySpawns.clear();
 		m_ReplicationScene = nullptr;
 		m_PrefabWarnedOnce = false;
 		m_SceneLoadedPending = false;
@@ -1504,6 +1536,13 @@ namespace Chained
 			if (net->IsClient())
 			{
 				m_SceneLoadedPending = true;
+
+				// BUG #2 fix: flush EntitySpawn messages that arrived while scene was loading
+				for (auto& spawn : m_PendingEntitySpawns)
+				{
+					ProcessEntitySpawnMessage(&spawn, m_ReplicationScene);
+				}
+				m_PendingEntitySpawns.clear();
 			}
 		}
 

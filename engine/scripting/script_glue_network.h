@@ -11,8 +11,11 @@ namespace Chained
 {
 
 	CH_SCRIPT_FUNC void Network_HostGame(uint16_t port, int maxClients);
+	CH_SCRIPT_FUNC uint32_t Network_HostRoom(uint16_t port, int maxClients);
 
 	CH_SCRIPT_FUNC void Network_ConnectTo(const Coral::UCChar* ip, uint16_t port);
+	CH_SCRIPT_FUNC void Network_ConnectRoom(uint32_t roomCode);
+	CH_SCRIPT_FUNC uint32_t Network_GetRoomCode();
 
 	CH_SCRIPT_FUNC void Network_Disconnect();
 
@@ -68,12 +71,6 @@ namespace Chained
 
 	// Ping / RTT
 	CH_SCRIPT_FUNC uint32_t Network_GetPing();
-
-	// ICE / WebRTC
-	CH_SCRIPT_FUNC void Network_HostGameIce(uint16_t port, int maxClients);
-	CH_SCRIPT_FUNC void Network_GetIceSessionToken(char* outBuffer, int bufferSize);
-	CH_SCRIPT_FUNC uint8_t Network_SetRemoteIceToken(const Coral::UCChar* token);
-	CH_SCRIPT_FUNC uint8_t Network_IsIceActive();
 
 } // namespace Chained
 #endif

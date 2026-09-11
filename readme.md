@@ -17,6 +17,9 @@ ChainedEngine is a modular C++23 game engine with editor tooling, runtime packag
 > [!NOTE]
 > Active development is ongoing. Features and workflows continue to evolve, but this README is maintained to reflect the current repository state.
 
+> [!IMPORTANT]
+> **Branch strategy:** The [`opengl`](https://github.com/IOleg-crypto/Chained-Engine/tree/opengl) branch is the active development branch where new features land first (newer OpenGL renderer improvements, editor features, networking changes). The [`main`](https://github.com/IOleg-crypto/Chained-Engine/tree/main) branch is the **stable** branch — it receives merged, tested changes from `opengl`. For everyday use and builds, prefer `main`. To follow cutting-edge development, use `opengl`.
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -297,6 +300,45 @@ sudo apt-get install -y build-essential cmake ninja-build clang lld \
   pkg-config libgtk-3-dev libdrm-dev libgbm-dev \
   xvfb libxkbcommon-x11-0 libgl1-mesa-dri mesa-utils dotnet-sdk-9.0
 ```
+
+### Building on WSL2 (Windows Subsystem for Linux)
+
+ChainedEngine builds and runs under **WSL2 + Ubuntu 24.04** with hardware-accelerated OpenGL 4.3+ via WSLg (Mesa D3D12 backend, translating OpenGL calls to DirectX 12 on the Windows host GPU).
+
+> [!WARNING]
+> The WSL2 filesystem mounts your Windows drives under `/mnt/` (e.g. `/mnt/d/`). CMake's `configure_file` cannot write to NTFS-mounted paths — **always specify `-B` pointing to the native Linux filesystem**, otherwise you will get `Operation not permitted` errors.
+
+**Setup:**
+```bash
+# Install all required system packages
+sudo apt install -y \
+  ninja-build clang cmake build-essential \
+  libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+  libxext-dev libgl1-mesa-dev libglu1-mesa-dev mesa-utils \
+  zlib1g-dev pkg-config python3 libwayland-dev wayland-protocols \
+  dotnet-sdk-9.0
+
+# Verify OpenGL hardware acceleration (should show 4.3+ and NOT llvmpipe)
+glxinfo | grep "Max core profile version"
+glxinfo | grep "OpenGL renderer"
+```
+
+**Configure + Build:**
+```bash
+# Source can stay on /mnt/d/ — only the build dir must be on native Linux fs
+cmake --preset linux-clang -B ~/build/chaineddecos
+cmake --build ~/build/chaineddecos --config Debug --parallel
+```
+
+**Run the editor** (requires WSLg for window display):
+```bash
+~/build/chaineddecos/bin/Debug/ChainedEditor
+```
+
+> [!TIP]
+> If `glxinfo` reports `llvmpipe` as the renderer, WSLg D3D12 acceleration is not active. Ensure your Windows GPU drivers support DirectX 12 and that WSL is up to date (`wsl --update` in PowerShell). On laptops with dual GPUs you can force the discrete card: `MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA ./ChainedEditor`
+
+
 
 ## Testing
 

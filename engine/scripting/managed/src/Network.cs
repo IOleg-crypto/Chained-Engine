@@ -56,14 +56,13 @@ namespace Chained
         internal static unsafe delegate* unmanaged<char*, ushort, void> Network_StartHolePunch_Ptr;
         internal static unsafe delegate* unmanaged<ushort, void> Network_QueryStun_Ptr;
 
+        // Room Code Signaling
+        internal static unsafe delegate* unmanaged<ushort, int, uint> Network_HostRoom_Ptr;
+        internal static unsafe delegate* unmanaged<uint, void> Network_ConnectRoom_Ptr;
+        internal static unsafe delegate* unmanaged<uint> Network_GetRoomCode_Ptr;
+
         // Ping / RTT
         internal static unsafe delegate* unmanaged<uint> Network_GetPing_Ptr;
-
-        // ICE / WebRTC
-        internal static unsafe delegate* unmanaged<ushort, int, void> Network_HostGameIce_Ptr;
-        internal static unsafe delegate* unmanaged<char*, int, void> Network_GetIceSessionToken_Ptr;
-        internal static unsafe delegate* unmanaged<char*, byte> Network_SetRemoteIceToken_Ptr;
-        internal static unsafe delegate* unmanaged<byte> Network_IsIceActive_Ptr;
 
 #pragma warning restore 0649
 
@@ -271,6 +270,36 @@ namespace Chained
             Network_QueryStun_Ptr(localPort);
         }
 
+        // ── Room Code (STUN Hole Punch) ───────────────────────────────────
+
+        /// <summary>
+        /// Hosts a game and registers with the signaling server.
+        /// Returns a 4-digit room code clients can use to connect without knowing your IP.
+        /// </summary>
+        public static unsafe uint HostRoom(ushort port = DefaultPort, int maxClients = 4)
+        {
+            if (Network_HostRoom_Ptr == null) { HostGame(port, maxClients); return 0; }
+            return Network_HostRoom_Ptr(port, maxClients);
+        }
+
+        /// <summary>
+        /// Connects to a room by its 4-digit code (e.g. 4821).
+        /// Automatically performs STUN + hole punch via the signaling server.
+        /// </summary>
+        public static unsafe void ConnectRoom(uint roomCode)
+        {
+            if (Network_ConnectRoom_Ptr == null) return;
+            Network_ConnectRoom_Ptr(roomCode);
+        }
+
+        /// <summary>
+        /// Returns the current room code (host-side only). Returns 0 if not in a room.
+        /// </summary>
+        public static unsafe uint GetRoomCode()
+        {
+            return Network_GetRoomCode_Ptr != null ? Network_GetRoomCode_Ptr() : 0;
+        }
+
         /// <summary>Returns the round-trip time (RTT) in milliseconds to the server. Returns 0 if not connected.</summary>
         public static unsafe uint GetPing()
         {
@@ -278,35 +307,6 @@ namespace Chained
             return Network_GetPing_Ptr();
         }
 
-        // ── ICE / WebRTC ────────────────────────────────────────────────
-
-        /// <summary>Starts an ICE listen server using WebRTC STUN.</summary>
-        public static unsafe void HostGameIce(ushort port = DefaultPort, int maxClients = 4)
-        {
-            if (Network_HostGameIce_Ptr == null) return;
-            Network_HostGameIce_Ptr(port, maxClients);
-        }
-
-        /// <summary>Returns the local ICE SDP session token for WebRTC relay connections.</summary>
-        public static unsafe string GetIceSessionToken()
-        {
-            if (Network_GetIceSessionToken_Ptr == null) return string.Empty;
-            sbyte* buf = stackalloc sbyte[4096];
-            Network_GetIceSessionToken_Ptr((char*)buf, 4096);
-            int len = 0;
-            while (buf[len] != 0 && len < 4095) len++;
-            return System.Text.Encoding.UTF8.GetString((byte*)buf, len);
-        }
-
-        /// <summary>Sets the remote ICE SDP session token to initiate WebRTC relay connectivity.</summary>
-        public static unsafe bool SetRemoteIceToken(string token)
-        {
-            if (Network_SetRemoteIceToken_Ptr == null || string.IsNullOrEmpty(token)) return false;
-            fixed (char* ptr = token) return Network_SetRemoteIceToken_Ptr(ptr) != 0;
-        }
-
-        /// <summary>True when the network session is operating via libjuice ICE.</summary>
-        public static unsafe bool IsIceActive => Network_IsIceActive_Ptr != null && Network_IsIceActive_Ptr() != 0;
 
     }
 }

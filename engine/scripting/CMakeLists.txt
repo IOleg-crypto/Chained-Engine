@@ -77,12 +77,18 @@ endif()
 # This tells MSBuild where to find Coral.Managed.dll. The path changes per
 # build preset (windows-clang, windows-gcc, etc.), so we generate it from a
 # template at configure time using the correct CMAKE_BINARY_DIR.
+# On Linux / WSL2 the source tree may live on an NTFS mount (/mnt/d/) which
+# does not support configure_file writes into the source directory. The .csproj
+# imports the file conditionally (Condition="Exists(...)"), so skipping it on
+# non-Windows is safe — dotnet build CLI does not rely on it.
 set(CORAL_MANAGED_DIR "${CMAKE_BINARY_DIR}/vendor/coral")
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props"
-    @ONLY
-)
+if(WIN32)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props"
+        @ONLY
+    )
+endif()
 
 set(MANAGED_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/managed")
 set(MANAGED_PROJECT_PATH "${MANAGED_PROJECT_DIR}/Chained.Managed.csproj")

@@ -130,6 +130,8 @@ namespace Chained
 		bool m_PrefabWarnedOnce = false;
 		bool m_SceneLoadedPending = false;
 		std::unordered_map<int, std::string> m_DeferredSceneLoaded;
+		std::vector<EntitySpawnMessage>
+			m_PendingEntitySpawns; // BUG #2: buffer spawns that arrive before scene is ready
 		std::unordered_set<uint64_t> m_WarnedInputNetID;
 		float m_NetworkTickAccumulator = 0.0f;
 		static constexpr float kNetworkTickInterval = 1.0f / 64.0f; // 64 Hz (Valve / Source tickrate standard)

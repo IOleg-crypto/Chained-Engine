@@ -264,6 +264,26 @@ namespace Chained
 		SendPacket(kInvalidPeerHandle, channel, data, len, reliable);
 	}
 
+	void ENetThreadedDriver::PunchHole(const std::string& targetIP, uint16_t targetPort, int count)
+	{
+		if (targetIP.empty() || targetPort == 0)
+		{
+			return;
+		}
+
+		OutboundPacket pkt;
+		pkt.CmdType = OutboundPacket::Type::PunchHole;
+		pkt.PunchIP = targetIP;
+		pkt.PunchPort = targetPort;
+		pkt.PunchCount = count > 0 ? count : 10;
+
+		{
+			std::lock_guard<std::mutex> lock(m_OutboundMutex);
+			m_OutboundQueue.push_back(std::move(pkt));
+		}
+		m_OutboundCV.notify_one();
+	}
+
 	void ENetThreadedDriver::PollEvents(std::vector<NetworkDriverEvent>& outEvents)
 	{
 		std::lock_guard<std::mutex> lock(m_InboundMutex);
@@ -374,6 +394,30 @@ namespace Chained
 									std::lock_guard<std::mutex> rttLock(m_RttMutex);
 									m_PeerRtt.erase(pkt.PeerIndex);
 								}
+							}
+						}
+						continue;
+					}
+
+					if (pkt.CmdType == OutboundPacket::Type::PunchHole)
+					{
+						if (m_Host && m_Host->socket != ENET_SOCKET_NULL && !pkt.PunchIP.empty() && pkt.PunchPort != 0)
+						{
+							ENetAddress targetAddr = {};
+							if (enet_address_set_host(&targetAddr, pkt.PunchIP.c_str()) == 0)
+							{
+								targetAddr.port = pkt.PunchPort;
+								const char* punchPayload = "CH_PUNCH";
+								ENetBuffer buffer;
+								buffer.data = (void*)punchPayload;
+								buffer.dataLength = strlen(punchPayload);
+
+								for (int i = 0; i < pkt.PunchCount; ++i)
+								{
+									enet_socket_send(m_Host->socket, &targetAddr, &buffer, 1);
+								}
+								CH_CORE_INFO("[ENet] Sent {} NAT punch packets directly from ENet game socket to {}:{}",
+											 pkt.PunchCount, pkt.PunchIP, pkt.PunchPort);
 							}
 						}
 						continue;
@@ -521,7 +565,9 @@ namespace Chained
 						break;
 					}
 
-					case ENET_EVENT_TYPE_DISCONNECT: {
+					case ENET_EVENT_TYPE_DISCONNECT:
+					case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+						bool isTimeout = (event.type == ENET_EVENT_TYPE_DISCONNECT_TIMEOUT);
 						if (role == Role::Host)
 						{
 							int clientIndex = static_cast<int>(reinterpret_cast<intptr_t>(event.peer->data));
@@ -544,8 +590,9 @@ namespace Chained
 
 							char peerIp[64] = {};
 							enet_address_get_host_ip(&event.peer->address, peerIp, sizeof(peerIp));
-							CH_CORE_WARN("[Network][Host] Low-level ENet peer #{}({}:{}) disconnected (code={}).",
-										 clientIndex, peerIp, event.peer->address.port, event.data);
+							CH_CORE_WARN("[Network][Host] Low-level ENet peer #{}({}:{}) {} (code={}).", clientIndex,
+										 peerIp, event.peer->address.port, isTimeout ? "timed out" : "disconnected",
+										 event.data);
 
 							NetworkDriverEvent ev;
 							ev.Type = NetworkDriverEventType::Disconnected;
@@ -560,7 +607,9 @@ namespace Chained
 							m_Role.store(Role::Offline, std::memory_order_relaxed);
 							m_ServerPeer = nullptr;
 
-							CH_CORE_WARN("[Network][Client] Low-level ENet disconnected from server (code={}).",
+							CH_CORE_WARN("[Network][Client] Low-level ENet {} (code={}).",
+										 isTimeout ? "connection timed out (no response from server)"
+												   : "disconnected from server",
 										 event.data);
 
 							NetworkDriverEvent ev;
