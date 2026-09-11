@@ -1,4 +1,4 @@
-﻿#include "network_system.h"
+#include "network_system.h"
 #include "engine/scene/components/gameplay/network_identity_component.h"
 #include "engine/scene/components/core/transform_component.h"
 #include "engine/scene/components/core/hierarchy_component.h"
@@ -152,6 +152,33 @@ namespace Chained
 		return !pA.filename().empty() && pA.filename() == pB.filename();
 	}
 
+	static std::string NormalizeToAssetPath(const std::string& path)
+	{
+		if (path.empty())
+		{
+			return "";
+		}
+		std::string s = path;
+		for (char& c : s)
+		{
+			if (c == '\\')
+			{
+				c = '/';
+			}
+		}
+		size_t pos = s.rfind("scenes/");
+		if (pos != std::string::npos)
+		{
+			return s.substr(pos);
+		}
+		pos = s.rfind("assets/");
+		if (pos != std::string::npos)
+		{
+			return s.substr(pos + 7);
+		}
+		return std::filesystem::path(s).filename().string();
+	}
+
 	static glm::vec3 FindSpawnPosition(entt::registry& reg)
 	{
 		for (auto [entity, spawn] : reg.view<SpawnComponent>().each())
@@ -237,13 +264,15 @@ namespace Chained
 			}
 		}
 
-		if (localNetID != 0 && msg->NetworkID == localNetID)
+		if (avatar.HasComponent<TransformComponent>())
 		{
-			if (avatar.HasComponent<TransformComponent>())
+			auto& transform = avatar.GetComponent<TransformComponent>();
+			glm::vec3 spawnPos = FindSpawnPosition(scene->GetRegistry());
+			if (msg->NetworkID > 1)
 			{
-				auto& transform = avatar.GetComponent<TransformComponent>();
-				TransformSystem::SetTranslation(transform, FindSpawnPosition(scene->GetRegistry()));
+				spawnPos.x += static_cast<float>(msg->NetworkID - 1) * 1.5f;
 			}
+			TransformSystem::SetTranslation(transform, spawnPos);
 		}
 
 		auto& netID = avatar.AddOrReplaceComponent<NetworkIdentityComponent>();
@@ -1090,13 +1119,14 @@ namespace Chained
 			const std::string& currentScenePath = scene->GetSettings().ScenePath;
 			if (!currentScenePath.empty())
 			{
+				std::string relScenePath = NormalizeToAssetPath(currentScenePath);
 				SceneChangeMessage sceneMsg;
-				std::strncpy(sceneMsg.ScenePath, currentScenePath.c_str(), sizeof(sceneMsg.ScenePath) - 1);
+				std::strncpy(sceneMsg.ScenePath, relScenePath.c_str(), sizeof(sceneMsg.ScenePath) - 1);
 				sceneMsg.ScenePath[sizeof(sceneMsg.ScenePath) - 1] = '\0';
 				ByteWriter sw;
 				sceneMsg.Encode(sw);
 				net->SendPacket(clientIndex, MessageType_SceneChange, sw.Data().data(), sw.Data().size(), true);
-				CH_CORE_INFO("Network: Sent active scene '{}' to newly connected client {}.", currentScenePath,
+				CH_CORE_INFO("Network: Sent active scene '{}' to newly connected client {}.", relScenePath,
 							 clientIndex);
 			}
 
@@ -1130,6 +1160,13 @@ namespace Chained
 
 			m_PeerToAvatar[clientIndex] = avatar.GetUUID();
 			CH_CORE_INFO("Network: Spawned avatar (netID={}) for client {}.", networkID, clientIndex);
+
+			// Ensure newly joined client knows its NetworkID before any EntitySpawn arrives
+			PlayerAssignMessage assignMsg;
+			assignMsg.NetworkID = networkID;
+			ByteWriter w;
+			assignMsg.Encode(w);
+			net->SendPacket(clientIndex, MessageType_PlayerAssign, w.Data().data(), w.Data().size(), true);
 
 			for (const auto& [existingClient, uuid] : m_PeerToAvatar)
 			{
@@ -1551,13 +1588,14 @@ namespace Chained
 		if (m_SceneLoadedPending && net->IsClient() && net->IsConnected())
 		{
 			m_SceneLoadedPending = false;
+			std::string relScenePath = NormalizeToAssetPath(scene->GetSettings().ScenePath);
 			SceneLoadedMessage msg;
-			std::strncpy(msg.ScenePath, scene->GetSettings().ScenePath.c_str(), sizeof(msg.ScenePath) - 1);
+			std::strncpy(msg.ScenePath, relScenePath.c_str(), sizeof(msg.ScenePath) - 1);
 			msg.ScenePath[sizeof(msg.ScenePath) - 1] = '\0';
 			ByteWriter w;
 			msg.Encode(w);
 			net->SendToServer(MessageType_SceneLoaded, w.Data().data(), w.Data().size(), true);
-			CH_CORE_INFO("Network: Sent SceneLoaded to host.");
+			CH_CORE_INFO("Network: Sent SceneLoaded ('{}') to host.", relScenePath);
 		}
 
 		EnsureLocalIdentity(scene); // BUG4 fix: must run before scripts

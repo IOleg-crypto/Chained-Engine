@@ -284,6 +284,11 @@ namespace Chained
 		float yawSign = GetUpDirection().y < 0 ? -1.0f : 1.0f;
 		m_Yaw += yawSign * delta.x * RotationSpeed();
 		m_Pitch += delta.y * RotationSpeed();
+
+		// Prevent camera flip / gimbal lock / inverted controls when looking past poles (+/- 89 degrees)
+		constexpr float kMaxPitch = 1.55f; // ~88.8 degrees in radians
+		m_Pitch = std::clamp(m_Pitch, -kMaxPitch, kMaxPitch);
+
 		UpdateView();
 	}
 
@@ -316,7 +321,10 @@ namespace Chained
 	}
 	glm::quat EditorCameraController::GetOrientation() const
 	{
-		return glm::quat(glm::vec3(-m_Pitch, -m_Yaw, 0.0f));
+		// Yaw rotates around world Y axis (0, 1, 0), Pitch rotates around local X axis (1, 0, 0).
+		// This guarantees Roll is always 0, keeping the horizon perfectly level.
+		return glm::angleAxis(-m_Yaw, glm::vec3(0.0f, 1.0f, 0.0f)) *
+			   glm::angleAxis(-m_Pitch, glm::vec3(1.0f, 0.0f, 0.0f));
 	}
 
 	std::pair<float, float> EditorCameraController::PanSpeed() const

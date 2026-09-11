@@ -161,7 +161,20 @@ namespace Chained
 		}
 
 		// Filesystem fallback (non-packed mode or missing from pack)
-		std::ifstream file(assetPath, std::ios::binary | std::ios::ate);
+		std::string resolved = m_Resolver.ResolvePath(assetPath);
+		std::ifstream file;
+		if (!resolved.empty())
+		{
+			file.open(resolved, std::ios::binary | std::ios::ate);
+		}
+		if (!file.is_open())
+		{
+			file.open(assetPath, std::ios::binary | std::ios::ate);
+		}
+		if (!file.is_open() && assetPath.rfind("assets/", 0) != 0)
+		{
+			file.open("assets/" + assetPath, std::ios::binary | std::ios::ate);
+		}
 		if (file.is_open())
 		{
 			auto size = file.tellg();
@@ -188,7 +201,15 @@ namespace Chained
 		{
 			return true;
 		}
-		return std::filesystem::exists(path, ec);
+		if (std::filesystem::exists(path, ec))
+		{
+			return true;
+		}
+		if (path.rfind("assets/", 0) != 0 && std::filesystem::exists("assets/" + path, ec))
+		{
+			return true;
+		}
+		return false;
 	}
 
 	std::vector<uint8_t> AssetPackStore::ReadProjectAsset(const std::filesystem::path& absolutePath) const

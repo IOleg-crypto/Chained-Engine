@@ -283,6 +283,7 @@ namespace Chained
 		bool rightDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
 								  : Chained::Core::Input::IsMouseButtonDown(Chained::MouseCode::ButtonRight);
 
+#if !CH_PLATFORM_LINUX
 		// Unlock cursor if right mouse is released while locked
 		if (m_CursorLocked && !rightDown)
 		{
@@ -298,6 +299,7 @@ namespace Chained
 			m_CursorLocked = false;
 			m_LockedWindow = nullptr;
 		}
+#endif
 
 		// Auto-switch camera 2D mode based on scene type and background mode
 		auto activeScene = EditorLayer::Get().GetSceneManager().GetActiveScene();
@@ -318,7 +320,9 @@ namespace Chained
 			}
 		}
 
-		// Cursor lock for camera rotation
+#if !CH_PLATFORM_LINUX
+		// Cursor lock for camera rotation (disabled on Linux/WSLg: XWarpPointer under XWayland
+		// generates phantom motion events, resulting in violent camera jitter and spinning).
 		if ((m_Hovered || m_CursorLocked) && rightDown && !m_CursorLocked)
 		{
 			GLFWwindow* win = m_PlatformWindow
@@ -331,6 +335,7 @@ namespace Chained
 				m_LockedWindow = win;
 			}
 		}
+#endif
 
 		// Update editor camera
 		SceneState state = EditorLayer::Get().GetSceneManager().GetSceneState();

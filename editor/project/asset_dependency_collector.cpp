@@ -228,6 +228,14 @@ namespace Chained
 					workQueue.push_back(rel);
 				}
 			}
+			// All prefabs under prefab/ or prefabs/ or *.chprefab
+			else if (lower.starts_with("prefab/") || lower.starts_with("prefabs/") || ext == ".chprefab")
+			{
+				if (referencedLower.insert(lower).second)
+				{
+					workQueue.push_back(rel);
+				}
+			}
 			// Shaders in asset directory
 			else if (lower.starts_with("shaders/") || ext == ".chshader" || ext == ".vert" || ext == ".frag" ||
 					 ext == ".glsl")
@@ -255,7 +263,7 @@ namespace Chained
 
 			// Text-based files containing references
 			if (ext == ".chscene" || ext == ".chmat" || ext == ".chenv" || ext == ".chag" || ext == ".json" ||
-				ext == ".yaml" || ext == ".yml")
+				ext == ".yaml" || ext == ".yml" || ext == ".chprefab")
 			{
 				std::vector<fs::path> newRefs;
 				ScanTextForReferences(fullPath, allAssetsLower, referencedLower, newRefs);

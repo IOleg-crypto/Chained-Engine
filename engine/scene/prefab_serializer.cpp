@@ -83,6 +83,10 @@ namespace Chained
 				if (am->IsPacked())
 				{
 					auto packData = am->ReadAssetData(filepath);
+					if (packData.empty() && filepath.rfind("assets/", 0) != 0)
+					{
+						packData = am->ReadAssetData("assets/" + filepath);
+					}
 					if (!packData.empty())
 					{
 						content.assign(packData.begin(), packData.end());
@@ -93,10 +97,28 @@ namespace Chained
 			// Fallback to disk
 			if (content.empty())
 			{
-				std::ifstream stream(filepath);
+				std::ifstream stream;
+				std::string resolvedPath = filepath;
+				if (auto* am = ServiceLocator::TryGet<AssetManager>())
+				{
+					resolvedPath = am->ResolvePath(filepath);
+				}
+				if (!resolvedPath.empty())
+				{
+					stream.open(resolvedPath);
+				}
 				if (!stream.is_open())
 				{
-					CH_CORE_ERROR("PrefabSerializer: Failed to load prefab file '{}'", filepath);
+					stream.open(filepath);
+				}
+				if (!stream.is_open() && filepath.rfind("assets/", 0) != 0)
+				{
+					stream.open("assets/" + filepath);
+				}
+				if (!stream.is_open())
+				{
+					CH_CORE_ERROR("PrefabSerializer: Failed to load prefab file '{}' (tried: '{}')", filepath,
+								  resolvedPath);
 					return {};
 				}
 				std::stringstream ss;
