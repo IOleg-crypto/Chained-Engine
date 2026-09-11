@@ -303,40 +303,107 @@ sudo apt-get install -y build-essential cmake ninja-build clang lld \
 
 ### Building on WSL2 (Windows Subsystem for Linux)
 
-ChainedEngine builds and runs under **WSL2 + Ubuntu 24.04** with hardware-accelerated OpenGL 4.3+ via WSLg (Mesa D3D12 backend, translating OpenGL calls to DirectX 12 on the Windows host GPU).
+ChainedEngine builds and runs under **WSL2 + Ubuntu 24.04 / 22.04** with hardware-accelerated OpenGL 4.3+ via WSLg (Mesa D3D12 backend translating OpenGL calls directly to DirectX 12 on your Windows GPU).
 
-> [!WARNING]
-> The WSL2 filesystem mounts your Windows drives under `/mnt/` (e.g. `/mnt/d/`). CMake's `configure_file` cannot write to NTFS-mounted paths — **always specify `-B` pointing to the native Linux filesystem**, otherwise you will get `Operation not permitted` errors.
+#### 1. Configure WSL2 for NTFS Mounts (Crucial Step)
 
-**Setup:**
+By default, WSL2 mounts Windows drives without Linux file permissions and `utime()` support, which causes CMake and MSBuild to fail with `Operation not permitted` (MSB3374). To allow building directly on your Windows drive (e.g. `D:\`), enable `metadata` in `/etc/wsl.conf`:
+
 ```bash
-# Install all required system packages
-sudo apt install -y \
-  ninja-build clang cmake build-essential \
+sudo bash -c 'cat << "EOF" > /etc/wsl.conf
+[boot]
+systemd=true
+
+[automount]
+enabled = true
+options = "metadata,umask=22,fmask=11"
+mountFsTab = true
+EOF'
+```
+
+*Apply the change:* In Windows PowerShell run `wsl --shutdown`, then reopen your WSL2 terminal. (Or remount immediately: `sudo mount -o remount,metadata,umask=22,fmask=11 /mnt/d`).
+
+#### 2. Install Required Dependencies
+
+```bash
+# Core build dependencies + X11 + OpenGL + Clang 18 + Tools
+sudo apt update && sudo apt install -y \
+  build-essential cmake ninja-build clang lld clang-tools-18 \
   libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
-  libxext-dev libgl1-mesa-dev libglu1-mesa-dev mesa-utils \
-  zlib1g-dev pkg-config python3 libwayland-dev wayland-protocols \
-  dotnet-sdk-9.0
+  libxext-dev libgl1-mesa-dev libglu1-mesa-dev libasound2-dev \
+  mesa-utils zlib1g-dev pkg-config python3 dotnet-sdk-9.0
 
-# Verify OpenGL hardware acceleration (should show 4.3+ and NOT llvmpipe)
-glxinfo | grep "Max core profile version"
-glxinfo | grep "OpenGL renderer"
+# Ensure clang-scan-deps and dotnet paths are globally available
+sudo ln -sf /usr/bin/clang-scan-deps-18 /usr/bin/clang-scan-deps
+sudo ln -sf ~/.dotnet/dotnet /usr/local/bin/dotnet 2>/dev/null || true
+
+# Coral CoreCLR discovery requires .NET in /usr/share/dotnet
+if [ -d "$HOME/.dotnet" ] && [ ! -d "/usr/share/dotnet" ]; then
+  sudo ln -sf "$HOME/.dotnet" /usr/share/dotnet
+fi
 ```
 
-**Configure + Build:**
+#### 3. Configure & Build directly on Drive D:
+
 ```bash
-# Source can stay on /mnt/d/ — only the build dir must be on native Linux fs
-cmake --preset linux-clang -B ~/build/chaineddecos
-cmake --build ~/build/chaineddecos --config Debug --parallel
+cd "/mnt/d/gitnext/Chained Decos"
+
+# Configure with Linux Clang preset (builds into build/linux-clang/)
+cmake --preset linux-clang
+
+# Build all targets in parallel
+cmake --build build/linux-clang --config Debug --parallel
+
+# (Optional) Build only the Editor
+cmake --build build/linux-clang --config Debug --parallel --target ChainedEditor
 ```
 
-**Run the editor** (requires WSLg for window display):
+#### 4. Run with Hardware Acceleration (WSLg)
+
+Configure hardware acceleration in `~/.bashrc` to use your dedicated GPU via Mesa D3D12:
+
 ```bash
-~/build/chaineddecos/bin/Debug/ChainedEditor
+echo 'export GALLIUM_DRIVER=d3d12' >> ~/.bashrc
+echo 'export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA' >> ~/.bashrc
+source ~/.bashrc
+
+# Run the editor
+./build/linux-clang/bin/Debug/ChainedEditor
 ```
 
-> [!TIP]
-> If `glxinfo` reports `llvmpipe` as the renderer, WSLg D3D12 acceleration is not active. Ensure your Windows GPU drivers support DirectX 12 and that WSL is up to date (`wsl --update` in PowerShell). On laptops with dual GPUs you can force the discrete card: `MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA ./ChainedEditor`
+Verify GPU acceleration with `glxinfo | grep "OpenGL renderer"` — it should show `D3D12 (NVIDIA GeForce ...)`.
+
+---
+
+### Dual-Platform Development Workflow (Windows + WSL2)
+
+You can work on both Windows and Linux simultaneously from the **exact same project directory** on your Windows drive (e.g. `D:\gitnext\Chained Decos`):
+
+```
+D:\gitnext\Chained Decos\
+├── build\
+│   ├── windows-clang\   <── Native Windows binaries (.exe, .dll)
+│   └── linux-clang\     <── Native Linux / WSL2 ELF binaries
+├── engine\
+│   └── scripting\
+│       └── managed\
+│           └── managed-obj\ <── Isolated C# compilation intermediates
+```
+
+#### Why Dual-Platform Works Seamlessly Here:
+1. **Isolated Build Directories:**
+   - Windows builds into `build/windows-clang/` (run from Windows PowerShell)
+   - WSL2 builds into `build/linux-clang/` (run from WSL2 Bash)
+   - There are zero binary path collisions between the two platforms.
+2. **C# Scripting Isolation:**
+   - `Directory.Build.props` and `build_managed.py` automatically route MSBuild `obj/` outputs to isolated paths (`managed-obj/` on Linux, default on Windows) and exclude stale `obj/**` artifacts via `DefaultItemExcludes`. Windows MSBuild and Linux `dotnet` will never overwrite each other's assembly metadata or lock files.
+3. **Cross-Platform Networking & Multiplayer Testing:**
+   - Run the host game or editor in native Windows (`.\build\windows-clang\bin\Debug\ChainedEditor.exe`).
+   - Simultaneously launch a client instance inside WSL2 (`./build/linux-clang/bin/Debug/ChainedDecos`) to test cross-platform replication, byte endianness, and packet sequencing locally on `127.0.0.1`!
+4. **Recommended Daily Flow:**
+   - **Primary Development & Scene Editing:** Use native Windows for the editor (zero input latency, direct WASAPI audio, full RTX performance).
+   - **Cross-Platform Validation:** Keep a WSL2 terminal open to run `cmake --build build/linux-clang --parallel` to verify Linux compilation and run automated test suites (`ctest --test-dir build/linux-clang`).
+
 
 
 
@@ -401,6 +468,7 @@ Full guides and references:
 | [Scripting API](docs/SCRIPTING_API.md) | C# API reference: lifecycle, entities, input, UI |
 | [Scripting Interop](docs/SCRIPTING_INTEROP.md) | C++/C# bridge internals |
 | [Animation Graphs](docs/ANIMATION_GRAPHS.md) | Visual animation graph system tutorial |
+| [Dual-Platform Guide](docs/DUAL_PLATFORM_GUIDE.md) | Full guide for Windows + WSL2 simultaneous development & setup |
 | [Export Guide](docs/EXPORT.md) | Project packaging and distribution |
 | [FAQ](docs/FAQ.md) | Common patterns and solutions |
 
