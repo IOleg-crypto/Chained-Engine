@@ -64,7 +64,7 @@ namespace Chained
 	{
 		CH_PROFILE_FUNCTION();
 
-		if (!m_HasPendingData || !m_PendingData.isValid)
+		if (!m_PendingData.isValid)
 		{
 			return;
 		}
@@ -82,7 +82,7 @@ namespace Chained
 			size_t maxTexIndex = 0;
 			for (const auto& [name, data] : m_PendingData.embeddedTextures)
 			{
-				if (name.front() == '*')
+				if (!name.empty() && name.front() == '*')
 				{
 					try
 					{
@@ -100,7 +100,7 @@ namespace Chained
 
 			for (const auto& [name, embedded] : m_PendingData.embeddedTextures)
 			{
-				if (name.front() != '*')
+				if (name.empty() || name.front() != '*')
 				{
 					continue;
 				}
@@ -136,7 +136,7 @@ namespace Chained
 				return;
 			}
 
-			if (path.front() == '*')
+			if (!path.empty() && path.front() == '*')
 			{
 				try
 				{
@@ -386,7 +386,6 @@ namespace Chained
 		m_NodeParents = std::move(m_PendingData.nodeParents);
 
 		m_PendingData = PendingModelData();
-		m_HasPendingData = false;
 		SetState(AssetState::Ready);
 	}
 
@@ -420,7 +419,6 @@ namespace Chained
 		m_Animations.clear();
 		m_EmbeddedTextures.clear();
 		m_PendingData = PendingModelData();
-		m_HasPendingData = false;
 		m_BoundingBox = {{0, 0, 0}, {0, 0, 0}};
 		SetState(AssetState::None);
 	}

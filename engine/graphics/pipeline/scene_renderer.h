@@ -43,6 +43,9 @@ namespace Chained
 					   const std::vector<glm::mat4>& boneMatrices = {}, const std::vector<Material>& materials = {},
 					   Shader* shaderOverride = nullptr, const std::vector<ShaderUniform>& shaderUniformOverrides = {},
 					   RenderPassStage pass = RenderPassStage::Both);
+		void DrawModelInstanced(ModelAsset* modelAsset, const std::vector<glm::mat4>& transforms,
+								const std::vector<Material>& materials = {}, Shader* shaderOverride = nullptr,
+								RenderPassStage pass = RenderPassStage::Both);
 
 		void BindShaderUniforms(Shader* shader, const std::vector<glm::mat4>& boneMatrices,
 								const std::vector<ShaderUniform>& shaderUniformOverrides);

@@ -1,7 +1,6 @@
-add_library(engine_core STATIC
+set(CORE_SOURCES
     service.h
     service_registry.h
-    service_registry.cpp
     service_locator.h
     service_locator.cpp
     input.h
@@ -19,6 +18,10 @@ add_library(engine_core STATIC
     events/events.h
     events/input_events.h
     events/window_events.h
+)
+
+add_library(engine_core STATIC
+    ${CORE_SOURCES}
 )
 
 target_include_directories(engine_core PUBLIC

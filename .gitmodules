@@ -103,3 +103,6 @@
 [submodule "thirdparty/basis_universal"]
 	path = thirdparty/basis_universal
 	url = https://github.com/BinomialLLC/basis_universal.git
+[submodule "thirdparty/libjuice"]
+	path = thirdparty/libjuice
+	url = https://github.com/paullouisageneau/libjuice.git

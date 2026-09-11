@@ -3,7 +3,6 @@
 #include "engine/assets/model_data.h"
 
 #include "engine/assets/types/model_asset.h"
-#include "engine/graphics/pipeline/geometry_generator.h"
 #include "engine/core/service_locator.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/asset_metadata.h"
@@ -15,6 +14,44 @@
 
 namespace Chained
 {
+	// Lightweight streambuf that reads from an existing memory buffer without copying.
+	struct MemoryStreamBuf : public std::streambuf
+	{
+		MemoryStreamBuf(const uint8_t* data, size_t size)
+		{
+			char* begin = const_cast<char*>(reinterpret_cast<const char*>(data));
+			setg(begin, begin, begin + size);
+		}
+
+		size_t Tell() const
+		{
+			return static_cast<size_t>(gptr() - eback());
+		}
+
+	protected:
+		pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+						 std::ios_base::openmode which = std::ios_base::in) override
+		{
+			if (dir == std::ios_base::cur)
+			{
+				gbump(static_cast<int>(off));
+			}
+			else if (dir == std::ios_base::end)
+			{
+				setg(eback(), egptr() + off, egptr());
+			}
+			else if (dir == std::ios_base::beg)
+			{
+				setg(eback(), eback() + off, egptr());
+			}
+			return gptr() - eback();
+		}
+
+		pos_type seekpos(pos_type sp, std::ios_base::openmode which = std::ios_base::in) override
+		{
+			return seekoff(sp - pos_type(0), std::ios_base::beg, which);
+		}
+	};
 
 	std::shared_ptr<Asset> ModelLoader::Create()
 	{
@@ -24,21 +61,6 @@ namespace Chained
 	bool ModelLoader::Load(std::shared_ptr<Asset> asset, const std::string& resolvedPath, std::string* outError)
 	{
 		auto modelAsset = std::static_pointer_cast<ModelAsset>(asset);
-
-		if (resolvedPath.starts_with(":"))
-		{
-			auto pendingData = GeometryGenerator::GeneratePrimitivePendingData(resolvedPath, ProceduralParameters());
-			if (pendingData.isValid)
-			{
-				modelAsset->SetPendingData(std::move(pendingData));
-				return true;
-			}
-			if (outError)
-			{
-				*outError = "ModelLoader: failed to generate procedural model for: " + resolvedPath;
-			}
-			return false;
-		}
 
 		auto pendingData = LoadMeshDataFromDisk(resolvedPath);
 		if (pendingData.isValid)
@@ -72,6 +94,25 @@ namespace Chained
 			{
 				chassetBytes = am->ReadAssetData(chassetPath.generic_string());
 			}
+			if (chassetBytes.empty())
+			{
+				chassetBytes = am->ReadAssetData((std::filesystem::path("assets") / chassetPath).generic_string());
+			}
+			if (chassetBytes.empty())
+			{
+				std::string pStr = chassetPath.generic_string();
+				auto pos = pStr.find("assets/");
+				if (pos != std::string::npos)
+				{
+					chassetBytes = am->ReadAssetData(pStr.substr(pos));
+				}
+			}
+
+			if (chassetBytes.empty() && am->IsPacked())
+			{
+				CH_CORE_WARN("ModelLoader: .chasset '{}' not found in pack (all fallback paths exhausted)",
+							 chassetPath.string());
+			}
 		}
 		else if (std::filesystem::exists(chassetPath))
 		{
@@ -89,12 +130,15 @@ namespace Chained
 		{
 			try
 			{
-				std::string rawData(chassetBytes.begin(), chassetBytes.end());
-				std::istringstream is(rawData, std::ios::binary);
-				cereal::BinaryInputArchive archive(is);
+				// Wrap raw bytes directly — avoid copying 200+ MB into a std::string
+				MemoryStreamBuf rawMsBuf(chassetBytes.data(), chassetBytes.size());
+				std::istream rawStream(&rawMsBuf);
 
 				ChainedAssetHeader header;
-				archive(header);
+				{
+					cereal::BinaryInputArchive archive(rawStream);
+					archive(header);
+				}
 
 				ChainedAssetHeader currentHeader;
 
@@ -106,17 +150,12 @@ namespace Chained
 				{
 					CH_CORE_WARN("Engine data structure changed! file is outdated for: {}", chassetPath.string());
 				}
-				else if (header.dataStructSize != sizeof(PendingModelData))
-				{
-					CH_CORE_WARN("struct size mismatch (got {}, expected {}), re-importing: {}", header.dataStructSize,
-								 sizeof(PendingModelData), chassetPath.string());
-				}
 				else
 				{
 					bool hashValid = true;
 					if (!isDirectMesh && header.sourceHash != 0 && (!am || !am->IsPacked()))
 					{
-						uint64_t currentHash = MetaUtils::ComputeFileHash(path);
+						uint64_t currentHash = ComputeFileHash(path);
 						if (currentHash != 0 && header.sourceHash != currentHash)
 						{
 							CH_CORE_WARN("Source file changed since .chasset was created, re-importing: {}",
@@ -130,11 +169,24 @@ namespace Chained
 						PendingModelData data;
 						if (header.compressed)
 						{
-							std::vector<char> compressedData(static_cast<size_t>(header.compressedSize));
-							is.read(compressedData.data(), static_cast<std::streamsize>(header.compressedSize));
+							// Point directly into chassetBytes — no extra allocation.
+							// Previously a separate compressedData vector was allocated here,
+							// meaning chassetBytes + compressedData + decompressed all lived in
+							// RAM simultaneously (~3× uncompressed), causing bad_alloc on large
+							// models (200MB+).
+							const size_t headerSize = rawMsBuf.Tell();
+							const size_t compressedSize =
+								(header.compressedSize > 0 && headerSize + header.compressedSize <= chassetBytes.size())
+									? static_cast<size_t>(header.compressedSize)
+									: (chassetBytes.size() > headerSize ? chassetBytes.size() - headerSize : 0);
 
-							auto decompressed =
-								Zstd::Decompress(compressedData.data(), compressedData.size(), header.uncompressedSize);
+							auto decompressed = Zstd::Decompress(chassetBytes.data() + headerSize, compressedSize,
+																 header.uncompressedSize);
+
+							// Free the raw pack buffer before deserializing so peak RAM
+							// is ~1.5× uncompressed instead of ~3×.
+							chassetBytes.clear();
+							chassetBytes.shrink_to_fit();
 
 							if (decompressed.empty())
 							{
@@ -143,15 +195,19 @@ namespace Chained
 							}
 							else
 							{
-								std::istringstream dis(std::string(decompressed.begin(), decompressed.end()),
-													   std::ios::binary);
-								cereal::BinaryInputArchive decompressedArchive(dis);
-								decompressedArchive(data);
+								// Wrap decompressed bytes directly — avoid copying into std::string
+								MemoryStreamBuf decMsBuf(decompressed.data(), decompressed.size());
+								std::istream decStream(&decMsBuf);
+								{
+									cereal::BinaryInputArchive decompressedArchive(decStream);
+									decompressedArchive(data);
+								}
 								return data;
 							}
 						}
 						else
 						{
+							cereal::BinaryInputArchive archive(rawStream);
 							archive(data);
 							return data;
 						}
@@ -168,6 +224,7 @@ namespace Chained
 			}
 		}
 
+		CH_CORE_TRACE("ModelLoader: Falling back to Assimp import for '{}'", path.string());
 		PendingModelData data = AssimpImporter::Import(path, samplingFPS);
 
 		if (data.isValid && !path.string().starts_with(":"))
@@ -180,22 +237,43 @@ namespace Chained
 			{
 				try
 				{
-					std::ostringstream dataStream(std::ios::binary);
+					struct VectorStreamBuf : public std::streambuf
 					{
+						std::vector<char> buffer;
+						VectorStreamBuf()
+						{
+							buffer.reserve(32 * 1024 * 1024);
+						}
+						int_type overflow(int_type ch) override
+						{
+							if (ch != traits_type::eof())
+							{
+								buffer.push_back(static_cast<char>(ch));
+							}
+							return ch;
+						}
+						std::streamsize xsputn(const char* s, std::streamsize count) override
+						{
+							buffer.insert(buffer.end(), s, s + count);
+							return count;
+						}
+					};
+
+					VectorStreamBuf sbuf;
+					{
+						std::ostream dataStream(&sbuf);
 						cereal::BinaryOutputArchive dataArchive(dataStream);
 						dataArchive(data);
 					}
 
-					std::string serializedData = dataStream.str();
-					uint64_t sourceHash = MetaUtils::ComputeFileHash(path);
-
-					auto compressed = Zstd::Compress(serializedData.data(), serializedData.size(), 3);
+					uint64_t sourceHash = ComputeFileHash(path);
+					auto compressed = Zstd::Compress(sbuf.buffer.data(), sbuf.buffer.size(), 3);
 
 					ChainedAssetHeader header;
 					header.sourceHash = sourceHash;
 					header.compressed = !compressed.empty();
 					header.compressedSize = compressed.size();
-					header.uncompressedSize = serializedData.size();
+					header.uncompressedSize = sbuf.buffer.size();
 
 					std::ofstream os(chassetPath, std::ios::binary);
 					cereal::BinaryOutputArchive archive(os);
@@ -208,12 +286,12 @@ namespace Chained
 					}
 					else
 					{
-						os.write(serializedData.data(), static_cast<std::streamsize>(serializedData.size()));
+						os.write(sbuf.buffer.data(), static_cast<std::streamsize>(sbuf.buffer.size()));
 					}
 
 					CH_CORE_INFO("ModelAsset: Saved .chasset '{}' (compressed: {}, ratio: {:.1f}%)",
 								 chassetPath.filename().string(), header.compressed ? "yes" : "no",
-								 header.compressed ? (100.0 * compressed.size() / serializedData.size()) : 100.0);
+								 header.compressed ? (100.0 * compressed.size() / sbuf.buffer.size()) : 100.0);
 				} catch (const std::bad_alloc& e)
 				{
 					CH_CORE_ERROR("Out of memory serializing .chasset for {}: {}", chassetPath.string(), e.what());

@@ -28,7 +28,8 @@ namespace Chained
 
 		ImGui::Begin(m_Name.c_str(), &m_IsOpen);
 
-		const auto& stats = Instrumentor::Get().GetStats();
+		const auto* inst = Instrumentor::TryGet();
+		const auto& stats = inst ? inst->GetStats() : ProfilerStats{};
 
 		if (ImGui::CollapsingHeader("Hardware & System", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -67,7 +68,6 @@ namespace Chained
 			ImGui::Columns(1);
 		}
 
-		const auto& results = Instrumentor::Get().GetLastFrameResults();
 		if (ImGui::CollapsingHeader("Execution Timeline", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			if (ImGui::IsItemHovered())
@@ -95,7 +95,7 @@ namespace Chained
 				}
 			}
 
-			for (const auto& result : results)
+			for (const auto& result : inst->GetLastFrameResults())
 			{
 				DrawProfileResult(result);
 			}
@@ -112,7 +112,8 @@ namespace Chained
 
 	void ProfilerPanel::UpdateHistory()
 	{
-		const auto& results = Instrumentor::Get().GetLastFrameResults();
+		const auto* histInst = Instrumentor::TryGet();
+		const auto& results = histInst ? histInst->GetLastFrameResults() : std::vector<ProfileResult>{};
 		float frameMS = 0.0f;
 
 		for (const auto& res : results)

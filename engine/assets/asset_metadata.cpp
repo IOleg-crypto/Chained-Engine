@@ -5,12 +5,12 @@
 namespace Chained
 {
 
-	std::filesystem::path MetaUtils::GetMetaPath(const std::filesystem::path& assetPath)
+	std::filesystem::path GetMetaPath(const std::filesystem::path& assetPath)
 	{
 		return assetPath.string() + ".meta";
 	}
 
-	bool MetaUtils::HasMeta(const std::filesystem::path& assetPath)
+	bool HasMeta(const std::filesystem::path& assetPath)
 	{
 		auto* am = ServiceLocator::TryGet<AssetManager>();
 		if (am && am->IsPacked())
@@ -24,7 +24,7 @@ namespace Chained
 		return std::filesystem::exists(GetMetaPath(assetPath));
 	}
 
-	uint64_t MetaUtils::ComputeFileHash(const std::filesystem::path& path)
+	uint64_t ComputeFileHash(const std::filesystem::path& path)
 	{
 		constexpr size_t kChunkSize = 65536;
 		std::ifstream file(path, std::ios::binary);
@@ -49,7 +49,7 @@ namespace Chained
 		return hash;
 	}
 
-	uint64_t MetaUtils::ComputeHashFromBuffer(const std::vector<uint8_t>& data)
+	uint64_t ComputeHashFromBuffer(const std::vector<uint8_t>& data)
 	{
 		uint64_t hash = UINT64_C(14695981039346656037);
 		for (size_t i = 0; i < data.size(); ++i)
@@ -89,7 +89,7 @@ namespace Chained
 		}
 	} // namespace
 
-	AssetMetadata MetaUtils::ReadMetaFromString(std::string_view yamlContent)
+	AssetMetadata ReadMetaFromString(std::string_view yamlContent)
 	{
 		AssetMetadata meta;
 		try
@@ -130,7 +130,7 @@ namespace Chained
 		return meta;
 	}
 
-	AssetMetadata MetaUtils::ReadMeta(const std::filesystem::path& metaPath)
+	AssetMetadata ReadMeta(const std::filesystem::path& metaPath)
 	{
 		auto* am = ServiceLocator::TryGet<AssetManager>();
 		if (am && am->IsPacked())
@@ -182,7 +182,7 @@ namespace Chained
 		return meta;
 	}
 
-	bool MetaUtils::WriteMeta(const std::filesystem::path& metaPath, const AssetMetadata& meta)
+	bool WriteMeta(const std::filesystem::path& metaPath, const AssetMetadata& meta)
 	{
 		try
 		{
@@ -226,7 +226,7 @@ namespace Chained
 		}
 	}
 
-	AssetMetadata MetaUtils::LoadOrCreateMeta(const std::filesystem::path& assetPath, AssetType type)
+	AssetMetadata LoadOrCreateMeta(const std::filesystem::path& assetPath, AssetType type)
 	{
 		auto* am = ServiceLocator::TryGet<AssetManager>();
 		if (am && am->IsPacked())

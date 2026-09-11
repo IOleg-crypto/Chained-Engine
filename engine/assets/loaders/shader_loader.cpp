@@ -117,6 +117,12 @@ namespace Chained
 		}
 		includedFiles.push_back(fullPath.string());
 
+		struct StackScope
+		{
+			std::vector<std::string>& stack;
+			~StackScope() { if (!stack.empty()) stack.pop_back(); }
+		} scope{includedFiles};
+
 		auto* assetManager = ServiceLocator::TryGet<AssetManager>();
 
 		// Read file content (pack or disk)

@@ -15,10 +15,9 @@ namespace ChainedDecos.Scripts
         public int JumpAnim = 2;
         public float CrossFadeTime = 8.5f;
 
-        private bool m_DebugLogged = false;
         private bool m_WasConnected = false;
-        // NetworkIdentityComponent is injected by C++ after the first OnUpdate,
-        // so we allow a short grace period before enforcing the "no netId = skip" rule.
+        private int m_DisconnectGraceFrames = 0;
+        private const int DisconnectGraceLimit = 15;
         private int m_NetIdWaitFrames = 0;
         private const int NetIdGraceFrames = 60;
 
@@ -32,49 +31,56 @@ namespace ChainedDecos.Scripts
             _rb        = Entity.GetComponent<RigidBodyComponent>();
             _transform = Entity.GetComponent<TransformComponent>();
             _anim      = Entity.GetComponent<AnimationComponent>();
-            Log.Info("PlayerController initialized");
+            m_WasConnected = false;
+            m_DisconnectGraceFrames = 0;
         }
 
         public override void OnUpdate(float deltaTime)
         {
-            if (!m_DebugLogged)
+            if (GameHUD.IsPaused || InGameChat.IsChatOpen)
             {
-                Log.Info("[PlayerController] OnUpdate FIRST CALL — IsConnected=" + Network.IsConnected +
-                         " IsHost=" + Network.IsHost + " HasNetId=" + (Entity.HasComponent<NetworkIdentityComponent>()));
-                if (Entity.HasComponent<NetworkIdentityComponent>())
-                {
-                    var netComp = Entity.GetComponent<NetworkIdentityComponent>();
-                    if (netComp != null)
-                    {
-                        Log.Info("[PlayerController] NetID=" + netComp.NetworkID + " IsOwner=" + netComp.IsOwner);
-                    }
-                }
-                m_DebugLogged = true;
-            }
-            if (Input.IsKeyPressed(Key.Escape))
-            {
-                Log.Info($"Returning to menu: {MenuScene}");
-                if (Network.IsConnected)
-                {
-                    Network.Disconnect();
-                }
-                Scene.LoadScene(MenuScene);
+                StopHorizontalMovement();
                 return;
             }
 
-            // Detect host disconnect — return to main menu
             if (m_WasConnected && !Network.IsConnected)
             {
-                Log.Info("[PlayerController] Host disconnected — returning to menu.");
-                Scene.LoadScene(MenuScene);
-                return;
+                m_DisconnectGraceFrames++;
+                if (m_DisconnectGraceFrames > DisconnectGraceLimit)
+                {
+                    Log.Info("[PlayerController] Host disconnected — returning to menu.");
+                    Scene.LoadScene(MenuScene);
+                    return;
+                }
             }
-            if (Network.IsConnected) m_WasConnected = true;
+            else if (Network.IsConnected)
+            {
+                m_WasConnected = true;
+                m_DisconnectGraceFrames = 0;
+            }
 
-            // Retry every frame: physics body (Jolt) may not be ready immediately after prefab spawn
-            _rb        = Entity.GetComponent<RigidBodyComponent>();
-            _transform = Entity.GetComponent<TransformComponent>();
-            _anim    ??= Entity.GetComponent<AnimationComponent>();
+            _rb        ??= Entity.GetComponent<RigidBodyComponent>();
+            _transform ??= Entity.GetComponent<TransformComponent>();
+            _anim      ??= Entity.GetComponent<AnimationComponent>();
+
+            if (!Network.IsConnected && SessionState.SavedPlayerPosition.HasValue && _transform != null)
+            {
+                string currentScene = Scene.GetCurrentScenePath();
+                if (string.Equals(currentScene, SessionState.LastGameplayScene, StringComparison.OrdinalIgnoreCase))
+                {
+                    _transform.Translation = SessionState.SavedPlayerPosition.Value;
+                    if (SessionState.SavedPlayerRotation.HasValue)
+                    {
+                        _transform.Rotation = SessionState.SavedPlayerRotation.Value;
+                    }
+                    if (_rb != null)
+                    {
+                        _rb.ForceSetVelocity(Vector3.Zero);
+                    }
+                }
+                SessionState.SavedPlayerPosition = null;
+                SessionState.SavedPlayerRotation = null;
+            }
 
             if (_rb == null || _transform == null) return;
 
@@ -127,13 +133,6 @@ namespace ChainedDecos.Scripts
                 movementDir = Vector3.Normalize(movementDir);
                 ApplyHorizontalMovement(movementDir, speed);
                 RotateTowardsMovement(movementDir);
-                if (m_DebugVelCounter < 30)
-                {
-                    var pos = _transform!.Translation;
-                    Log.Info("[PlayerController] Moving vel=(" + _rb.Velocity.X + "," + _rb.Velocity.Y + "," + _rb.Velocity.Z + ")" +
-                             " pos=(" + pos.X.ToString("F2") + "," + pos.Y.ToString("F2") + "," + pos.Z.ToString("F2") + ")");
-                    m_DebugVelCounter++;
-                }
             }
             else
             {
@@ -220,32 +219,15 @@ namespace ChainedDecos.Scripts
             }
         }
 
-        private int _animLogCounter = 0;
-        private int m_DebugVelCounter = 0;
-
         private void UpdateAnimation(Vector3 movementDir)
         {
-            if (_anim == null) { Log.Warn("[PlayerController] _anim is null!"); return; }
-
+            if (_anim == null) return;
             bool isMoving = movementDir.LengthSquared() > 0.0001f;
             bool isSprinting = Input.IsKeyDown(Key.LeftShift);
-            float speed = isMoving ? (isSprinting ? 1.0f : 0.5f) : 0.0f;
-            bool isGrounded = _rb?.IsGrounded ?? true;
-
             _anim.IsPlaying = true;
-
-            _anim.SetFloat("speed", speed);
+            _anim.SetFloat("speed", isMoving ? (isSprinting ? 1.0f : 0.5f) : 0.0f);
             _anim.SetBool("isMoving", isMoving);
-            _anim.SetBool("isGrounded", isGrounded);
-
-            if (_animLogCounter < 10)
-            {
-                Log.Info($"[PlayerController] UpdateAnimation #{_animLogCounter}: " +
-                    $"movementDir={movementDir.X:F3},{movementDir.Y:F3},{movementDir.Z:F3} " +
-                    $"isMoving={isMoving} speed={speed:F2} isGrounded={isGrounded} " +
-                    $"isSprinting={isSprinting} rb={(_rb != null ? "ok" : "null")}");
-                _animLogCounter++;
-            }
+            _anim.SetBool("isGrounded", _rb?.IsGrounded ?? true);
         }
     }
 }

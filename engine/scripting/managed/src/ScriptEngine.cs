@@ -70,6 +70,19 @@ namespace Chained
 
             try
             {
+                // Check if an instance of this type is already registered for this entity
+                // BEFORE creating the object to avoid wasted allocation.
+                if (s_EntityScripts.TryGetValue(entityId, out var existingList))
+                {
+                    foreach (var existing in existingList)
+                    {
+                        if (existing.GetType() == type)
+                        {
+                            return 1;
+                        }
+                    }
+                }
+
                 Script? script = Activator.CreateInstance(type) as Script;
                 if (script == null)
                 {
@@ -77,23 +90,8 @@ namespace Chained
                     return 0;
                 }
 
-                // Initialize the base struct entity ID and C++ bindings
                 script.__Init(entityId);
 
-                // Check if an instance of this type is already registered for this entity
-                if (s_EntityScripts.TryGetValue(entityId, out var existingList))
-                {
-                    foreach (var existing in existingList)
-                    {
-                        if (existing.GetType() == type)
-                        {
-                            // Already instantiated for this entity
-                            return 1;
-                        }
-                    }
-                }
-
-                // Add to collections
                 if (!s_EntityScripts.TryGetValue(entityId, out var scriptList))
                 {
                     scriptList = new List<Script>();
@@ -192,15 +190,27 @@ namespace Chained
         {
             foreach (var script in s_ActiveScripts)
             {
-                try { script.OnDestroy(); } catch {}
+                try { script.OnDestroy(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnDestroy for {script.GetType().Name}: {ex.Message}");
+                }
             }
             foreach (var script in s_ScriptsNeedingCreate)
             {
-                try { script.OnDestroy(); } catch {}
+                try { script.OnDestroy(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnDestroy for {script.GetType().Name}: {ex.Message}");
+                }
             }
             foreach (var script in s_ScriptsNeedingStart)
             {
-                try { script.OnDestroy(); } catch {}
+                try { script.OnDestroy(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnDestroy for {script.GetType().Name}: {ex.Message}");
+                }
             }
             s_ActiveScripts.Clear();
             s_EntityScripts.Clear();
@@ -251,6 +261,8 @@ namespace Chained
                     // running on the same frame as OnCreate (which caused button auto-fire).
                     s_ActiveScripts.Add(script);
                 }
+                // Re-sort by priority so newly added scripts interleave correctly
+                s_ActiveScripts.Sort((a, b) => a.Priority.CompareTo(b.Priority));
             }
 
             // 3. OnUpdate for all active scripts
@@ -272,6 +284,7 @@ namespace Chained
         {
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
+                s_ActiveScripts[i].__ResetEventState();
                 try
                 {
                     s_ActiveScripts[i].OnEvent(eventType);
@@ -280,6 +293,7 @@ namespace Chained
                 {
                      Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnEvent for {s_ActiveScripts[i].GetType().Name}: {ex.Message}");
                 }
+                if (s_ActiveScripts[i].EventConsumed) break;
             }
         }
 
@@ -288,6 +302,7 @@ namespace Chained
         {
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
+                s_ActiveScripts[i].__ResetEventState();
                 try
                 {
                     s_ActiveScripts[i].OnGUI();
@@ -296,9 +311,10 @@ namespace Chained
                 {
                      Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnGUI for {s_ActiveScripts[i].GetType().Name}: {ex.Message}");
                 }
+                if (s_ActiveScripts[i].EventConsumed) break;
             }
         }
-
+        // Some func not work
         [UnmanagedCallersOnly]
         public static void OnCollisionEnter(ulong entityA, ulong entityB)
         {
@@ -307,7 +323,11 @@ namespace Chained
             {
                 foreach(var script in scriptsA)
                 {
-                    try { script.OnCollisionEnter(entityB); } catch {}
+                    try { script.OnCollisionEnter(entityB); }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnCollisionEnter for {script.GetType().Name}: {ex.Message}");
+                    }
                 }
             }
 
@@ -316,7 +336,11 @@ namespace Chained
             {
                 foreach(var script in scriptsB)
                 {
-                    try { script.OnCollisionEnter(entityA); } catch {}
+                    try { script.OnCollisionEnter(entityA); }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnCollisionEnter for {script.GetType().Name}: {ex.Message}");
+                    }
                 }
             }
         }

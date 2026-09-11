@@ -21,17 +21,14 @@ namespace Chained
 		bool isGenerated = false;
 	};
 
-	namespace MetaUtils
-	{
-		std::filesystem::path GetMetaPath(const std::filesystem::path& assetPath);
-		bool HasMeta(const std::filesystem::path& assetPath);
-		uint64_t ComputeFileHash(const std::filesystem::path& path);
-		uint64_t ComputeHashFromBuffer(const std::vector<uint8_t>& data);
-		AssetMetadata ReadMeta(const std::filesystem::path& metaPath);
-		AssetMetadata ReadMetaFromString(std::string_view yamlContent);
-		bool WriteMeta(const std::filesystem::path& metaPath, const AssetMetadata& meta);
-		AssetMetadata LoadOrCreateMeta(const std::filesystem::path& assetPath, AssetType type);
-	} // namespace MetaUtils
+	std::filesystem::path GetMetaPath(const std::filesystem::path& assetPath);
+	bool HasMeta(const std::filesystem::path& assetPath);
+	uint64_t ComputeFileHash(const std::filesystem::path& path);
+	uint64_t ComputeHashFromBuffer(const std::vector<uint8_t>& data);
+	AssetMetadata ReadMeta(const std::filesystem::path& metaPath);
+	AssetMetadata ReadMetaFromString(std::string_view yamlContent);
+	bool WriteMeta(const std::filesystem::path& metaPath, const AssetMetadata& meta);
+	AssetMetadata LoadOrCreateMeta(const std::filesystem::path& assetPath, AssetType type);
 } // namespace Chained
 
 #endif

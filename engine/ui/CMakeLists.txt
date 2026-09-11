@@ -1,4 +1,4 @@
-add_library(engine_ui STATIC
+set(UI_SYSTEMS
     ui_animation_system.h
     ui_animation_system.cpp
     ui_control_renderer.h
@@ -11,6 +11,13 @@ add_library(engine_ui STATIC
     ui_input_system.cpp
     ui_layout_system.h
     ui_layout_system.cpp
+    ui_style.h
+    ui_types.h
+    widget_renderer.h
+    widget_renderer.cpp
+)
+
+set(UI_RENDER
     ui_render_basic.cpp
     ui_render_container.cpp
     ui_render_helpers.h
@@ -18,10 +25,11 @@ add_library(engine_ui STATIC
     ui_render_input.cpp
     ui_render_plot.cpp
     ui_render_widgets.h
-    ui_style.h
-    ui_types.h
-    widget_renderer.h
-    widget_renderer.cpp
+)
+
+add_library(engine_ui STATIC
+    ${UI_SYSTEMS}
+    ${UI_RENDER}
 )
 
 target_include_directories(engine_ui PUBLIC

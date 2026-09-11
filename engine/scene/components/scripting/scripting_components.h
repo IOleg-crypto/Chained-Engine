@@ -42,6 +42,7 @@ namespace Chained
 	{
 		std::string ClassName;
 		std::map<std::string, ScriptField> Fields; // Persistent fields
+		int Priority = 0;						   // Lower = executes first
 		bool IsInstantiated = false;
 		bool NeedsStart = true;
 		bool InstantiateTried = false; // set once C++ attempted instantiation (success or not)
@@ -51,6 +52,7 @@ namespace Chained
 			ManagedScriptInstance copy;
 			copy.ClassName = ClassName;
 			copy.Fields = Fields;
+			copy.Priority = Priority;
 			return copy;
 		}
 

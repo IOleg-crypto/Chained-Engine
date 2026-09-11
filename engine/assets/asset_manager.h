@@ -2,6 +2,7 @@
 #define CH_ASSET_MANAGER_H
 
 #include "engine/assets/loaders/iasset_loader.h"
+#include "engine/assets/asset_pack_store.h"
 #include "engine/assets/asset_path_resolver.h"
 #include "engine/core/service.h"
 #include "engine/common/timestep.h"
@@ -12,17 +13,12 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <atomic>
 #include <unordered_map>
 #include <vector>
 
-namespace pack
-{
-	class Reader;
-}
-
 namespace Chained
 {
-	class DictionaryPackReader;
 
 	class AssetManager : public Service
 	{
@@ -51,24 +47,32 @@ namespace Chained
 		{
 			m_PathResolver.SetEngineRoot(path);
 		}
+		void SetSourceResourcesDir(const std::filesystem::path& path)
+		{
+			m_PathResolver.SetSourceResourcesDir(path);
+		}
+		void SetSourceAssetsDir(const std::filesystem::path& path)
+		{
+			m_PathResolver.SetSourceAssetsDir(path);
+		}
 
+		// Pack I/O — delegated to AssetPackStore
 		bool OpenPack(const std::filesystem::path& packPath);
 		size_t OpenAllPacksInDirectory(const std::filesystem::path& dir);
 		void CloseAllPacks();
-		size_t GetOpenPackCount() const
-		{
-			return m_PackReaders.size() + m_DictPackReaders.size();
-		}
-		bool IsPacked() const
-		{
-			return m_PackOpen;
-		}
+		size_t GetOpenPackCount() const;
+		bool IsPacked() const;
 		std::vector<uint8_t> ReadAssetData(const std::string& assetPath);
 		std::string ReadText(const std::string& path);
 		bool HasAsset(const std::string& path) const;
 		bool FileExists(const std::string& path) const;
 		void EnumeratePackedPaths(const std::function<void(std::string_view)>& callback) const;
 		std::vector<uint8_t> ReadProjectAsset(const std::filesystem::path& absolutePath);
+
+		AssetPackStore& GetPackStore()
+		{
+			return *m_PackStore;
+		}
 
 		const std::filesystem::path& GetAssetDirectory() const
 		{
@@ -142,6 +146,7 @@ namespace Chained
 
 		std::shared_ptr<Asset> GetAsset(AssetHandle handle);
 		std::shared_ptr<Asset> LoadAsset(const std::string& path, AssetType type);
+		void RetryFailedAsset(AssetHandle handle, AssetType type);
 
 	private:
 		struct StaleAsset
@@ -155,26 +160,26 @@ namespace Chained
 		void CheckAssetHotReload();
 		std::vector<StaleAsset> CollectStaleAssets(int thresholdSeconds) const;
 		bool ExecuteLoad(const std::shared_ptr<Asset>& asset, IAssetLoader* loader, const std::string& resolved);
-
-		std::vector<uint8_t> TryPackFallback(const std::string& packKey) const;
-		bool TryPackFallbackExists(const std::string& packKey) const;
+		void StartAsyncLoad(const std::shared_ptr<Asset>& asset, IAssetLoader* loader, const std::string& resolved);
 
 		std::unordered_map<AssetHandle, std::shared_ptr<Asset>> m_AssetCache;
 		std::unordered_map<AssetType, std::unique_ptr<IAssetLoader>> m_Loaders;
 
+		// LOCK HIERARCHY (must always be acquired in this order):
+		//   1. m_AssetLock (recursive_mutex)
+		//   2. m_PathMutex inside AssetPathResolver (mutex, never acquire from outside)
+		// Never hold m_PathMutex while acquiring m_AssetLock.
 		mutable std::deque<std::shared_ptr<Asset>> m_PendingAssets;
 		mutable std::mutex m_PendingMutex;
 		mutable std::recursive_mutex m_AssetLock;
+		std::atomic<size_t> m_LoadingCount{0};
 
 		AssetPathResolver m_PathResolver;
-
-		std::vector<std::unique_ptr<pack::Reader>> m_PackReaders;
-		std::vector<std::unique_ptr<DictionaryPackReader>> m_DictPackReaders;
-		std::vector<std::filesystem::path> m_OpenedPackPaths;
-		bool m_PackOpen = false;
+		std::unique_ptr<AssetPackStore> m_PackStore;
 
 		float m_HotReloadInterval = 3.0f;
 		float m_HotReloadAccumulator = 0.0f;
+		mutable std::unordered_map<AssetHandle, std::filesystem::file_time_type> m_AssetLastWriteTimes;
 	};
 } // namespace Chained
 

@@ -1,0 +1,34 @@
+#ifndef RFL_PARSING_IS_MAP_LIKE_NOT_MULTIMAP_HPP_
+#define RFL_PARSING_IS_MAP_LIKE_NOT_MULTIMAP_HPP_
+
+#include <map>
+#include <type_traits>
+#include <unordered_map>
+
+namespace rfl {
+namespace parsing {
+
+/**
+ * @brief Trait to check if a type is a map-like type, but not a multimap.
+ *
+ * @tparam T The type to check.
+ */
+template <class T>
+class is_map_like_not_multimap;
+
+template <class T>
+class is_map_like_not_multimap : public std::false_type {};
+
+template <class K, class V, class Compare, class Allocator>
+class is_map_like_not_multimap<std::map<K, V, Compare, Allocator>>
+    : public std::true_type {};
+
+template <class K, class V, class Hash, class KeyEqual, class Allocator>
+class is_map_like_not_multimap<
+    std::unordered_map<K, V, Hash, KeyEqual, Allocator>>
+    : public std::true_type {};
+
+}  // namespace parsing
+}  // namespace rfl
+
+#endif

@@ -38,6 +38,7 @@ if(EXISTS "${BASISU_ROOT}/transcoder/basisu_transcoder.cpp")
     target_link_libraries(engine_external_basisu_encoder PRIVATE libzstd_static)
 
     # Disable unity build for basisu files to prevent internal namespace collisions
-    set_target_properties(engine_external_basisu_transcoder PROPERTIES UNITY_BUILD OFF)
-    set_target_properties(engine_external_basisu_encoder PROPERTIES UNITY_BUILD OFF)
+    # and use C++17 to avoid standard header popcount mismatches without modifying thirdparty files
+    set_target_properties(engine_external_basisu_transcoder PROPERTIES UNITY_BUILD OFF CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    set_target_properties(engine_external_basisu_encoder PROPERTIES UNITY_BUILD OFF CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 endif()

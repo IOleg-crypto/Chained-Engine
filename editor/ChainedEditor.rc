@@ -1,0 +1,6 @@
+// Windows resource file for ChainedEditor.exe
+// Embeds the application icon into the executable binary.
+
+#include <windows.h>
+
+IDI_ICON1 ICON CHAINED_ICON_PATH

@@ -46,11 +46,6 @@ add_custom_command(TARGET $PYTARGET_NAME Exe POST_BUILD
 if(COMMAND ch_add_resource_sync)
     ch_add_resource_sync($PYTARGET_NAME Exe)
 endif()
-
-# Pass source game directory so runtime can load assets from source during development
-target_compile_definitions($PYTARGET_NAME Exe PRIVATE
-    CH_SOURCE_GAME_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-)
 """
 
 # ── main.cpp template ──
@@ -99,7 +94,7 @@ Application* CreateApplication(ApplicationCommandLineArgs args)
 _TEMPLATE_CHPROJECT = """\
 Project:
   Name: $PYDISPLAY_NAME
-  IconPath: engine/resources/icons/chaineddecos.jpg
+  IconPath: resources/icons/chaineddecos.jpg
   StartScene: scenes/start_menu.chscene
   AssetDirectory: assets
   ActiveScene: assets/scenes/untitled.chscene

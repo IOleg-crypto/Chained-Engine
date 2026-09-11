@@ -84,53 +84,32 @@ namespace Chained
 			m_Entity = m_Scene->CreateEntity(m_Name);
 			if (!m_ModelPath.empty())
 			{
-				// Procedural primitive markers start with ':' — use PrimitiveComponent.
-				if (m_ModelPath.size() > 1 && m_ModelPath.front() == ':' && m_ModelPath.back() == ':')
+				auto& mc = m_Entity.AddComponent<ModelComponent>();
+				mc.ModelPath = m_ModelPath;
+
+				// Attach default collider matching the primitive type
+				auto& col = m_Entity.AddComponent<ColliderComponent>();
+				if (m_ModelPath.find("Cube") != std::string::npos)
 				{
-					PrimitiveComponent prim;
-					if (m_ModelPath == ":cube:")
-					{
-						prim.Type = PrimitiveType::Cube;
-					}
-					else if (m_ModelPath == ":sphere:")
-					{
-						prim.Type = PrimitiveType::Sphere;
-					}
-					else if (m_ModelPath == ":plane:")
-					{
-						prim.Type = PrimitiveType::Plane;
-					}
-					else if (m_ModelPath == ":cylinder:")
-					{
-						prim.Type = PrimitiveType::Cylinder;
-					}
-					else if (m_ModelPath == ":cone:")
-					{
-						prim.Type = PrimitiveType::Cone;
-					}
-					else if (m_ModelPath == ":torus:")
-					{
-						prim.Type = PrimitiveType::Torus;
-					}
-					else if (m_ModelPath == ":knot:")
-					{
-						prim.Type = PrimitiveType::Knot;
-					}
-					else if (m_ModelPath == ":hemisphere:")
-					{
-						prim.Type = PrimitiveType::Hemisphere;
-					}
-					else
-					{
-						prim.Type = PrimitiveType::Sphere; // fallback
-					}
-					m_Entity.AddComponent<PrimitiveComponent>(prim);
+					col.Type = ColliderType::Box;
+					col.Size = {1.0f, 1.0f, 1.0f};
+				}
+				else if (m_ModelPath.find("Sphere") != std::string::npos ||
+						 m_ModelPath.find("Hemisphere") != std::string::npos)
+				{
+					col.Type = ColliderType::Sphere;
+					col.Radius = 0.5f;
+				}
+				else if (m_ModelPath.find("Capsule") != std::string::npos)
+				{
+					col.Type = ColliderType::Capsule;
+					col.Radius = 0.5f;
+					col.Height = 1.0f;
 				}
 				else
 				{
-					// Real file path — use ModelComponent.
-					auto& mc = m_Entity.AddComponent<ModelComponent>();
-					mc.ModelPath = m_ModelPath;
+					col.Type = ColliderType::Mesh;
+					col.ModelPath = m_ModelPath;
 				}
 			}
 		}

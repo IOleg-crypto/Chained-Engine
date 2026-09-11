@@ -47,29 +47,15 @@ DebugSettings:
   CollisionWireframeMode: 0
 Entities:
   - Entity: 1326165574427290455
+    ModelComponent:
+      ModelPath: models/primitives/Cube.obj
+      ModelUUID: 0
+      MaterialPaths:
+        []
     TransformComponent:
       Translation: [0, 1.53216136, 0]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
-    PrimitiveComponent:
-      Type: 1
-      Radius: 0.5
-      InnerRadius: 7.5
-      Height: 7.0999999
-      Slices: 77
-      Stacks: 16
-      Dimensions: [1, 1, 1]
-      AlbedoPath: ""
-      AlbedoColor: [0.136452466, 0.383886278, 0.31000793, 1]
-      NormalPath: ""
-      MetallicRoughnessPath: ""
-      EmissivePath: ""
-      EmissiveColor: [0, 0, 0, 1]
-      EmissiveIntensity: 0
-      Metalness: 0
-      Roughness: 0.5
-      Transparent: false
-      Alpha: 1
     TagComponent:
       Tag: Cube
     IDComponent:

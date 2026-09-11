@@ -81,3 +81,18 @@ TEST(ThreadPoolTest, QueueTaskAfterShutdownThrows)
 
 	EXPECT_THROW(pool.QueueTask([]() {}), std::runtime_error);
 }
+
+TEST(ThreadPoolTest, WaitIdleWaitsForActiveTasks)
+{
+	ThreadPool pool(2);
+	std::atomic<int> completed{0};
+	for (int i = 0; i < 5; ++i)
+	{
+		pool.QueueTask([&completed]() {
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			completed.fetch_add(1, std::memory_order_relaxed);
+		});
+	}
+	pool.WaitIdle();
+	EXPECT_EQ(completed.load(), 5);
+}

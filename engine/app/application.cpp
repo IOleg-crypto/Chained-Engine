@@ -18,6 +18,7 @@
 #include "engine/core/input.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/networking/network_service.h"
+#include "engine/scene/systems/network_system.h"
 
 namespace Chained
 {
@@ -101,6 +102,9 @@ namespace Chained
 		// 1. Input — must be first (window callbacks fire during creation)
 		ServiceLocator::Provide<Core::Input>([] { return std::make_unique<Core::Input>(); });
 
+		// 1b. Instrumentor — profiler (must be early for CH_PROFILE_* macros)
+		ServiceLocator::Provide<Instrumentor>([] { return std::make_unique<Instrumentor>(); });
+
 		// 2. ThreadPool
 		ServiceLocator::Provide<ThreadPool>([=] { return std::make_unique<ThreadPool>(workerCount); });
 
@@ -111,6 +115,15 @@ namespace Chained
 			if (!resourcesDir.empty())
 			{
 				am->SetAssetDirectory(resourcesDir);
+			}
+			// Source directories for dev mode (runtime reads from source tree)
+			if (!m_Specification.SourceResourcesDir.empty())
+			{
+				am->SetSourceResourcesDir(m_Specification.SourceResourcesDir);
+			}
+			if (!m_Specification.SourceAssetsDir.empty())
+			{
+				am->SetSourceAssetsDir(m_Specification.SourceAssetsDir);
 			}
 			return am;
 		});
@@ -138,6 +151,7 @@ namespace Chained
 				[=] { return std::make_unique<ScriptEngine>(m_Specification.EnableScripting); });
 		}
 		ServiceLocator::Provide<Network>([] { return std::make_unique<Network>(); });
+		ServiceLocator::Provide<NetworkSystem>([] { return std::make_unique<NetworkSystem>(); });
 	}
 
 	Application::~Application()
@@ -171,7 +185,10 @@ namespace Chained
 			float clampedDelta = (rawDelta > 0.0f) ? std::min(rawDelta, 0.1f) : 0.0f;
 			m_Timer.DeltaTime = Timestep(clampedDelta);
 
-			Instrumentor::Get().BeginFrame();
+			if (auto* inst = Instrumentor::TryGet())
+			{
+				inst->BeginFrame();
+			}
 
 			if (m_Window)
 			{
@@ -241,13 +258,17 @@ namespace Chained
 			}
 		}
 
-		for (auto it = m_LayerStack->rbegin(); it != m_LayerStack->rend(); ++it)
+		auto& layers = m_LayerStack->GetLayers();
+		for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i)
 		{
 			if (e.Handled)
 			{
 				break;
 			}
-			(*it)->OnEvent(e);
+			if (i < static_cast<int>(layers.size()) && layers[i])
+			{
+				layers[i]->OnEvent(e);
+			}
 		}
 	}
 

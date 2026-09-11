@@ -1,7 +1,6 @@
 #include "property_editor.h"
 #include "engine/reflection/reflection_rfl.h"
 #include "engine/reflection/reflection_rfl_impl.h"
-#include "engine/scene/components/render/primitive_component.h"
 #include "engine/scene/component_registry.h"
 #include "thirdparty/IconsFontAwesome6.h"
 #include "editor/layer.h"
@@ -20,6 +19,7 @@
 #include <Coral/ManagedObject.hpp>
 
 #include "engine/app/application.h"
+#include "engine/scene/components/ui/control_component.h"
 #include <yaml-cpp/yaml.h>
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/model_asset.h"
@@ -376,15 +376,6 @@ namespace Chained
 	{
 		if (entity.HasComponent<T>())
 		{
-			if constexpr (std::is_same_v<T, ModelComponent>)
-			{
-				if (entity.HasComponent<PrimitiveComponent>() &&
-					entity.GetComponent<PrimitiveComponent>().Type != PrimitiveType::None)
-				{
-					return;
-				}
-			}
-
 			DrawComponentInternal(
 				entt::type_hash<T>::value(), name, icon, entity,
 				[&]() {
@@ -487,182 +478,6 @@ namespace Chained
 		// --- Core Components ---
 		ComponentRegistry::SetAllowAdd(entt::type_hash<TransformComponent>::value(), false);
 
-		// Custom drawer for PrimitiveComponent (shown in Inspector)
-		RegisterCustom<PrimitiveComponent>(
-			"Primitive",
-			[](PrimitiveComponent& comp, Entity entity) {
-				bool changed = false;
-				UIProperties ui;
-
-				static const char* primitiveTypes[] = {"None", "Cube",	"Sphere", "Plane",	   "Cylinder",
-													   "Cone", "Torus", "Knot",	  "Hemisphere"};
-				int typeIdx = static_cast<int>(comp.Type);
-				if (ui.Enum("Shape Type", typeIdx, primitiveTypes, 9))
-				{
-					comp.Type = static_cast<PrimitiveType>(typeIdx);
-					changed = true;
-				}
-
-				switch (comp.Type)
-				{
-				case PrimitiveType::Cube: {
-					if (ui.Property("Dimensions", comp.Dimensions, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Sphere: {
-					if (ui.Property("Radius", comp.Radius, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Slices", comp.Slices, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Stacks", comp.Stacks, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Plane: {
-					if (ui.Property("Dimensions", comp.Dimensions, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Cylinder: {
-					if (ui.Property("Radius", comp.Radius, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Height", comp.Height, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Slices", comp.Slices, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Cone: {
-					if (ui.Property("Radius", comp.Radius, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Height", comp.Height, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Slices", comp.Slices, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Torus: {
-					if (ui.Property("Radius", comp.Radius, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Inner Radius", comp.InnerRadius, PropertyMeta(0.01f, 50.0f, 0.01f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Slices", comp.Slices, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Stacks", comp.Stacks, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Knot: {
-					if (ui.Property("Radius", comp.Radius, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Inner Radius", comp.InnerRadius, PropertyMeta(0.01f, 50.0f, 0.01f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Slices", comp.Slices, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Stacks", comp.Stacks, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				case PrimitiveType::Hemisphere: {
-					if (ui.Property("Radius", comp.Radius, PropertyMeta(0.01f, 100.0f, 0.05f)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Slices", comp.Slices, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					if (ui.Property("Stacks", comp.Stacks, PropertyMeta(3, 128, 1)))
-					{
-						changed = true;
-					}
-					break;
-				}
-				default:
-					break;
-				}
-
-				if (entity.HasComponent<ModelComponent>())
-				{
-					auto& mc = entity.GetComponent<ModelComponent>();
-					ImGui::Spacing();
-					ImGui::Separator();
-					ImGui::TextDisabled("Material Override");
-
-					if (mc.MaterialPaths.empty())
-					{
-						mc.MaterialPaths.resize(1);
-					}
-
-					std::filesystem::path modelPath(mc.ModelPath);
-					std::string modelName = modelPath.stem().string();
-					std::filesystem::path modelDir = modelPath.parent_path();
-
-					for (size_t matIdx = 0; matIdx < mc.MaterialPaths.size(); ++matIdx)
-					{
-						if (mc.MaterialPaths[matIdx].empty() && !mc.ModelPath.empty())
-						{
-							auto* am = ServiceLocator::TryGet<AssetManager>();
-							std::string autoName = modelName + "_material_" + std::to_string(matIdx) + ".chmat";
-							std::string autoRel = (modelDir / autoName).generic_string();
-							if (am && am->FileExists(autoRel))
-							{
-								mc.MaterialPaths[matIdx] = autoRel;
-							}
-						}
-
-						std::string matLabel = "Material " + std::to_string(matIdx);
-						if (ui.File(matLabel.c_str(), mc.MaterialPaths[matIdx], ".chmat"))
-						{
-							entity.GetRegistry().patch<ModelComponent>(entity, [](ModelComponent&) {});
-							EditorLayer::Get().GetSceneManager().MarkSceneDirty();
-							changed = true;
-						}
-					}
-				}
-
-				return changed;
-			},
-			ICON_FA_SHAPES);
 		RegisterCustom<LightComponent>(
 			"Light",
 			[&](LightComponent& comp, Entity entity) {
@@ -1140,6 +955,178 @@ namespace Chained
 			ICON_FA_FILM);
 
 		// --- UI Components ---
+		RegisterCustom<ControlComponent>(
+			"Rect Transform",
+			[](ControlComponent& comp, Entity entity) {
+				bool changed = false;
+				UIProperties ui;
+
+				RectTransform& rt = comp.Transform;
+
+				if (ImGui::GetCurrentTable() != nullptr)
+				{
+					EditorGUI::EndPropertyGrid();
+				}
+
+				ImGui::Spacing();
+				ImGui::TextColored({0.2f, 0.7f, 0.9f, 1.0f}, "Anchor Presets");
+				ImGui::TextDisabled("Quickly align UI relative to screen edges:");
+				ImGui::Spacing();
+
+				struct AnchorPreset
+				{
+					const char* Label;
+					const char* Tooltip;
+					glm::vec2 Min;
+					glm::vec2 Max;
+				};
+
+				static const AnchorPreset presets[] = {
+					{"Top Left", "Anchor to Top-Left corner (0.0, 0.0)", {0.0f, 0.0f}, {0.0f, 0.0f}},
+					{"Top Center", "Anchor to Top-Center edge (0.5, 0.0)", {0.5f, 0.0f}, {0.5f, 0.0f}},
+					{"Top Right", "Anchor to Top-Right corner (1.0, 0.0)", {1.0f, 0.0f}, {1.0f, 0.0f}},
+					{"Mid Left", "Anchor to Middle-Left edge (0.0, 0.5)", {0.0f, 0.5f}, {0.0f, 0.5f}},
+					{"Center", "Anchor to Screen Center (0.5, 0.5)", {0.5f, 0.5f}, {0.5f, 0.5f}},
+					{"Mid Right", "Anchor to Middle-Right edge (1.0, 0.5)", {1.0f, 0.5f}, {1.0f, 0.5f}},
+					{"Bot Left", "Anchor to Bottom-Left corner (0.0, 1.0)", {0.0f, 1.0f}, {0.0f, 1.0f}},
+					{"Bot Center", "Anchor to Bottom-Center edge (0.5, 1.0)", {0.5f, 1.0f}, {0.5f, 1.0f}},
+					{"Bot Right", "Anchor to Bottom-Right corner (1.0, 1.0)", {1.0f, 1.0f}, {1.0f, 1.0f}},
+				};
+
+				float buttonWidth = (ImGui::GetContentRegionAvail().x - 12.0f) / 3.0f;
+				if (buttonWidth < 50.0f)
+				{
+					buttonWidth = 50.0f;
+				}
+
+				for (int i = 0; i < 9; i++)
+				{
+					if (i > 0 && i % 3 != 0)
+					{
+						ImGui::SameLine();
+					}
+
+					bool isCurrent = (rt.AnchorMin == presets[i].Min && rt.AnchorMax == presets[i].Max);
+					if (isCurrent)
+					{
+						ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
+					}
+
+					std::string btnId = std::string(presets[i].Label) + "##Anch" + std::to_string(i);
+					if (ImGui::Button(btnId.c_str(), ImVec2(buttonWidth, 26.0f)))
+					{
+						float width = rt.OffsetMax.x - rt.OffsetMin.x;
+						float height = rt.OffsetMax.y - rt.OffsetMin.y;
+						if (width <= 0.0f)
+						{
+							width = 100.0f;
+						}
+						if (height <= 0.0f)
+						{
+							height = 40.0f;
+						}
+
+						rt.AnchorMin = presets[i].Min;
+						rt.AnchorMax = presets[i].Max;
+
+						if (presets[i].Min.x == 0.0f)
+						{
+							rt.OffsetMin.x = 40.0f;
+							rt.OffsetMax.x = 40.0f + width;
+						}
+						else if (presets[i].Min.x == 0.5f)
+						{
+							rt.OffsetMin.x = -width * 0.5f;
+							rt.OffsetMax.x = width * 0.5f;
+						}
+						else
+						{
+							rt.OffsetMax.x = -40.0f;
+							rt.OffsetMin.x = -40.0f - width;
+						}
+
+						if (presets[i].Min.y == 0.0f)
+						{
+							rt.OffsetMin.y = 40.0f;
+							rt.OffsetMax.y = 40.0f + height;
+						}
+						else if (presets[i].Min.y == 0.5f)
+						{
+							rt.OffsetMin.y = -height * 0.5f;
+							rt.OffsetMax.y = height * 0.5f;
+						}
+						else
+						{
+							rt.OffsetMax.y = -40.0f;
+							rt.OffsetMin.y = -40.0f - height;
+						}
+
+						changed = true;
+					}
+
+					if (isCurrent)
+					{
+						ImGui::PopStyleColor();
+					}
+
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::SetTooltip("%s", presets[i].Tooltip);
+					}
+				}
+
+				if (ImGui::Button("Stretch Full Screen", ImVec2(ImGui::GetContentRegionAvail().x, 26.0f)))
+				{
+					rt.AnchorMin = {0.0f, 0.0f};
+					rt.AnchorMax = {1.0f, 1.0f};
+					rt.OffsetMin = {0.0f, 0.0f};
+					rt.OffsetMax = {0.0f, 0.0f};
+					changed = true;
+				}
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Stretch to fill entire screen / parent container");
+				}
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Spacing();
+
+				EditorGUI::BeginPropertyGrid();
+
+				ui.Header("Rect Transform Offsets");
+				if (ui.Property("Anchor Min", rt.AnchorMin, PropertyMeta(0.0f, 1.0f, 0.01f)))
+				{
+					changed = true;
+				}
+				if (ui.Property("Anchor Max", rt.AnchorMax, PropertyMeta(0.0f, 1.0f, 0.01f)))
+				{
+					changed = true;
+				}
+				if (ui.Property("Offset Min", rt.OffsetMin, PropertyMeta(-2000.0f, 2000.0f, 1.0f)))
+				{
+					changed = true;
+				}
+				if (ui.Property("Offset Max", rt.OffsetMax, PropertyMeta(-2000.0f, 2000.0f, 1.0f)))
+				{
+					changed = true;
+				}
+				if (ui.Property("Pivot", rt.Pivot, PropertyMeta(0.0f, 1.0f, 0.01f)))
+				{
+					changed = true;
+				}
+				if (ui.Property("Z Order", comp.ZOrder))
+				{
+					changed = true;
+				}
+				if (ui.Property("Is Active", comp.IsActive))
+				{
+					changed = true;
+				}
+
+				return changed;
+			},
+			ICON_FA_SHAPES);
 
 		// --- UI Widgets ---
 		RegisterCustom<UIControlComponent>(

@@ -67,11 +67,10 @@ namespace Chained
 
 	enum class PackMode : uint8_t
 	{
-		Fast = 0,	   // LZ4 HC — fast compression, larger file
-		Balanced = 1,  // ZSTD — balanced speed/size
-		Max = 2,	   // ZSTD ultra — maximum compression, slowest
-		Raw = 3,	   // No compression — stored as-is
-		Dictionary = 4 // ZSTD + trained dictionary — best compression for mixed assets
+		Fast = 0,	  // LZ4 HC — fast compression, larger file
+		Balanced = 1, // ZSTD — balanced speed/size
+		Max = 2,	  // ZSTD ultra — maximum compression, slowest
+		Raw = 3		  // No compression — stored as-is
 	};
 
 	struct ExportSettings

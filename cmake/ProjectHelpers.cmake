@@ -125,7 +125,13 @@ function(chained_add_game TARGET_NAME)
 endfunction()
 
 # Copy engine resources (shaders, fonts, icons, config) to a target's output directory
+# Skipped when CH_SOURCE_RESOURCES_DIR is set (dev mode — runtime reads from source tree)
 function(ch_add_resource_sync TARGET)
+    if(CH_SOURCE_RESOURCES_DIR AND EXISTS "${CH_SOURCE_RESOURCES_DIR}")
+        message(STATUS "Dev mode: ${TARGET} reads engine resources from ${CH_SOURCE_RESOURCES_DIR}")
+        return()
+    endif()
+
     set(RESOURCES_SRC "${CMAKE_SOURCE_DIR}/resources")
     set(RESOURCES_DST "$<TARGET_FILE_DIR:${TARGET}>/resources")
 

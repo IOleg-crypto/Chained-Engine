@@ -1,9 +1,8 @@
-// Physics component registrations (RigidBody, Collider, Primitive)
+// Physics component registrations (RigidBody, Collider)
 // Split into its own TU to reduce obj file size in MinGW Clang Debug builds.
 #include "component_registry.h"
 #include "engine/reflection/reflection_rfl_impl.h"
 #include "components/physics/physics_component.h"
-#include "components/render/primitive_component.h"
 #include "thirdparty/IconsFontAwesome6.h"
 
 namespace Chained

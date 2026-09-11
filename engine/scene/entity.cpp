@@ -1,5 +1,7 @@
 #include "engine/scene/entity.h"
 #include "engine/scene/components.h"
+#include "engine/physics/physics.h"
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -52,6 +54,27 @@ namespace Chained
 		{
 			if (m_Registry->valid(*it))
 			{
+				if (m_Registry->all_of<RigidBodyComponent>(*it))
+				{
+					auto& rb = m_Registry->get<RigidBodyComponent>(*it);
+					if (rb.Handle != kInvalidPhysicsBody)
+					{
+						Physics* physics = nullptr;
+						if (auto* physicsPtr = m_Registry->ctx().find<Physics*>())
+						{
+							physics = *physicsPtr;
+						}
+						if (!physics)
+						{
+							physics = ServiceLocator::TryGet<Physics>();
+						}
+						if (physics && physics->GetWorld())
+						{
+							physics->GetWorld()->DestroyBody(rb.Handle);
+						}
+						rb.Handle = kInvalidPhysicsBody;
+					}
+				}
 				m_Registry->destroy(*it);
 			}
 		}

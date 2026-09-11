@@ -368,15 +368,13 @@ namespace Chained
 				{PackMode::Fast, "Fast", "LZ4 HC compression.\nFast export, larger pack.", ICON_FA_BOLT},
 				{PackMode::Balanced, "Balanced", "ZSTD compression.\nBalanced speed and size.", ICON_FA_CUBES},
 				{PackMode::Max, "Max", "ZSTD ultra compression.\nSmallest pack, slowest export.", ICON_FA_GEARS},
-				{PackMode::Dictionary, "Dict", "ZSTD + trained dictionary.\nBest compression for mixed assets.",
-				 ICON_FA_FILE_CODE},
 				{PackMode::Raw, "Raw", "No compression.\nStored as-is, fastest.", ICON_FA_FOLDER_OPEN},
 			};
-			constexpr size_t modeCount = 5;
+			constexpr size_t modeCount = 4;
 
 			const float avail = ImGui::GetContentRegionAvail().x;
 			const float spacing = ImGui::GetStyle().ItemSpacing.x;
-			const float modeWidth = (avail - spacing * 4.0f) / 5.0f;
+			const float modeWidth = (avail - spacing * 3.0f) / 4.0f;
 
 			for (size_t i = 0; i < modeCount; ++i)
 			{
@@ -405,10 +403,6 @@ namespace Chained
 						m_ExportDialog.ZipThreshold = 0.05f;
 					}
 					else if (m.mode == PackMode::Max)
-					{
-						m_ExportDialog.ZipThreshold = 0.00f;
-					}
-					else if (m.mode == PackMode::Dictionary)
 					{
 						m_ExportDialog.ZipThreshold = 0.00f;
 					}
@@ -596,6 +590,12 @@ namespace Chained
 				ImGui::SetTooltip("Rebuild resources.pack even when it is already up to date.\nBy default the pack is "
 								  "reused if no source file changed.");
 			}
+			ImGui::Checkbox("Skip KTX2 conversion", &m_ExportDialog.SkipKtx2);
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Keep textures in original format (PNG/JPG).\nFaster export but larger pack.\n"
+								  "Enable if your GPU doesn't support BC7/KTX2.");
+			}
 			ImGui::PopStyleVar();
 
 			ImGui::Spacing();
@@ -645,7 +645,8 @@ namespace Chained
 					{
 						std::string outDirPath = m_ExportDialog.OutputDir;
 						bool forceRepack = m_ExportDialog.ForceRepack;
-						threadPool->QueueTask([outDirPath, forceRepack, this]() {
+						bool skipKtx2 = m_ExportDialog.SkipKtx2;
+						threadPool->QueueTask([outDirPath, forceRepack, skipKtx2, this]() {
 							ExportProgressCallback progressCb = [this](uint64_t packed, uint64_t total,
 																	   const std::string& file) {
 								std::lock_guard<std::mutex> lock(m_ExportState.Mutex);
@@ -653,8 +654,8 @@ namespace Chained
 								m_ExportState.TotalFiles = total;
 								m_ExportState.CurrentFile = file;
 							};
-							auto result = ProjectExporter::ExportTo(outDirPath, progressCb,
-																	&m_ExportState.CancelRequested, forceRepack);
+							auto result = ProjectExporter::ExportTo(
+								outDirPath, progressCb, &m_ExportState.CancelRequested, forceRepack, skipKtx2);
 							std::lock_guard<std::mutex> lock(m_ExportState.Mutex);
 							m_ExportState.Success = result.Success;
 							m_ExportState.Message = result.Cancelled  ? "Export cancelled."

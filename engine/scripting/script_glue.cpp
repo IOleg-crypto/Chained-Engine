@@ -309,6 +309,7 @@ namespace Chained
 		assembly.AddInternalCall("Chained.Scene", "Scene_GetPrimaryCameraEntity_Ptr",
 								 (void*)&Scene_GetPrimaryCameraEntity);
 		assembly.AddInternalCall("Chained.Scene", "Scene_CopyEntity_Ptr", (void*)&Scene_CopyEntity);
+		assembly.AddInternalCall("Chained.Scene", "Scene_GetCurrentScenePath_Ptr", (void*)&Scene_GetCurrentScenePath);
 
 		// ── Audio static ──────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Audio", "Audio_Play_Ptr", (void*)&Audio_Play);
@@ -336,6 +337,12 @@ namespace Chained
 								 (void*)&Window_SetAntiAliasingSamples);
 		assembly.AddInternalCall("Chained.AppWindow", "Window_GetAntiAliasingSamples_Ptr",
 								 (void*)&Window_GetAntiAliasingSamples);
+		assembly.AddInternalCall("Chained.AppWindow", "Window_SetEnableShadows_Ptr", (void*)&Window_SetEnableShadows);
+		assembly.AddInternalCall("Chained.AppWindow", "Window_GetEnableShadows_Ptr", (void*)&Window_GetEnableShadows);
+		assembly.AddInternalCall("Chained.AppWindow", "Window_SetShadowResolution_Ptr",
+								 (void*)&Window_SetShadowResolution);
+		assembly.AddInternalCall("Chained.AppWindow", "Window_GetShadowResolution_Ptr",
+								 (void*)&Window_GetShadowResolution);
 		assembly.AddInternalCall("Chained.AppWindow", "Window_GetVSync_Ptr", (void*)&Window_GetVSync);
 		assembly.AddInternalCall("Chained.AppWindow", "Window_GetFullscreen_Ptr", (void*)&Window_GetFullscreen);
 		assembly.AddInternalCall("Chained.AppWindow", "Window_GetWidth_Ptr", (void*)&Window_GetWidth);
@@ -348,7 +355,10 @@ namespace Chained
 
 		// ── Network ─────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Network", "Network_HostGame_Ptr", (void*)&Network_HostGame);
+		assembly.AddInternalCall("Chained.Network", "Network_HostRoom_Ptr", (void*)&Network_HostRoom);
 		assembly.AddInternalCall("Chained.Network", "Network_ConnectTo_Ptr", (void*)&Network_ConnectTo);
+		assembly.AddInternalCall("Chained.Network", "Network_ConnectRoom_Ptr", (void*)&Network_ConnectRoom);
+		assembly.AddInternalCall("Chained.Network", "Network_GetRoomCode_Ptr", (void*)&Network_GetRoomCode);
 		assembly.AddInternalCall("Chained.Network", "Network_Disconnect_Ptr", (void*)&Network_Disconnect);
 		assembly.AddInternalCall("Chained.Network", "Network_IsHost_Ptr", (void*)&Network_IsHost);
 		assembly.AddInternalCall("Chained.Network", "Network_IsClient_Ptr", (void*)&Network_IsClient);
@@ -385,11 +395,19 @@ namespace Chained
 		// New: Prefab
 		assembly.AddInternalCall("Chained.Network", "Network_SetPlayerPrefab_Ptr", (void*)&Network_SetPlayerPrefab);
 
-		// UPnP + Firewall
+		// UPnP
 		assembly.AddInternalCall("Chained.Network", "Network_IsUpnpAvailable_Ptr", (void*)&Network_IsUpnpAvailable);
-		assembly.AddInternalCall("Chained.Network", "Network_IsFirewallRuleActive_Ptr",
-								 (void*)&Network_IsFirewallRuleActive);
 		assembly.AddInternalCall("Chained.Network", "Network_IsFullyConnected_Ptr", (void*)&Network_IsFullyConnected);
+
+		// STUN / NAT Traversal
+		assembly.AddInternalCall("Chained.Network", "Network_HasStunResult_Ptr", (void*)&Network_HasStunResult);
+		assembly.AddInternalCall("Chained.Network", "Network_GetStunPublicAddress_Ptr",
+								 (void*)&Network_GetStunPublicAddress);
+		assembly.AddInternalCall("Chained.Network", "Network_StartHolePunch_Ptr", (void*)&Network_StartHolePunch);
+		assembly.AddInternalCall("Chained.Network", "Network_QueryStun_Ptr", (void*)&Network_QueryStun);
+
+		// Clipboard
+		assembly.AddInternalCall("Chained.Clipboard", "Clipboard_SetText_Ptr", (void*)&Clipboard_SetText);
 
 		// ── Auto-generated: Player, Spawn, NetworkIdentity properties ──────
 #include "generated/script_glue_generated_reg.inl"

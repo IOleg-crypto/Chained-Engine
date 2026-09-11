@@ -18,11 +18,11 @@
 #include "engine/scene/systems/camera_auto_select_system.h"
 #include "engine/scene/systems/network_system.h"
 #include "engine/scene/systems/transform_system.h"
-#include "engine/scene/systems/primitive_system.h"
 #include "engine/scene/component_serializer.h"
 #include "scene_scripting_manager.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/scene/prefab_serializer.h"
+#include "engine/app/application.h"
 
 namespace Chained
 {
@@ -34,6 +34,7 @@ namespace Chained
 
 		reg.ctx().emplace<Scene*>(this);
 		reg.ctx().emplace<EntityUUIDMap>();
+		reg.ctx().emplace<PhysicsBodySystem::WarnState>();
 
 		reg.on_construct<IDComponent>().connect<&Scene::OnIDConstruct>(this);
 		reg.on_destroy<IDComponent>().connect<&Scene::OnIDDestroy>(this);
@@ -42,7 +43,6 @@ namespace Chained
 		reg.on_destroy<HierarchyComponent>().connect<&Scene::OnHierarchyDestroy>(this);
 
 		AssetResolutionSystem::RegisterObservers(reg);
-		PrimitiveSystem::RegisterObservers(reg, "");
 
 		m_Settings.Environment = std::make_shared<EnvironmentAsset>();
 		m_ScriptingManager = std::make_unique<SceneScriptingManager>(this);
@@ -224,10 +224,6 @@ namespace Chained
 			{
 				anim.IsPlaying = true;
 			}
-			CH_CORE_INFO("[AnimDebug] FinishRuntimeStart entity={} PlayOnStart={} IsPlaying={} GraphPath='{}' "
-						 "GraphHandle={} NodeID={}",
-						 (uint32_t)entity, anim.PlayOnStart, anim.IsPlaying, anim.GraphPath,
-						 (uint64_t)anim.GraphAssetHandle, anim.CurrentNodeID);
 		}
 	}
 
@@ -245,7 +241,10 @@ namespace Chained
 
 		AudioSystem::OnRuntimeStop(*m_Registry);
 
-		NetworkSystem::GetInstance().Reset();
+		if (auto* netSys = ServiceLocator::TryGet<NetworkSystem>())
+		{
+			netSys->Reset();
+		}
 
 		if (auto* physics = ServiceLocator::TryGet<Physics>())
 		{
@@ -258,6 +257,15 @@ namespace Chained
 		}
 	}
 
+	void Scene::TickCommonSystems(Timestep ts)
+	{
+		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
+		AssetResolutionSystem::Update(*m_Registry);
+		AnimationSystem::Update(*m_Registry, ts);
+		AudioSystem::Update(*m_Registry);
+		m_Dispatcher.update();
+	}
+
 	void Scene::OnUpdateRuntime(Timestep ts)
 	{
 		CH_PROFILE_FUNCTION();
@@ -268,17 +276,20 @@ namespace Chained
 			return;
 		}
 
-		auto& netSys = NetworkSystem::GetInstance();
-		netSys.PollNetwork(this, ts);
+		auto* netSys = ServiceLocator::TryGet<NetworkSystem>();
+		if (netSys)
+		{
+			netSys->PollNetwork(this, ts);
+		}
 
 		// Interpolate remote entities BEFORE scripts so PlayerController
 		// reads the correct velocity/grounded values for animation.
 		if (auto* net = ServiceLocator::TryGet<Network>())
 		{
-			if (net->IsClient())
+			if (net->IsClient() && netSys)
 			{
 				float dt = static_cast<float>(ts);
-				netSys.InterpolateEntities(*m_Registry, dt);
+				netSys->InterpolateEntities(*m_Registry, dt);
 			}
 		}
 
@@ -287,16 +298,13 @@ namespace Chained
 			m_ScriptingManager->OnUpdate(ts);
 		}
 
-		// 1st world transform — processes entities spawned by SyncPeerAvatars
-		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-
-		AssetResolutionSystem::Update(*m_Registry);
-		AnimationSystem::Update(*m_Registry, ts);
-		AudioSystem::Update(*m_Registry);
+		TickCommonSystems(ts);
 
 		PhysicsBodySystem::Update(*m_Registry);
-
-		netSys.ApplyHostInputs(*m_Registry, ts);
+		if (netSys)
+		{
+			netSys->ApplyHostInputs(*m_Registry, ts);
+		}
 
 		if (auto* physics = ServiceLocator::TryGet<Physics>())
 		{
@@ -304,15 +312,16 @@ namespace Chained
 		}
 
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-
-		netSys.FinalizeFrame(this, ts);
+		if (netSys)
+		{
+			netSys->FinalizeFrame(this, ts);
+		}
 
 		if (auto target = SceneTransitionSystem::Update(*m_Registry))
 		{
-			m_PendingScenePath = *target;
+			SceneChangeRequestEvent ev(*target);
+			Application::Get().OnEvent(ev);
 		}
-
-		m_Dispatcher.update();
 	}
 
 	void Scene::OnUpdateSimulation(Timestep ts)
@@ -325,11 +334,7 @@ namespace Chained
 			return;
 		}
 
-		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-
-		AssetResolutionSystem::Update(*m_Registry);
-		AnimationSystem::Update(*m_Registry, ts);
-		AudioSystem::Update(*m_Registry);
+		TickCommonSystems(ts);
 
 		PhysicsBodySystem::Update(*m_Registry);
 
@@ -337,8 +342,6 @@ namespace Chained
 		{
 			physics->Update(this, ts, true);
 		}
-
-		m_Dispatcher.update();
 	}
 
 	void Scene::InitializePhysicsStartup()
@@ -358,31 +361,18 @@ namespace Chained
 
 			PhysicsBodySystem::Update(*m_Registry);
 
-			auto* world = physics->GetWorld();
-			if (world && world->HasPendingShapeBakes())
+			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld()))
 			{
 				return;
 			}
-
-			auto bodyView = m_Registry->view<RigidBodyComponent, ColliderComponent>();
-			for (auto entity : bodyView)
-			{
-				auto& rigidBody = bodyView.get<RigidBodyComponent>(entity);
-				auto& collider = bodyView.get<ColliderComponent>(entity);
-				if (collider.Enabled && rigidBody.Handle == kInvalidPhysicsBody)
-				{
-					return;
-				}
-			}
 		}
 		m_IsStartingUp = false;
+		FinishRuntimeStart();
 	}
 
 	void Scene::OnUpdateEditor(Timestep timestep)
 	{
 		CH_PROFILE_FUNCTION();
-
-		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
 
 		CameraAutoSelectSystem::OnSceneUpdate(*m_Registry);
 
@@ -391,11 +381,7 @@ namespace Chained
 			physics->Update(this, timestep, false);
 		}
 
-		AssetResolutionSystem::Update(*m_Registry);
-		AnimationSystem::Update(*m_Registry, timestep);
-		AudioSystem::Update(*m_Registry);
-
-		m_Dispatcher.update();
+		TickCommonSystems(timestep);
 	}
 
 	void Scene::OnViewportResize(uint32_t width, uint32_t height)
@@ -439,16 +425,6 @@ namespace Chained
 	entt::registry& Scene::GetRegistry()
 	{
 		return *m_Registry;
-	}
-
-	const SceneSettings& Scene::GetSettings() const
-	{
-		return m_Settings;
-	}
-
-	SceneSettings& Scene::GetSettings()
-	{
-		return m_Settings;
 	}
 
 	const std::vector<entt::entity>& Scene::GetRootEntities() const
@@ -666,30 +642,6 @@ namespace Chained
 		}
 	}
 
-	std::future<std::shared_ptr<Scene>> Scene::LoadSceneAsync(const std::string& path)
-	{
-		// Запускаємо завантаження у фоновому потоці.
-		// Всерединьі потоці просто створюємо нову сцену та десиріалізуємо префалб у неї.
-		auto task = std::make_shared<std::packaged_task<std::shared_ptr<Scene>()>>([path]() -> std::shared_ptr<Scene> {
-			auto newScene = std::make_shared<Scene>();
-
-			// Десиріалізуємо префалб у нову сцену (синхронно всередині потоку)
-			if (PrefabSerializer::Deserialize(newScene.get(), path) != Entity{})
-			{
-				return newScene;
-			}
-
-			// Якщо префалб не валідний — повертаємо порожню сцену
-			return nullptr;
-		});
-
-		// Виконуємо задачу в окремому потоці та повертаємо future
-		std::thread t([task]() { (*task)(); });
-		t.detach();
-
-		return task->get_future();
-	}
-
 	void Scene::SwapScene(std::shared_ptr<Scene> newScene)
 	{
 		if (!newScene)
@@ -704,7 +656,6 @@ namespace Chained
 		std::swap(m_ScriptingManager, newScene->m_ScriptingManager);
 		std::swap(m_Settings, newScene->m_Settings);
 		std::swap(m_State, newScene->m_State);
-		std::swap(m_PendingScenePath, newScene->m_PendingScenePath);
 		std::swap(m_IsStartingUp, newScene->m_IsStartingUp);
 		std::swap(m_PhysicsStartupInitialized, newScene->m_PhysicsStartupInitialized);
 		std::swap(m_CachedRoots, newScene->m_CachedRoots);

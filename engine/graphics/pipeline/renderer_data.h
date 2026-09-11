@@ -93,9 +93,8 @@ namespace Chained
 	// GPU instancing cache
 	struct InstancingState
 	{
-		std::shared_ptr<class VertexBuffer> Buffer;
+		std::shared_ptr<class StorageBuffer> SSBO;
 		uint32_t Capacity = 0;
-		std::unordered_map<VertexArray*, std::shared_ptr<VertexArray>> VAOCache;
 	};
 
 	// RendererData — composes all sub-states; owned by the Renderer singleton

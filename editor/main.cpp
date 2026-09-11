@@ -22,6 +22,14 @@ namespace Chained
 		spec.EngineRoot = Platform::GetExecutableDirectory();
 		spec.WorkingDirectory = Platform::GetExecutableDirectory().string();
 
+		// Source directories for dev mode — set by CMake compile definitions
+#ifdef CH_SOURCE_RESOURCES_DIR
+		spec.SourceResourcesDir = CH_SOURCE_RESOURCES_DIR;
+#endif
+#ifdef CH_SOURCE_ASSETS_DIR
+		spec.SourceAssetsDir = CH_SOURCE_ASSETS_DIR;
+#endif
+
 		auto* app = new Application(spec);
 
 		app->PushLayer(std::make_unique<EditorLayer>());

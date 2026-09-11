@@ -1,0 +1,30 @@
+﻿<Project>
+  <!-- When CH_MANAGED_OBJ_DIR is set (e.g. by build_managed.py on WSL2/Linux
+       to avoid NTFS DrvFs utime() restrictions that cause MSB3374), redirect
+       MSBuild intermediate output to a native Linux path.  Each project gets
+       its own named subfolder via MSBuildProjectName so that project.assets.json
+       is not shared between Chained.Managed and its referenced sub-projects
+       (avoids NETSDK1005). On Windows this env var is never set so the default
+       obj/ location is used unchanged. -->
+  <PropertyGroup Condition="'$(CH_MANAGED_OBJ_DIR)' != ''">
+    <BaseIntermediateOutputPath>$(CH_MANAGED_OBJ_DIR)/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <!-- Permanently exclude the source-tree obj/ directory from the SDK implicit
+       Compile glob (which runs as <Compile Include="**/*.cs" />).
+
+       ROOT CAUSE of CS0579 "Duplicate attribute" errors on WSL2:
+         When CH_MANAGED_OBJ_DIR redirects BaseIntermediateOutputPath away from
+         obj/, the .NET SDK no longer adds obj/ to DefaultItemExcludes automatically.
+         Stale AssemblyInfo.cs / *.AssemblyAttributes.cs files from previous Windows
+         builds living in obj/Release/, obj/RelWithDebInfo/, obj/x64/Debug/, etc.
+         are then picked up by the glob and compiled twice — once from obj/ and once
+         from the new managed-obj/ path — producing duplicate attribute errors.
+
+       FIX: add obj/ patterns to DefaultItemExcludes BEFORE the SDK glob runs.
+         <Compile Remove> in .props is evaluated AFTER the SDK already added items
+         and therefore has no effect; DefaultItemExcludes is the correct hook. -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;**/obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

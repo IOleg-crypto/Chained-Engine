@@ -46,6 +46,23 @@ def sync_scripts(build_dir: Path, game_dir: Path) -> None:
     print("Success: scripts synced!")
 
 
+def _safe_copy(src: Path, dst: Path) -> None:
+    """Copy src to dst without failing on NTFS DrvFs utime() restrictions.
+
+    shutil.copy2 copies file metadata including timestamps via utime().  On
+    WSL2 the destination may live on an NTFS mount (/mnt/…) where DrvFs does
+    not support utime(), raising PermissionError.  This helper copies data and
+    tries to copy permissions, silently skipping the timestamp update if it
+    would fail — which is safe for script deployment.
+    """
+    shutil.copyfile(src, dst)
+    try:
+        shutil.copystat(src, dst)
+    except (PermissionError, OSError):
+        # Timestamp copy not supported on NTFS DrvFs — data is already copied.
+        pass
+
+
 def _sync_dlls(src: Path, dst: Path) -> None:
     """Copy DLL/PDB/runtimeconfig files from src to dst."""
     if not src.is_dir():
@@ -58,7 +75,7 @@ def _sync_dlls(src: Path, dst: Path) -> None:
         if file.suffix.lower() in (".dll", ".pdb", ".json"):
             dest_file = dst / file.name
             if not dest_file.exists() or not filecmp.cmp(file, dest_file, shallow=False):
-                shutil.copy2(file, dest_file)
+                _safe_copy(file, dest_file)
                 copied += 1
 
     print(f"  {src.name} -> {dst}  ({copied} files synced)")

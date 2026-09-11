@@ -59,11 +59,19 @@ namespace Chained
 			registry.ctx().erase<Physics*>();
 		}
 
-		auto newWorld = std::make_unique<JoltPhysicsWorld>();
+		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> cachedMeshShapes;
+		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> cachedConvexHulls;
 		if (oldJoltWorld)
 		{
-			newWorld->PreserveShapeCacheFrom(*oldJoltWorld);
+			cachedMeshShapes = oldJoltWorld->GetMeshShapeCache();
+			cachedConvexHulls = oldJoltWorld->GetConvexHullCache();
 		}
+
+		// Destroy old world cleanly before instantiating the new world
+		m_World.reset();
+
+		auto newWorld = std::make_unique<JoltPhysicsWorld>();
+		newWorld->RestoreShapeCache(std::move(cachedMeshShapes), std::move(cachedConvexHulls));
 		m_World = std::move(newWorld);
 
 		if (auto project = Project::GetActive())
@@ -133,9 +141,14 @@ namespace Chained
 			}
 
 			// Network-driven bodies are controlled by NetworkSystem::InterpolateEntities.
-			// Do not let Jolt overwrite their transform or apply simulated velocity.
+			// Do not let Jolt overwrite their transform or apply simulated velocity,
+			// but synchronize the physics body transform so other dynamic bodies collide with it.
 			if (rb.IsNetworkDriven)
 			{
+				if (rb.Handle != kInvalidPhysicsBody)
+				{
+					world->SetTransform(rb.Handle, transform.Translation, transform.RotationQuat);
+				}
 				continue;
 			}
 

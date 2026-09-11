@@ -54,7 +54,6 @@ namespace Chained
 			s_GLFWInitialized = true;
 		}
 
-		// Якщо розміри не вказані, беремо робочу область головного монітора
 		if (initialWidth <= 0 || initialHeight <= 0)
 		{
 			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -117,7 +116,8 @@ namespace Chained
 			glfwGetWindowSize(window, &winWidth, &winHeight);
 			glWindow.SetSizeDirect(winWidth, winHeight);
 
-			WindowResizeEvent event(width, height);
+			// Keep the event on logical window size; framebuffer dimensions are used only for OpenGL viewport state.
+			WindowResizeEvent event(winWidth, winHeight);
 			if (glWindow.m_EventCallback)
 			{
 				glWindow.m_EventCallback(event);
@@ -281,16 +281,87 @@ namespace Chained
 		}
 	}
 
+	namespace
+	{
+		// X11 protocol limits property sizes (_NET_WM_ICON) via XMaxRequestSize (~256KB).
+		// Passing high-resolution images (512x512, 1024x1024) causes a fatal X11 BadLength
+		// protocol error on X_ChangeProperty. Standard desktop window icons are 64x64 or smaller.
+		// Downscale large icons to 64x64 using box-filter averaging for clean antialiasing.
+		constexpr int kMaxIconDimension = 64;
+
+		std::vector<uint8_t> ResizeIconIfNeeded(const uint8_t* src, int srcW, int srcH, int& outW, int& outH)
+		{
+			if (srcW <= kMaxIconDimension && srcH <= kMaxIconDimension)
+			{
+				outW = srcW;
+				outH = srcH;
+				return std::vector<uint8_t>(src, src + srcW * srcH * 4);
+			}
+
+			float scale = static_cast<float>(kMaxIconDimension) / static_cast<float>(std::max(srcW, srcH));
+			outW = std::max(1, static_cast<int>(srcW * scale));
+			outH = std::max(1, static_cast<int>(srcH * scale));
+
+			std::vector<uint8_t> dst(outW * outH * 4);
+			float xRatio = static_cast<float>(srcW) / static_cast<float>(outW);
+			float yRatio = static_cast<float>(srcH) / static_cast<float>(outH);
+
+			for (int y = 0; y < outH; ++y)
+			{
+				int y0 = static_cast<int>(y * yRatio);
+				int y1 = std::min(static_cast<int>((y + 1) * yRatio), srcH);
+				for (int x = 0; x < outW; ++x)
+				{
+					int x0 = static_cast<int>(x * xRatio);
+					int x1 = std::min(static_cast<int>((x + 1) * xRatio), srcW);
+
+					uint32_t r = 0, g = 0, b = 0, a = 0;
+					int count = 0;
+					for (int sy = y0; sy < y1; ++sy)
+					{
+						for (int sx = x0; sx < x1; ++sx)
+						{
+							const uint8_t* p = src + (sy * srcW + sx) * 4;
+							r += p[0];
+							g += p[1];
+							b += p[2];
+							a += p[3];
+							++count;
+						}
+					}
+					if (count > 0)
+					{
+						uint8_t* out = dst.data() + (y * outW + x) * 4;
+						out[0] = static_cast<uint8_t>(r / count);
+						out[1] = static_cast<uint8_t>(g / count);
+						out[2] = static_cast<uint8_t>(b / count);
+						out[3] = static_cast<uint8_t>(a / count);
+					}
+				}
+			}
+			return dst;
+		}
+	} // namespace
+
 	void GlfwWindow::SetWindowIcon(const std::string& path)
 	{
-		GLFWimage image{};
+		int width = 0;
+		int height = 0;
+		stbi_uc* rawPixels = stbi_load(path.c_str(), &width, &height, nullptr, 4);
 
-		image.pixels = stbi_load(path.c_str(), &image.width, &image.height, nullptr, 4);
-
-		if (image.pixels)
+		if (rawPixels)
 		{
+			int iconW = 0;
+			int iconH = 0;
+			auto resizedPixels = ResizeIconIfNeeded(rawPixels, width, height, iconW, iconH);
+			stbi_image_free(rawPixels);
+
+			GLFWimage image{};
+			image.width = iconW;
+			image.height = iconH;
+			image.pixels = resizedPixels.data();
+
 			glfwSetWindowIcon(m_WindowHandle, 1, &image);
-			stbi_image_free(image.pixels);
 		}
 		else
 		{
@@ -300,15 +371,24 @@ namespace Chained
 
 	void GlfwWindow::SetWindowIconFromMemory(const uint8_t* data, size_t size)
 	{
-		GLFWimage image{};
+		int width = 0;
+		int height = 0;
+		stbi_uc* rawPixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(data), static_cast<int>(size),
+												   &width, &height, nullptr, 4);
 
-		image.pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(data), static_cast<int>(size),
-											 &image.width, &image.height, nullptr, 4);
-
-		if (image.pixels)
+		if (rawPixels)
 		{
+			int iconW = 0;
+			int iconH = 0;
+			auto resizedPixels = ResizeIconIfNeeded(rawPixels, width, height, iconW, iconH);
+			stbi_image_free(rawPixels);
+
+			GLFWimage image{};
+			image.width = iconW;
+			image.height = iconH;
+			image.pixels = resizedPixels.data();
+
 			glfwSetWindowIcon(m_WindowHandle, 1, &image);
-			stbi_image_free(image.pixels);
 		}
 		else
 		{
@@ -369,6 +449,17 @@ namespace Chained
 	bool GlfwWindow::IsFocused() const
 	{
 		return glfwGetWindowAttrib(m_WindowHandle, GLFW_FOCUSED) == GLFW_TRUE;
+	}
+
+	void GlfwWindow::SetClipboardText(const std::string& text)
+	{
+		glfwSetClipboardString(m_WindowHandle, text.c_str());
+	}
+
+	std::string GlfwWindow::GetClipboardText() const
+	{
+		const char* text = glfwGetClipboardString(m_WindowHandle);
+		return text ? std::string(text) : "";
 	}
 
 } // namespace Chained

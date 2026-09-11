@@ -15,6 +15,6 @@ Material:
   Roughness: 1
   Transparent: false
   Alpha: 1
-  AlbedoMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship\textures/Containers_baseColor.png
-  NormalMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship\textures/Containers_normal.png
-  MetallicRoughnessMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship\textures/Containers_metallicRoughness.png
+  AlbedoMap: textures/container_ship/Containers_baseColor.png
+  NormalMap: textures/container_ship/Containers_normal.png
+  MetallicRoughnessMap: textures/container_ship/Containers_metallicRoughness.png

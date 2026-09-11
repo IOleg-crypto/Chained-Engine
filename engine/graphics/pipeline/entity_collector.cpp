@@ -116,39 +116,35 @@ namespace Chained
 			}
 		}
 
-		std::vector<Material> materials = modelAsset->GetMaterials();
+		std::vector<Material> materials;
 		if (registry.all_of<ModelComponent>(entity))
 		{
 			auto& modelComponent = registry.get<ModelComponent>(entity);
-			if (auto* materialAssets = ServiceLocator::TryGet<AssetManager>())
+			bool hasExplicitOverrides = false;
+			for (const auto& p : modelComponent.MaterialPaths)
 			{
-				std::filesystem::path modelPath(modelComponent.ModelPath);
-				std::string modelName = modelPath.stem().string();
-				std::filesystem::path modelDir = modelPath.parent_path();
-
-				for (size_t i = 0; i < materials.size(); ++i)
+				if (!p.empty())
 				{
-					std::string matPath;
-					if (i < modelComponent.MaterialPaths.size() && !modelComponent.MaterialPaths[i].empty())
-					{
-						matPath = modelComponent.MaterialPaths[i];
-					}
-					else if (!modelComponent.ModelPath.empty())
-					{
-						std::string autoName = modelName + "_material_" + std::to_string(i) + ".chmat";
-						std::string autoRel = (modelDir / autoName).generic_string();
-						if (materialAssets->FileExists(autoRel))
-						{
-							matPath = autoRel;
-						}
-					}
+					hasExplicitOverrides = true;
+					break;
+				}
+			}
 
-					if (!matPath.empty())
+			if (hasExplicitOverrides)
+			{
+				materials = modelAsset->GetMaterials();
+				if (auto* materialAssets = ServiceLocator::TryGet<AssetManager>())
+				{
+					for (size_t i = 0; i < modelComponent.MaterialPaths.size() && i < materials.size(); ++i)
 					{
-						auto materialAsset = materialAssets->Get<MaterialAsset>(matPath);
-						if (materialAsset && materialAsset->IsReady())
+						const auto& matPath = modelComponent.MaterialPaths[i];
+						if (!matPath.empty())
 						{
-							materials[i] = materialAsset->GetMaterial();
+							auto materialAsset = materialAssets->Get<MaterialAsset>(matPath);
+							if (materialAsset && materialAsset->IsReady())
+							{
+								materials[i] = materialAsset->GetMaterial();
+							}
 						}
 					}
 				}
@@ -158,9 +154,9 @@ namespace Chained
 		RenderItem item;
 		item.Asset = modelAsset;
 		item.Transform = worldTransform;
-		item.Materials = materials;
+		item.Materials = std::move(materials);
 		item.ShaderOverride = shaderOver ? shaderOver->GetShader().get() : nullptr;
-		item.CustomUniforms = uniforms;
+		item.CustomUniforms = std::move(uniforms);
 
 		if (registry.all_of<AnimationComponent>(entity))
 		{

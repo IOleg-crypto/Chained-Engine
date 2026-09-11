@@ -1,6 +1,7 @@
 #include "engine/assets/loaders/pack_io.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/core/service_locator.h"
+#include "engine/common/platform_detection.h"
 
 #include <cstring>
 
@@ -95,7 +96,7 @@ namespace Chained
 
 	char PackIOSystem::getOsSeparator() const
 	{
-#ifdef _WIN32
+#if CH_PLATFORM_WINDOWS
 		return '\\';
 #else
 		return '/';

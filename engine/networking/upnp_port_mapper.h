@@ -30,6 +30,10 @@ namespace Chained
 		{
 			return m_Available;
 		}
+		bool IsPortMapped() const
+		{
+			return m_PortMapped;
+		}
 
 	private:
 		void CleanupDiscovery();
@@ -40,6 +44,7 @@ namespace Chained
 		void* m_ControlURL = nullptr;
 		void* m_ServiceType = nullptr;
 		bool m_Available = false;
+		bool m_PortMapped = false;
 		char m_LanAddress[64] = {};
 		char m_CachedPublicIP[64] = {};
 		bool m_PublicIPFetched = false;

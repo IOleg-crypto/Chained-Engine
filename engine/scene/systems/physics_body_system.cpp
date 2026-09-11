@@ -11,9 +11,11 @@
 #include "engine/common/thread_pool.h"
 
 #include <future>
+#include <unordered_set>
 
 namespace Chained::PhysicsBodySystem
 {
+	static constexpr size_t kMaxRetryPerFrame = 16;
 
 	void ApplyAutoCalculate(entt::entity entity, entt::registry& registry, ColliderComponent& collider,
 							const glm::vec3& scale)
@@ -29,7 +31,12 @@ namespace Chained::PhysicsBodySystem
 
 		if (modelPath.empty())
 		{
-			CH_CORE_WARN("PhysicsBodySystem::ApplyAutoCalculate: no model path found for entity={}", (uint32_t)entity);
+			auto& warn = registry.ctx().get<WarnState>();
+			uint32_t id = (uint32_t)entity;
+			if (warn.NoModelPath.insert(id).second)
+			{
+				CH_CORE_WARN("PhysicsBodySystem::ApplyAutoCalculate: no model path found for entity={}", id);
+			}
 			return;
 		}
 
@@ -42,14 +49,26 @@ namespace Chained::PhysicsBodySystem
 		auto handle = am->ResolveToHandle(modelPath);
 		if (handle == AssetHandle(0))
 		{
-			CH_CORE_WARN("PhysicsBodySystem::ApplyAutoCalculate: model '{}' not loaded.", modelPath);
+			// Asset not loaded yet — transient state during streaming, not an error
 			return;
 		}
 
 		auto asset = am->Get<ModelAsset>(handle);
 		if (!asset || asset->GetState() != AssetState::Ready)
 		{
-			CH_CORE_WARN("PhysicsBodySystem::ApplyAutoCalculate: model '{}' not ready.", modelPath);
+			// If asset has permanently failed, retry a limited number of times
+			if (asset && asset->GetState() == AssetState::Failed)
+			{
+				auto& warn = registry.ctx().get<WarnState>();
+				if (warn.RetriedFailedModels.size() < kMaxRetryPerFrame &&
+					warn.RetriedFailedModels.insert((uint32_t)entity).second)
+				{
+					CH_CORE_WARN("PhysicsBodySystem: Retrying failed model '{}' for entity={}", modelPath,
+								 (uint32_t)entity);
+					am->RetryFailedAsset(handle, AssetType::Model);
+				}
+			}
+			// Asset loading in progress — expected transient state
 			return;
 		}
 
@@ -68,11 +87,12 @@ namespace Chained::PhysicsBodySystem
 		{
 			collider.Offset = center;
 		}
+		collider.AutoCalculate = false;
 
-		CH_CORE_INFO("PhysicsBodySystem::ApplyAutoCalculate: entity={} model='{}' → Size=({:.2f},{:.2f},{:.2f}) "
-					 "Offset=({:.2f},{:.2f},{:.2f}) Radius={:.2f} Height={:.2f}",
-					 (uint32_t)entity, modelPath, collider.Size.x, collider.Size.y, collider.Size.z, collider.Offset.x,
-					 collider.Offset.y, collider.Offset.z, collider.Radius, collider.Height);
+		CH_CORE_TRACE("PhysicsBodySystem::ApplyAutoCalculate: entity={} model='{}' → Size=({:.2f},{:.2f},{:.2f}) "
+					  "Offset=({:.2f},{:.2f},{:.2f}) Radius={:.2f} Height={:.2f}",
+					  (uint32_t)entity, modelPath, collider.Size.x, collider.Size.y, collider.Size.z, collider.Offset.x,
+					  collider.Offset.y, collider.Offset.z, collider.Radius, collider.Height);
 	}
 
 	bool BuildBodyDesc(entt::registry& reg, entt::entity e, PhysicsBodyDesc& outDesc)
@@ -233,14 +253,24 @@ namespace Chained::PhysicsBodySystem
 	{
 		if (!reg.ctx().contains<Physics*>())
 		{
-			CH_CORE_WARN("Physics: TryCreateBody entity={} — no Physics* in context yet.", (uint32_t)e);
+			auto& warn = reg.ctx().get<WarnState>();
+			uint32_t id = (uint32_t)e;
+			if (warn.NoCtx.insert(id).second)
+			{
+				CH_CORE_WARN("Physics: TryCreateBody entity={} — no Physics* in context yet.", id);
+			}
 			return;
 		}
 
 		auto* physicsPtr = reg.ctx().find<Physics*>();
 		if (!physicsPtr || !(*physicsPtr) || !(*physicsPtr)->GetWorld())
 		{
-			CH_CORE_WARN("Physics: TryCreateBody entity={} — Physics* is null or world not initialized.", (uint32_t)e);
+			auto& warn = reg.ctx().get<WarnState>();
+			uint32_t id = (uint32_t)e;
+			if (warn.NoCtx.insert(id).second)
+			{
+				CH_CORE_WARN("Physics: TryCreateBody entity={} — Physics* is null or world not initialized.", id);
+			}
 			return;
 		}
 
@@ -256,8 +286,13 @@ namespace Chained::PhysicsBodySystem
 		auto* collider = reg.try_get<ColliderComponent>(e);
 		if (!collider || !collider->Enabled)
 		{
-			CH_CORE_WARN("Physics: TryCreateBody entity={} — ColliderComponent missing or disabled (has={}).",
-						 (uint32_t)e, collider != nullptr);
+			auto& warn = reg.ctx().get<WarnState>();
+			uint32_t id = (uint32_t)e;
+			if (warn.MissingCollider.insert(id).second)
+			{
+				CH_CORE_WARN("Physics: TryCreateBody entity={} — ColliderComponent missing or disabled (has={}).", id,
+							 collider != nullptr);
+			}
 			return;
 		}
 
@@ -270,9 +305,20 @@ namespace Chained::PhysicsBodySystem
 		PhysicsBodyDesc desc;
 		if (!BuildBodyDesc(reg, e, desc))
 		{
-			CH_CORE_WARN("Physics: TryCreateBody entity={} — BuildBodyDesc failed.", (uint32_t)e);
+			auto& warn = reg.ctx().get<WarnState>();
+			uint32_t id = (uint32_t)e;
+			if (warn.BuildFailed.insert(id).second)
+			{
+				CH_CORE_WARN("Physics: TryCreateBody entity={} — BuildBodyDesc failed (asset may still be loading).",
+							 id);
+			}
 			return;
 		}
+
+		// Clear the "failed" warning so it can fire again if the body later fails for a different reason
+		auto& warn = reg.ctx().get<WarnState>();
+		warn.BuildFailed.erase((uint32_t)e);
+		warn.NoCtx.erase((uint32_t)e);
 
 		if (desc.Shape == ColliderType::Mesh && !desc.CacheKey.empty() && !world->HasCachedMeshShape(desc.CacheKey))
 		{
@@ -288,8 +334,8 @@ namespace Chained::PhysicsBodySystem
 		}
 		else
 		{
-			CH_CORE_INFO("Physics: TryCreateBody entity={} — body created (handle={}, type={}, mass={})", (uint32_t)e,
-						 (uint64_t)rb.Handle, (int)rb.Type, rb.Mass);
+			CH_CORE_TRACE("Physics: TryCreateBody entity={} — body created (handle={}, type={}, mass={})", (uint32_t)e,
+						  (uint64_t)rb.Handle, (int)rb.Type, rb.Mass);
 		}
 	}
 
@@ -310,14 +356,15 @@ namespace Chained::PhysicsBodySystem
 			auto* collider = reg.try_get<ColliderComponent>(entity);
 			if (!collider || !collider->Enabled)
 			{
-				CH_CORE_WARN("Physics: BatchInitializeBodies entity={} — ColliderComponent missing or disabled.",
-							 (uint32_t)entity);
+				auto& warn = reg.ctx().get<WarnState>();
+				uint32_t id = (uint32_t)entity;
+				if (warn.MissingCollider.insert(id).second)
+				{
+					CH_CORE_WARN("Physics: BatchInitializeBodies entity={} — ColliderComponent missing or disabled.",
+								 id);
+				}
 				continue;
 			}
-
-			CH_CORE_INFO("Physics: BatchInitializeBodies entity={} — Type={}, IsStatic={}, IsKinematic={}",
-						 (uint32_t)entity, (int)rb.Type, (rb.Type == RigidBodyComponent::BodyType::Static),
-						 (rb.Type == RigidBodyComponent::BodyType::Kinematic));
 
 			if (collider->AutoCalculate)
 			{
@@ -375,9 +422,13 @@ namespace Chained::PhysicsBodySystem
 		for (size_t i = 0; i < sortedEntities.size(); ++i)
 		{
 			reg.get<RigidBodyComponent>(sortedEntities[i]).Handle = handles[i];
+			auto& warn = reg.ctx().get<WarnState>();
+			uint32_t id = (uint32_t)sortedEntities[i];
+			warn.MissingCollider.erase(id);
+			warn.NoModelPath.erase(id);
 		}
 
-		CH_CORE_INFO(
+		CH_CORE_TRACE(
 			"Physics: Batch-created {} bodies (static={}, dynamic={}, kinematic={}).", sortedEntities.size(),
 			std::count_if(sortedDescs.begin(), sortedDescs.end(), [](const PhysicsBodyDesc& d) { return d.IsStatic; }),
 			std::count_if(sortedDescs.begin(), sortedDescs.end(),
@@ -402,6 +453,57 @@ namespace Chained::PhysicsBodySystem
 		}
 
 		BatchInitializeBodies(reg, physics->GetWorld());
+	}
+
+	bool IsStartupComplete(entt::registry& reg, IPhysicsWorld* world)
+	{
+		if (world && world->HasPendingShapeBakes())
+		{
+			return false;
+		}
+
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+
+		auto bodyView = reg.view<RigidBodyComponent, ColliderComponent>();
+		for (auto entity : bodyView)
+		{
+			auto& rigidBody = bodyView.get<RigidBodyComponent>(entity);
+			auto& collider = bodyView.get<ColliderComponent>(entity);
+			if (!collider.Enabled || rigidBody.Handle != kInvalidPhysicsBody)
+			{
+				continue;
+			}
+
+			if (collider.Type == ColliderType::Mesh)
+			{
+				std::string modelPath = collider.ModelPath;
+				if (modelPath.empty())
+				{
+					if (auto* modelComp = reg.try_get<ModelComponent>(entity))
+					{
+						modelPath = modelComp->ModelPath;
+					}
+				}
+
+				if (!modelPath.empty() && assets)
+				{
+					auto modelAsset = assets->Get<ModelAsset>(modelPath);
+					if (!modelAsset || modelAsset->GetState() == AssetState::Loading ||
+						modelAsset->GetState() == AssetState::None)
+					{
+						return false;
+					}
+					if (world && (world->IsShapeBaking(modelPath) || world->HasPendingShapeBakes()))
+					{
+						return false;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		return true;
 	}
 
 } // namespace Chained::PhysicsBodySystem

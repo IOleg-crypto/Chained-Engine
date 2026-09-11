@@ -241,8 +241,8 @@ namespace Chained
 			entt::type_hash<ControlComponent>::value(),		  entt::type_hash<LightComponent>::value(),
 			entt::type_hash<CameraComponent>::value(),		  entt::type_hash<AudioComponent>::value(),
 			entt::type_hash<ManagedScriptComponent>::value(), entt::type_hash<ModelComponent>::value(),
-			entt::type_hash<PrimitiveComponent>::value(),	  entt::type_hash<RigidBodyComponent>::value(),
-			entt::type_hash<ColliderComponent>::value(),	  entt::type_hash<AnimationComponent>::value(),
+			entt::type_hash<RigidBodyComponent>::value(),	  entt::type_hash<ColliderComponent>::value(),
+			entt::type_hash<AnimationComponent>::value(),
 		};
 
 		for (auto typeId : priorityOrder)
@@ -468,8 +468,10 @@ namespace Chained
 				const char* mesh;
 			};
 			static const PrimitiveEntry primitives[] = {
-				{"Cube", ":cube:"},	  {"Sphere", ":sphere:"}, {"Cylinder", ":cylinder:"}, {"Cone", ":cone:"},
-				{"Torus", ":torus:"}, {"Knot", ":knot:"},	  {"Plane", ":plane:"},
+				{"Cube", "models/primitives/Cube.obj"},		  {"Sphere", "models/primitives/Sphere.obj"},
+				{"Capsule", "models/primitives/Capsule.obj"}, {"Cylinder", "models/primitives/Cylinder.obj"},
+				{"Plane", "models/primitives/Plane.obj"},	  {"Cone", "models/primitives/Cone.obj"},
+				{"Torus", "models/primitives/Torus.obj"},	  {"Hemisphere", "models/primitives/Hemisphere.obj"},
 			};
 			if (ImGui::BeginMenu("3D Object"))
 			{

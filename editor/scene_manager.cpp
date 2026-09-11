@@ -92,7 +92,7 @@ namespace Chained
 				result->replace_extension(".chscene");
 			}
 
-			scene->GetSettings().ScenePath = result->string();
+			scene->SetScenePath(result->string());
 			SceneSerializer serializer(scene.get());
 			serializer.Serialize(result->string());
 		}
@@ -475,11 +475,11 @@ namespace Chained
 			{
 				CH_CORE_INFO("Editor: Applying project environment to scene '{}'.",
 							 targetScene->GetSettings().ScenePath);
-				targetScene->GetSettings().Environment = project->GetEnvironment();
+				targetScene->SetEnvironment(project->GetEnvironment());
 			}
 		}
 
-		targetScene->GetSettings().ScenePath = m_Transition.targetPath.string();
+		targetScene->SetScenePath(m_Transition.targetPath.string());
 
 		if (m_Transition.forPlayMode)
 		{

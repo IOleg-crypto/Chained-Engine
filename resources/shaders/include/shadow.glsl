@@ -49,8 +49,8 @@ float ShadowCalculationBasic(vec4 fragPosLightSpace)
     return currentDepth > closestDepth ? 0.0 : 1.0;
 }
 
-// PCF (Percentage-Closer Filtering) with a uniform 3x3 texel grid: soft edges without
-// the blotchy "disk" artifacts a Poisson kernel produces on low-resolution shadow maps.
+// PCF (Percentage-Closer Filtering) with a compact 2x2 texel grid. Four samples
+// are enough for a soft edge while keeping the per-fragment shadow cost bounded.
 float ShadowCalculationPCF(vec4 fragPosLightSpace)
 {
     if (u_ShadowsEnabled == 0) return 1.0;
@@ -64,16 +64,16 @@ float ShadowCalculationPCF(vec4 fragPosLightSpace)
     float shadow = 0.0;
     float currentDepth = coords.z - u_ShadowBias;
 
-    // Sample a 3x3 grid of neighbouring texels and average the results.
+    // Sample a 2x2 grid of neighbouring texels and average the results.
     vec2 texelSize = 1.0 / vec2(textureSize(u_ShadowMap, 0));
-    for (int x = -1; x <= 1; ++x)
+    for (int x = 0; x <= 1; ++x)
     {
-        for (int y = -1; y <= 1; ++y)
+        for (int y = 0; y <= 1; ++y)
         {
             float pcfDepth = texture(u_ShadowMap, coords.xy + vec2(x, y) * texelSize).r;
             shadow += currentDepth > pcfDepth ? 0.0 : 1.0;
         }
     }
 
-    return shadow / 9.0;
+    return shadow / 4.0;
 }

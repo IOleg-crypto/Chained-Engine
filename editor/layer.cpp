@@ -284,7 +284,16 @@ namespace Chained
 		auto* assetManager = ServiceLocator::TryGet<AssetManager>();
 		if (assetManager)
 		{
-			std::string iconPath = assetManager->ResolvePath("engine/resources/icons/chaineddecosmapeditor.jpg");
+			auto project = Project::GetActive();
+			std::string iconPath;
+			if (project && !project->GetConfig().IconPath.empty())
+			{
+				iconPath = assetManager->ResolvePath(project->GetConfig().IconPath);
+			}
+			if (iconPath.empty())
+			{
+				iconPath = assetManager->ResolvePath("resources/icons/chaineddecosmapeditor.jpg");
+			}
 			if (std::filesystem::exists(iconPath))
 			{
 				app.GetWindow().SetWindowIcon(iconPath);
@@ -406,7 +415,7 @@ namespace Chained
 			}
 			m_PrevSceneState = state;
 
-			// If scene is in Play mode, ask ScriptEngine to execute scripts
+			// If scene is in Play mode, update runtime
 			if (state == SceneState::Play)
 			{
 				// Process UI input before scripts read widget state, unconditionally
@@ -419,29 +428,11 @@ namespace Chained
 					uiRenderer->ProcessInput(scene.get(), suppress);
 				}
 
-				auto* scriptEngine = ServiceLocator::TryGet<ScriptEngine>();
-				if (scriptEngine && scriptEngine->GetHost().IsInitialized() && scriptEngine->CanExecuteFrameScripts())
-				{
-					scene->OnUpdateRuntime(ts);
-				}
-
-				if (!scene->GetPendingScenePath().empty())
-				{
-					std::string path = scene->GetPendingScenePath();
-					scene->ClearPendingScenePath();
-					m_SceneManager->OpenScene(path);
-				}
+				scene->OnUpdateRuntime(ts);
 			}
 			else if (scene->GetSceneState() == SceneState::Simulate)
 			{
 				scene->OnUpdateSimulation(ts);
-
-				if (!scene->GetPendingScenePath().empty())
-				{
-					std::string path = scene->GetPendingScenePath();
-					scene->ClearPendingScenePath();
-					m_SceneManager->OpenScene(path);
-				}
 			}
 			else
 			{

@@ -7,13 +7,12 @@
 
 namespace Chained
 {
-	class PrefabSerializer
+	namespace PrefabSerializer
 	{
-	public:
-		static bool Serialize(Entity entity, const std::string& filepath);
-		static Entity Deserialize(Scene* scene, const std::string& filepath);
-		static std::future<Entity> LoadAsync(Scene* scene, const std::string& filepath);
-	};
+		bool Serialize(Entity entity, const std::string& filepath);
+		Entity Deserialize(Scene* scene, const std::string& filepath);
+		std::future<Entity> LoadAsync(Scene* scene, const std::string& filepath);
+	} // namespace PrefabSerializer
 
 } // namespace Chained
 

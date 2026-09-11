@@ -45,6 +45,7 @@ namespace Chained
 			m_ServiceType = nullptr;
 		}
 		m_Available = false;
+		m_PortMapped = false;
 		m_PublicIPFetched = false;
 		m_CachedPublicIP[0] = '\0';
 	}
@@ -128,6 +129,7 @@ namespace Chained
 	{
 		if (!m_Available || !m_ControlURL || !m_ServiceType)
 		{
+			m_PortMapped = false;
 			return false;
 		}
 
@@ -139,21 +141,59 @@ namespace Chained
 		char intClient[64] = {};
 		std::strncpy(intClient, m_LanAddress, sizeof(intClient) - 1);
 
+		// First, attempt to delete any existing stale mapping on this port to prevent Error 718
+		// (ConflictInMappingEntry)
+		UPNP_DeletePortMapping(static_cast<char*>(m_ControlURL), static_cast<char*>(m_ServiceType), extPort, protocol,
+							   nullptr);
+
 		int result = UPNP_AddPortMapping(static_cast<char*>(m_ControlURL), static_cast<char*>(m_ServiceType), extPort,
-										 intPort, intClient, description, protocol, nullptr, 0);
+										 intPort, intClient, description, protocol, nullptr, "0");
 
 		if (result != UPNPCOMMAND_SUCCESS)
 		{
-			CH_CORE_WARN("UPnP: Failed to add port mapping {}:{} ({})", intClient, port, protocol);
+			// Error 718 = ConflictInMappingEntry — port already mapped by another client
+			// (e.g. manual port forwarding rule). Check if the existing mapping is correct.
+			if (result == 718)
+			{
+				char existingClient[16] = {};
+				char existingPort[6] = {};
+				char existingDesc[80] = {};
+				char existingEnabled[4] = {};
+				char existingLease[16] = {};
+
+				int getRes = UPNP_GetSpecificPortMappingEntry(
+					static_cast<char*>(m_ControlURL), static_cast<char*>(m_ServiceType), extPort, protocol, nullptr,
+					existingClient, existingPort, existingDesc, existingEnabled, existingLease);
+
+				if (getRes == UPNPCOMMAND_SUCCESS && existingClient[0] != '\0')
+				{
+					// A mapping exists — check if it points to our LAN IP
+					if (std::strcmp(existingClient, m_LanAddress) == 0)
+					{
+						m_PortMapped = true;
+						CH_CORE_INFO("UPnP: Port {} ({}) already mapped to {} by manual rule — treating as OK", port,
+									 protocol, existingClient);
+						return true;
+					}
+					CH_CORE_WARN("UPnP: Port {} ({}) mapped to different client {} (expected {}). Conflict.", port,
+								 protocol, existingClient, m_LanAddress);
+				}
+			}
+
+			CH_CORE_WARN("UPnP: Failed to add port mapping {}:{} ({}) — error code: {}", intClient, port, protocol,
+						 result);
+			m_PortMapped = false;
 			return false;
 		}
 
-		CH_CORE_INFO("UPnP: Port mapping added — {}:{} ({})", intClient, port, protocol);
+		m_PortMapped = true;
+		CH_CORE_INFO("UPnP: Port mapping added — {}:{} ({}) [Service: {}]", intClient, port, protocol, description);
 		return true;
 	}
 
 	bool UpnpPortMapper::RemoveMapping(uint16_t port, const char* protocol)
 	{
+		m_PortMapped = false;
 		if (!m_Available || !m_ControlURL || !m_ServiceType)
 		{
 			return false;

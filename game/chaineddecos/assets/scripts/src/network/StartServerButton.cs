@@ -4,8 +4,8 @@ using Chained;
 namespace ChainedDecos.Scripts
 {
     /// <summary>
-    /// Attach directly to a Button entity. Reads the port from input_port
-    /// and a selected map tag, then calls Network.HostGame and loads the lobby scene.
+    /// Attach directly to a Button entity. Reads the port from input_port,
+    /// nickname, max players, then hosts the game and loads the lobby scene.
     /// </summary>
     public class StartServerButton : Script
     {
@@ -53,7 +53,9 @@ namespace ChainedDecos.Scripts
             Log.Info($"[StartServerButton] Hosting on port {port}, maxClients={maxClients}");
             Network.SetPlayerPrefab(PlayerPrefabPath);
             Network.SetLocalPlayerInfo(PlayerSettings.Nickname, (byte)LobbyManager.SelectedSkinIndex);
-            Network.HostGame(port, maxClients);
+
+            uint roomCode = Network.HostRoom(port, maxClients);
+            LobbyManager.RoomCode = roomCode;
 
             LobbyManager.SelectedPort = port;
             LobbyManager.MaxClients = maxClients;

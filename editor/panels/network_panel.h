@@ -2,7 +2,6 @@
 #define CH_NETWORK_PANEL_H
 
 #include "panel.h"
-#include <atomic>
 #include <future>
 #include <string>
 
@@ -35,12 +34,9 @@ namespace Chained
 		bool m_StatusIsError = false;
 
 		// Public IP fetch
-		std::string m_PublicIP;	  ///< cached IPv4 result from api.ipify.org
-		std::string m_PublicIPv6; ///< cached IPv6 result from ipv6.api.ipify.org
+		std::string m_PublicIP;
 		std::future<std::string> m_IpFuture;
-		std::future<std::string> m_IpFutureIPv6;
 		bool m_FetchingIP = false;
-		bool m_FetchingIPv6 = false;
 	};
 
 } // namespace Chained

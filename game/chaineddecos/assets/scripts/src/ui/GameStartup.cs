@@ -7,8 +7,12 @@ namespace ChainedDecos.Scripts
     // volumes are correct before the first frame renders.
     public class GameStartup : Script
     {
+        private static bool s_Applied;
+
         public override void OnStart()
         {
+            if (s_Applied) return;
+            s_Applied = true;
             SettingsConfig.ApplyAll();
         }
     }

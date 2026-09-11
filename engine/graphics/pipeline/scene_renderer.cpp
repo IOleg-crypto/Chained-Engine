@@ -151,6 +151,20 @@ namespace Chained
 		// Collect entities
 		m_Collector.Collect(registry, frustum, camera.Position);
 
+		// Sort opaque queue front-to-back for early-Z rejection and group by shader/model
+		auto& opaqueQueue = m_Collector.GetOpaqueQueue();
+		std::sort(opaqueQueue.begin(), opaqueQueue.end(), [](const auto& a, const auto& b) {
+			if (a.ShaderOverride != b.ShaderOverride)
+			{
+				return a.ShaderOverride < b.ShaderOverride;
+			}
+			if (a.Asset != b.Asset)
+			{
+				return a.Asset < b.Asset;
+			}
+			return a.Distance < b.Distance;
+		});
+
 		// Sort transparent queue back-to-front once for all passes
 		auto& transparentQueue = m_Collector.GetTransparentQueue();
 		std::sort(transparentQueue.begin(), transparentQueue.end(),
@@ -186,7 +200,10 @@ namespace Chained
 
 		renderer->EndScene();
 
-		Instrumentor::Get().UpdateStats(m_CurrentStats);
+		if (auto* inst = Instrumentor::TryGet())
+		{
+			inst->UpdateStats(m_CurrentStats);
+		}
 	}
 
 	void SceneRenderer::RenderSprites(entt::registry& registry, const Camera3D& camera)
@@ -271,6 +288,8 @@ namespace Chained
 		}
 
 		const auto& model = modelAsset->GetModel();
+		Shader* uniformsShader = nullptr;
+		bool uniformsUseSkinning = false;
 		for (const auto& inst : modelAsset->GetInstances())
 		{
 			int i = inst.meshIndex;
@@ -280,8 +299,6 @@ namespace Chained
 			}
 
 			const auto& mesh = model.Meshes[i];
-			m_CurrentStats.DrawCalls++;
-			m_CurrentStats.MeshCount++;
 
 			Material material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
 
@@ -314,15 +331,107 @@ namespace Chained
 				continue;
 			}
 
-			BindShaderUniforms(activeShader, useSkinning ? boneMatrices : std::vector<glm::mat4>{},
-							   shaderUniformOverrides);
-			m_MaterialManager.Bind(activeShader, material, i, model);
+			m_CurrentStats.DrawCalls++;
+			m_CurrentStats.MeshCount++;
+
+			if (activeShader != uniformsShader || useSkinning != uniformsUseSkinning)
+			{
+				BindShaderUniforms(activeShader, useSkinning ? boneMatrices : std::vector<glm::mat4>{},
+								   shaderUniformOverrides);
+				uniformsShader = activeShader;
+				uniformsUseSkinning = useSkinning;
+			}
+			if (!shaderOverride)
+			{
+				m_MaterialManager.Bind(activeShader, material, i, model);
+			}
 
 			uint32_t originalID = material.ShaderID;
 			material.ShaderID = activeShader->GetNativeHandle();
 
 			activeShader->Bind();
 			renderer->DrawMesh(mesh, material, transform * inst.localTransform);
+			material.ShaderID = originalID;
+		}
+	}
+
+	void SceneRenderer::DrawModelInstanced(ModelAsset* modelAsset, const std::vector<glm::mat4>& transforms,
+										   const std::vector<Material>& materials, Shader* shaderOverride,
+										   RenderPassStage pass)
+	{
+		auto* renderer = ServiceLocator::TryGet<Renderer>();
+		if (!renderer || !modelAsset || modelAsset->GetState() != AssetState::Ready || transforms.empty())
+		{
+			return;
+		}
+
+		if (transforms.size() == 1)
+		{
+			DrawModel(modelAsset, transforms[0], {}, materials, shaderOverride, {}, pass);
+			return;
+		}
+
+		const auto& model = modelAsset->GetModel();
+		for (const auto& inst : modelAsset->GetInstances())
+		{
+			int i = inst.meshIndex;
+			if (i < 0 || i >= (int)model.Meshes.size())
+			{
+				continue;
+			}
+
+			const auto& mesh = model.Meshes[i];
+
+			Material material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
+
+			bool isTransparent = material.Transparent || material.AlbedoColor.a < 0.99f;
+			if (pass == RenderPassStage::Opaque && isTransparent)
+			{
+				continue;
+			}
+			if (pass == RenderPassStage::Transparent && !isTransparent)
+			{
+				continue;
+			}
+
+			std::string fallbackName = "Lighting";
+			Shader* activeShader = shaderOverride;
+			if (!activeShader)
+			{
+				auto fallbackAsset = renderer->GetShaderLibrary().Exists(fallbackName)
+										 ? renderer->GetShaderLibrary().Get(fallbackName)
+										 : nullptr;
+				if (fallbackAsset)
+				{
+					activeShader = fallbackAsset->GetShader().get();
+				}
+			}
+
+			if (!activeShader)
+			{
+				continue;
+			}
+
+			m_CurrentStats.DrawCalls++;
+			m_CurrentStats.MeshCount += (uint32_t)transforms.size();
+
+			BindShaderUniforms(activeShader, {}, {});
+			if (!shaderOverride)
+			{
+				m_MaterialManager.Bind(activeShader, material, i, model);
+			}
+
+			uint32_t originalID = material.ShaderID;
+			material.ShaderID = activeShader->GetNativeHandle();
+
+			// Precompute all instance matrices: worldTransform * localTransform
+			std::vector<glm::mat4> instanceTransforms(transforms.size());
+			for (size_t t = 0; t < transforms.size(); ++t)
+			{
+				instanceTransforms[t] = transforms[t] * inst.localTransform;
+			}
+
+			renderer->DrawMeshInstanced(mesh, material, instanceTransforms);
 			material.ShaderID = originalID;
 		}
 	}

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Chained;
 
@@ -21,6 +21,7 @@ namespace ChainedDecos.Scripts
         public static int SelectedSkinIndex = 0;
         public static string SelectedMap = "scenes/rpg_strategy_scene_mp.chscene";
         public static int MaxClients = 4;
+        public static uint RoomCode = 0;
 
         private float m_RefreshTimer = 0.0f;
 
@@ -105,7 +106,7 @@ namespace ChainedDecos.Scripts
             {
                 if (m_SlotByNetId.ContainsKey(p.NetworkID))
                 {
-                    // Already has a slot — just update color
+                    // Already has a slot - just update color
                     int slot = m_SlotByNetId[p.NetworkID];
                     SetSlotColor(slot, p.SkinIndex);
                     continue;
@@ -130,7 +131,7 @@ namespace ChainedDecos.Scripts
 
                 m_SlotNetIds[freeSlot] = p.NetworkID;
                 m_SlotByNetId[p.NetworkID] = freeSlot;
-                SetSlotPosition(freeSlot, players.IndexOf(p));
+                SetSlotPosition(freeSlot, freeSlot);
                 SetSlotColor(freeSlot, p.SkinIndex);
                 Log.Info($"LobbyManager: Assigned netID={p.NetworkID} to slot {freeSlot} (skin={p.SkinIndex})");
             }
@@ -152,23 +153,16 @@ namespace ChainedDecos.Scripts
         private void SetSlotColor(int slot, int skinIndex)
         {
             Entity? avatar = Scene.FindEntityByTag(AvatarTagPrefix + slot);
-            if (avatar == null || !avatar.IsValid)
-                return;
-
-            // Primitive materials are now managed via Material Editor (.chmat)
+            if (avatar == null || !avatar.IsValid) return;
+            // Skin colors are now managed via Material Editor (.chmat)
         }
 
         private void SetSlotHidden(int slot)
         {
             Entity? avatar = Scene.FindEntityByTag(AvatarTagPrefix + slot);
-            if (avatar == null || !avatar.IsValid)
-                return;
-
-            TransformComponent? t = avatar.GetComponent<TransformComponent>();
-            if (t != null)
-            {
-                t.Translation = new Vector3(0, -100, 0);
-            }
+            if (avatar == null || !avatar.IsValid) return;
+            var t = avatar.GetComponent<TransformComponent>();
+            if (t != null) t.Translation = new Vector3(0, -100, 0);
         }
 
         private struct PlayerEntry
@@ -181,47 +175,64 @@ namespace ChainedDecos.Scripts
         private List<PlayerEntry> ParsePlayerList(string json)
         {
             var result = new List<PlayerEntry>();
-            int startIndex = 0;
+            int cursor = 0;
 
-            while (startIndex < json.Length)
+            while (cursor < json.Length)
             {
-                int idStart = json.IndexOf("\"id\":", startIndex);
-                if (idStart < 0) break;
-                idStart += 5;
-                while (idStart < json.Length && (json[idStart] == ' ' || json[idStart] == ':')) idStart++;
+                int objStart = json.IndexOf('{', cursor);
+                if (objStart < 0) break;
+                int objEnd = json.IndexOf('}', objStart);
+                if (objEnd < 0) break;
 
-                int idEnd = json.IndexOf(',', idStart);
-                if (idEnd < 0) idEnd = json.IndexOf('}', idStart);
-                if (idEnd < 0) break;
+                string obj = json.Substring(objStart, objEnd - objStart + 1);
+                cursor = objEnd + 1;
 
+                // Extract "id": <num>
                 ulong networkId = 0;
-                ulong.TryParse(json.Substring(idStart, idEnd - idStart), out networkId);
-                if (networkId == 0) { startIndex = idEnd; continue; }
-
-                int nameStart = json.IndexOf("\"name\":\"", idEnd);
-                string name = "Player";
-                if (nameStart >= 0)
+                int idKey = obj.IndexOf("\"id\":");
+                if (idKey >= 0)
                 {
-                    nameStart += 8;
-                    int nameEnd = json.IndexOf('"', nameStart);
-                    if (nameEnd > nameStart)
-                        name = json.Substring(nameStart, nameEnd - nameStart);
+                    int valStart = idKey + 5;
+                    while (valStart < obj.Length && (obj[valStart] == ' ' || obj[valStart] == ':')) valStart++;
+                    int valEnd = valStart;
+                    while (valEnd < obj.Length && char.IsDigit(obj[valEnd])) valEnd++;
+                    if (valEnd > valStart)
+                    {
+                        ulong.TryParse(obj.Substring(valStart, valEnd - valStart), out networkId);
+                    }
                 }
 
-                int skinStart = json.IndexOf("\"skin\":", idEnd);
-                int skinValue = 0;
-                if (skinStart > 0 && skinStart < json.IndexOf('}', idEnd))
+                if (networkId == 0) continue;
+
+                // Extract "name": "..."
+                string name = "Player";
+                int nameKey = obj.IndexOf("\"name\":\"");
+                if (nameKey >= 0)
                 {
-                    skinStart += 7;
-                    while (skinStart < json.Length && (json[skinStart] == ' ' || json[skinStart] == ':')) skinStart++;
-                    int skinEnd = json.IndexOf(',', skinStart);
-                    if (skinEnd < 0) skinEnd = json.IndexOf('}', skinStart);
-                    if (skinEnd > skinStart)
-                        int.TryParse(json.Substring(skinStart, skinEnd - skinStart), out skinValue);
+                    int strStart = nameKey + 8;
+                    int strEnd = obj.IndexOf('"', strStart);
+                    if (strEnd > strStart)
+                    {
+                        name = obj.Substring(strStart, strEnd - strStart);
+                    }
+                }
+
+                // Extract "skin": <num>
+                int skinValue = 0;
+                int skinKey = obj.IndexOf("\"skin\":");
+                if (skinKey >= 0)
+                {
+                    int valStart = skinKey + 7;
+                    while (valStart < obj.Length && (obj[valStart] == ' ' || obj[valStart] == ':')) valStart++;
+                    int valEnd = valStart;
+                    while (valEnd < obj.Length && char.IsDigit(obj[valEnd])) valEnd++;
+                    if (valEnd > valStart)
+                    {
+                        int.TryParse(obj.Substring(valStart, valEnd - valStart), out skinValue);
+                    }
                 }
 
                 result.Add(new PlayerEntry { NetworkID = networkId, Name = name, SkinIndex = skinValue });
-                startIndex = idEnd + 1;
             }
 
             return result;

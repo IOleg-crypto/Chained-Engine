@@ -73,6 +73,7 @@ namespace Chained
 			bool SplitCustom = false; // true when "Custom Size..." is explicitly selected
 			std::string PackName = "resources";
 			bool ForceRepack = false;
+			bool SkipKtx2 = false;
 			std::string OutputDir;
 		};
 

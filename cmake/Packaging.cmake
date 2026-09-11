@@ -52,13 +52,24 @@ if(WIN32)
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_MODIFY_PATH OFF)
 else()
-    set(CPACK_GENERATOR "TGZ;DEB")
+    set(CPACK_GENERATOR "TGZ;DEB;RPM")
     set(CPACK_SOURCE_GENERATOR "TGZ")
+    set(CPACK_SET_DESTDIR ON)
     
-    # Debian packaging metadata
+    # Debian packaging metadata (.deb for Ubuntu, Debian, Linux Mint, Pop!_OS)
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "IOleg <contact@chainedengine.dev>")
     set(CPACK_DEBIAN_PACKAGE_SECTION "games")
+    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/IOleg-crypto/Chained-Engine")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
+    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+
+    # RPM packaging metadata (.rpm for Fedora, RHEL, openSUSE)
+    set(CPACK_RPM_PACKAGE_LICENSE "Proprietary")
+    set(CPACK_RPM_PACKAGE_GROUP "Amusements/Games")
+    set(CPACK_RPM_PACKAGE_URL "https://github.com/IOleg-crypto/Chained-Engine")
+    set(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
+    set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 endif()
 
 # Package file naming pattern

@@ -12,8 +12,10 @@ namespace ChainedDecos.Scripts
         {
             PopulateResolutions();
             PopulateAntiAliasing();
+            PopulateShadows();
             InitFullscreen();
             InitVSync();
+            InitShadows();
             InitAudioSliders();
         }
 
@@ -27,12 +29,20 @@ namespace ChainedDecos.Scripts
 
             combo.ClearItems();
             string resolutions = AppWindow.GetSupportedResolutions();
-            if (string.IsNullOrEmpty(resolutions)) return;
-
-            foreach (string res in resolutions.Split(';'))
+            if (string.IsNullOrEmpty(resolutions))
             {
-                if (!string.IsNullOrEmpty(res))
-                    combo.AddItem(res);
+                combo.AddItem("1920x1080");
+                combo.AddItem("1600x900");
+                combo.AddItem("1366x768");
+                combo.AddItem("1280x720");
+            }
+            else
+            {
+                foreach (string res in resolutions.Split(';'))
+                {
+                    if (!string.IsNullOrEmpty(res))
+                        combo.AddItem(res);
+                }
             }
 
             string currentRes = $"{AppWindow.GetWidth()}x{AppWindow.GetHeight()}";
@@ -69,7 +79,32 @@ namespace ChainedDecos.Scripts
                     return;
                 }
             }
-            combo.SelectedIndex = 2;
+            combo.SelectedIndex = 1; // Default 2x MSAA
+        }
+
+        private void PopulateShadows()
+        {
+            Entity? srEnt = Scene.FindEntityByTag("shadow_resolution_combobox");
+            ComboBoxControl? combo = srEnt?.GetComponent<ComboBoxControl>();
+            if (combo == null) return;
+
+            combo.ClearItems();
+            combo.AddItem("512 (Low)");
+            combo.AddItem("1024 (Medium)");
+            combo.AddItem("2048 (High)");
+            combo.AddItem("4096 (Ultra)");
+
+            int current = AppWindow.GetShadowResolution();
+            int[] srValues = { 512, 1024, 2048, 4096 };
+            for (int i = 0; i < srValues.Length; i++)
+            {
+                if (srValues[i] == current)
+                {
+                    combo.SelectedIndex = i;
+                    return;
+                }
+            }
+            combo.SelectedIndex = 2; // Default 2048 (High)
         }
 
         private void InitFullscreen()
@@ -86,6 +121,14 @@ namespace ChainedDecos.Scripts
             CheckboxControl? check = vsyncEnt?.GetComponent<CheckboxControl>();
             if (check != null)
                 check.IsChecked = AppWindow.GetVSync();
+        }
+
+        private void InitShadows()
+        {
+            Entity? shEnt = Scene.FindEntityByTag("option_shadows");
+            CheckboxControl? check = shEnt?.GetComponent<CheckboxControl>();
+            if (check != null)
+                check.IsChecked = AppWindow.GetEnableShadows();
         }
 
         private void InitAudioSliders()
@@ -165,7 +208,10 @@ namespace ChainedDecos.Scripts
             // 3. VSync (Checkbox)
             AppWindow.SetVSync(GetCheckboxState("option_vsync"));
 
-            // 4. Anti-aliasing (ComboBox)
+            // 4. Shadows (Checkbox)
+            AppWindow.SetEnableShadows(GetCheckboxState("option_shadows"));
+
+            // 5. Anti-aliasing / MSAA (ComboBox)
             Entity? aaEnt = Scene.FindEntityByTag("anti_aliasing_combobox");
             if (aaEnt != null)
             {
@@ -179,12 +225,26 @@ namespace ChainedDecos.Scripts
                 }
             }
 
-            // 5. Audio volumes (Sliders: 0–100 → 0.0–1.0)
+            // 6. Shadow Resolution (ComboBox)
+            Entity? srEnt = Scene.FindEntityByTag("shadow_resolution_combobox");
+            if (srEnt != null)
+            {
+                ComboBoxControl? combo = srEnt.GetComponent<ComboBoxControl>();
+                if (combo != null && combo.ItemCount > 0)
+                {
+                    int[] srValues = { 512, 1024, 2048, 4096 };
+                    int idx = combo.SelectedIndex;
+                    if (idx >= 0 && idx < srValues.Length)
+                        AppWindow.SetShadowResolution(srValues[idx]);
+                }
+            }
+
+            // 7. Audio volumes (Sliders: 0–100 → 0.0–1.0)
             Audio.SetMasterVolume(GetSliderValue("volume_master") / 100f);
             Audio.SetMusicVolume(GetSliderValue("volume_music") / 100f);
             Audio.SetSFXVolume(GetSliderValue("volume_sfx") / 100f);
 
-            // 6. Save to config file
+            // 8. Save to config file
             SaveSettings();
         }
 
@@ -203,6 +263,7 @@ namespace ChainedDecos.Scripts
 
             cfg["Fullscreen"] = GetCheckboxState("option_fullscreen").ToString();
             cfg["VSync"] = GetCheckboxState("option_vsync").ToString();
+            cfg["EnableShadows"] = GetCheckboxState("option_shadows").ToString();
 
             Entity? aaEnt = Scene.FindEntityByTag("anti_aliasing_combobox");
             ComboBoxControl? aaCombo = aaEnt?.GetComponent<ComboBoxControl>();
@@ -212,6 +273,16 @@ namespace ChainedDecos.Scripts
                 int idx = aaCombo.SelectedIndex;
                 if (idx >= 0 && idx < aaValues.Length)
                     cfg["AntiAliasingSamples"] = aaValues[idx].ToString();
+            }
+
+            Entity? srEnt = Scene.FindEntityByTag("shadow_resolution_combobox");
+            ComboBoxControl? srCombo = srEnt?.GetComponent<ComboBoxControl>();
+            if (srCombo != null)
+            {
+                int[] srValues = { 512, 1024, 2048, 4096 };
+                int idx = srCombo.SelectedIndex;
+                if (idx >= 0 && idx < srValues.Length)
+                    cfg["ShadowResolution"] = srValues[idx].ToString();
             }
 
             cfg["MasterVolume"] = GetSliderValue("volume_master").ToString("F1", System.Globalization.CultureInfo.InvariantCulture);

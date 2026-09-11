@@ -77,7 +77,9 @@ vec3 CalcDirectionalLight(in vec3 dir, in vec4 col, in float intensity, in Surfa
         float HdotV = max(dot(H, s.viewDir), 0.0);
 
         float spec = pow(NdotH, s.shininess);
-        float fresnel = pow(1.0 - HdotV, 5.0);
+        float fresnelBase = 1.0 - HdotV;
+        float fresnelSquared = fresnelBase * fresnelBase;
+        float fresnel = fresnelSquared * fresnelSquared * fresnelBase;
         vec3 F = s.specular + (vec3(1.0) - s.specular) * fresnel;
 
         specular = F * col.rgb * spec;
@@ -130,7 +132,9 @@ vec3 CalcPointLight(in Light light, in Surface s)
         float HdotV = max(dot(H, s.viewDir), 0.0);
 
         float spec = pow(NdotH, s.shininess);
-        float fresnel = pow(1.0 - HdotV, 5.0);
+        float fresnelBase = 1.0 - HdotV;
+        float fresnelSquared = fresnelBase * fresnelBase;
+        float fresnel = fresnelSquared * fresnelSquared * fresnelBase;
         vec3 F = s.specular + (vec3(1.0) - s.specular) * fresnel;
 
         specular = F * light.color.rgb * spec;
@@ -173,7 +177,9 @@ vec3 CalcSpotLight(in Light light, in Surface s)
         float HdotV = max(dot(H, s.viewDir), 0.0);
 
         float spec = pow(NdotH, s.shininess);
-        float fresnel = pow(1.0 - HdotV, 5.0);
+        float fresnelBase = 1.0 - HdotV;
+        float fresnelSquared = fresnelBase * fresnelBase;
+        float fresnel = fresnelSquared * fresnelSquared * fresnelBase;
         vec3 F = s.specular + (vec3(1.0) - s.specular) * fresnel;
 
         specular = F * light.color.rgb * spec;

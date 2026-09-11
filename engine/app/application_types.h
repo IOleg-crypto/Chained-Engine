@@ -17,6 +17,8 @@ namespace Chained
 		std::string Name;
 		std::string WorkingDirectory;
 		std::filesystem::path EngineRoot;
+		std::filesystem::path SourceResourcesDir; // Engine resources from source tree (dev mode)
+		std::filesystem::path SourceAssetsDir;	  // Game assets from source tree (dev mode)
 		std::string ResourcesDir;
 		WindowProperties Window;
 		ApplicationCommandLineArgs CommandLineArgs;

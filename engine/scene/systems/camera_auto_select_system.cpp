@@ -1,7 +1,6 @@
 #include "camera_auto_select_system.h"
 #include "engine/core/profiler.h"
 #include "engine/scene/components/render/camera_component.h"
-#include "engine/scene/components/core/tag_component.h"
 #include "engine/scene/scene.h"
 #include "engine/scene/scene_settings.h"
 
@@ -30,7 +29,6 @@ namespace Chained::CameraAutoSelectSystem
 	}
 
 	// Selects the best camera based on scene BackgroundMode and camera ProjectionType.
-	// No longer tag-dependent — iterates all CameraComponents.
 	void SelectCamera(entt::registry& reg)
 	{
 		CH_PROFILE_FUNCTION();
@@ -43,40 +41,27 @@ namespace Chained::CameraAutoSelectSystem
 
 		Scene* scene = *scenePtr;
 		auto& settings = scene->GetSettings();
-
-		// 2D scene (Color/Texture background) → prefer orthographic camera
-		// 3D scene (Environment3D background) → prefer perspective camera
 		bool want2D = (settings.Mode == BackgroundMode::Color || settings.Mode == BackgroundMode::Texture);
 
 		auto view = reg.view<CameraComponent>();
 
-		// First pass: deselect all
-		for (auto entity : view)
-		{
-			view.get<CameraComponent>(entity).Primary = false;
-		}
-
-		// Second pass: find best candidate
 		Entity bestCandidate{};
 		for (auto entity : view)
 		{
-			Entity e(entity, &reg);
-			auto& comp = view.get<CameraComponent>(e);
+			auto& comp = view.get<CameraComponent>(entity);
+			comp.Primary = false; // deselect all in one pass
 
-			bool isOrtho = (comp.Camera.GetProjectionType() == ProjectionType::Orthographic);
-			if (want2D && isOrtho)
+			if (!bestCandidate)
 			{
-				bestCandidate = e;
-				break;
-			}
-			if (!want2D && !isOrtho)
-			{
-				bestCandidate = e;
-				break;
+				bool isOrtho = (comp.Camera.GetProjectionType() == ProjectionType::Orthographic);
+				if ((want2D && isOrtho) || (!want2D && !isOrtho))
+				{
+					bestCandidate = Entity(entity, &reg);
+				}
 			}
 		}
 
-		// Third pass fallback: if no perfect match, take the first camera
+		// Fallback: take the first camera if no perfect match
 		if (!bestCandidate)
 		{
 			for (auto entity : view)

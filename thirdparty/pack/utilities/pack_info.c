@@ -1,0 +1,86 @@
+// Copyright 2021-2026 Nikita Fediuchin. All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "pack/reader.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+static void printPackInfoHelp()
+{
+	printf("Usage: pack-info <pack-path>\n");
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc != 2)
+	{
+		printPackInfoHelp();
+		return EXIT_FAILURE;
+	}
+
+	PackHeader header;
+	PackResult result = readPackHeader(argv[1], &header);
+
+	if (result != SUCCESS_PACK_RESULT)
+	{
+		printf("\nError: %s.\n", packResultToString(result));
+		return EXIT_FAILURE;
+	}
+
+	printf("pack-info [v%d.%d.%d]\n\n"
+		"Pack header:\n"
+		"    File version: %d.%d.%d\n"
+		"    Data version: %u\n"
+		"    Big endian: %s\n"
+		"    Prefer speed: %s\n"
+		"    Item count: %llu\n\n",
+		PACK_VERSION_MAJOR, PACK_VERSION_MINOR, PACK_VERSION_PATCH,
+		header.versionMajor, header.versionMinor, header.versionPatch, header.dataVersion, 
+		header.isBigEndian ? "true" : "false", header.preferSpeed ? "true" : "false", 
+		(long long unsigned int)header.itemCount);
+
+	PackReader packReader;
+	result = createFilePackReader(argv[1], header.dataVersion, false, 1, &packReader);
+	if (result != SUCCESS_PACK_RESULT)
+	{
+		printf("\nError: %s.\n", packResultToString(result));
+		return EXIT_FAILURE;
+	}
+
+	uint64_t itemCount = getPackItemCount(packReader);
+	uint64_t totalDataSize = 0, totalZipSize = 0;
+
+	for (uint64_t i = 0; i < itemCount; ++i)
+	{
+		uint32_t dataSize = getPackItemDataSize(packReader, i);
+		uint32_t zipSize = getPackItemZipSize(packReader, i);
+		totalDataSize += dataSize; totalZipSize += zipSize;
+
+		printf("Item %llu:\n"
+			"    Path: %s\n"
+			"    Data size: %u bytes\n"
+			"    Zip size: %u bytes\n"
+			"    File offset: %llu bytes\n"
+			"    Is reference: %s\n",
+			(long long unsigned int)i, getPackItemPath(packReader, i), dataSize, 
+			zipSize, (long long unsigned int)getPackItemFileOffset(packReader, i),
+			isPackItemReference(packReader, i) ? "true" : "false");
+		fflush(stdout);
+	}
+
+	printf("\nTotal zip/data size: %llu/%llu bytes.\n",
+		(long long unsigned int)totalZipSize, (long long unsigned int)totalDataSize);
+	return EXIT_SUCCESS;
+}

@@ -25,6 +25,17 @@ Fog:
   Density: 0.00999999978
   Start: 10
   End: 100
+Grid:
+  Spacing: 1
+  SecondarySpacing: 10
+  Color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.400000006
+  FadeStart: 0
+  FadeEnd: 8000
+  PlaneSize: 15000
 DebugSettings:
   DiagnosticMode: 0
   DrawColliders: false
@@ -35,7 +46,7 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 6529195123706576257
+  - Entity: 8210660680077203169
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -48,8 +59,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, -360]
-        OffsetMax: [-120, -300]
+        OffsetMin: [-855.515747, -360]
+        OffsetMax: [-455.515778, -300]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -84,7 +95,7 @@ Entities:
       Widget Type: 3
       Text: Video Settings
       Auto Size: false
-  - Entity: 2360158408147605491
+  - Entity: 14217870914551860716
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -97,8 +108,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, -250]
-        OffsetMax: [-120, -205]
+        OffsetMin: [-849.892578, -266.869507]
+        OffsetMax: [-449.892609, -221.869507]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -116,8 +127,8 @@ Entities:
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 8
-        Hover Scale: 1.01
-        Pressed Scale: 0.99
+        Hover Scale: 1.00999999
+        Pressed Scale: 0.99000001
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/static/Figtree-Bold.ttf
@@ -133,7 +144,7 @@ Entities:
       Widget Type: 6
       Label: VSync
       Checked: false
-  - Entity: 7330382566051686589
+  - Entity: 9279852004574219486
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -146,8 +157,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, -185]
-        OffsetMax: [-120, -140]
+        OffsetMin: [-848.018188, -185]
+        OffsetMax: [-448.018219, -140]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -165,8 +176,8 @@ Entities:
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 8
-        Hover Scale: 1.01
-        Pressed Scale: 0.99
+        Hover Scale: 1.00999999
+        Pressed Scale: 0.99000001
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/static/Figtree-Bold.ttf
@@ -182,7 +193,7 @@ Entities:
       Widget Type: 6
       Label: Fullscreen
       Checked: false
-  - Entity: 8339234267797379989
+  - Entity: 13744707957821596020
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -195,8 +206,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, -100]
-        OffsetMax: [-120, -70]
+        OffsetMin: [-833.023071, -101.87439]
+        OffsetMax: [-433.023102, -71.8743896]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -231,7 +242,7 @@ Entities:
       Widget Type: 3
       Text: Resolution
       Auto Size: false
-  - Entity: 2188321364060672515
+  - Entity: 10806342300921618979
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -244,8 +255,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, -60]
-        OffsetMax: [-120, -15]
+        OffsetMin: [-836.771851, -54.3768311]
+        OffsetMax: [-434.897491, -9.3768301]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -282,7 +293,7 @@ Entities:
       Items:
         []
       Selected Index: 0
-  - Entity: 1931546155997277511
+  - Entity: 8959579849811663549
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -295,8 +306,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, 15]
-        OffsetMax: [-120, 45]
+        OffsetMin: [-833.023071, 7.50244045]
+        OffsetMax: [-433.023102, 37.5024414]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -331,7 +342,7 @@ Entities:
       Widget Type: 3
       Text: Anti-aliasing
       Auto Size: false
-  - Entity: 15624505708467453785
+  - Entity: 7160301136410527201
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -344,8 +355,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-520, 55]
-        OffsetMax: [-120, 100]
+        OffsetMin: [-833.023071, 49.3768311]
+        OffsetMax: [-433.023102, 94.3768311]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -382,7 +393,7 @@ Entities:
       Items:
         []
       Selected Index: 2
-  - Entity: 8210000000000000001
+  - Entity: 6473300139259296453
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -395,8 +406,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, -360]
-        OffsetMax: [520, -300]
+        OffsetMin: [438.646271, -367.497559]
+        OffsetMax: [838.64624, -307.497559]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -431,7 +442,7 @@ Entities:
       Widget Type: 3
       Text: Audio Settings
       Auto Size: false
-  - Entity: 8210000000000000002
+  - Entity: 4642856083996106855
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -444,8 +455,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, -250]
-        OffsetMax: [520, -220]
+        OffsetMin: [449.892609, -240.628052]
+        OffsetMax: [849.892578, -210.628052]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -480,7 +491,7 @@ Entities:
       Widget Type: 3
       Text: Master Volume
       Auto Size: false
-  - Entity: 8210000000000000003
+  - Entity: 12779933594466101305
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -493,8 +504,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, -210]
-        OffsetMax: [520, -170]
+        OffsetMin: [444.26944, -195.004883]
+        OffsetMax: [844.269409, -155.004883]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -528,10 +539,10 @@ Entities:
         V Align: 1
       Widget Type: 5
       Label: Master
-      Value: 100
+      Value: 95.3700027
       Min: 0
       Max: 100
-  - Entity: 8210000000000000004
+  - Entity: 8655677459201376516
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -544,8 +555,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, -135]
-        OffsetMax: [520, -105]
+        OffsetMin: [449.892609, -138.748779]
+        OffsetMax: [849.892578, -108.748779]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -580,7 +591,7 @@ Entities:
       Widget Type: 3
       Text: Music Volume
       Auto Size: false
-  - Entity: 8210000000000000005
+  - Entity: 4210474120106472646
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -593,8 +604,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, -95]
-        OffsetMax: [520, -55]
+        OffsetMin: [449.892609, -95]
+        OffsetMax: [849.892578, -55]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -628,10 +639,10 @@ Entities:
         V Align: 1
       Widget Type: 5
       Label: Music
-      Value: 100
+      Value: 18.9599991
       Min: 0
       Max: 100
-  - Entity: 8210000000000000006
+  - Entity: 12759997154969667955
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -644,8 +655,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, -20]
-        OffsetMax: [520, 10]
+        OffsetMin: [453.641388, -27.4975586]
+        OffsetMax: [853.641357, 2.50244045]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -680,7 +691,7 @@ Entities:
       Widget Type: 3
       Text: SFX Volume
       Auto Size: false
-  - Entity: 8210000000000000007
+  - Entity: 17307234115536026971
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -693,8 +704,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [120, 20]
-        OffsetMax: [520, 60]
+        OffsetMin: [448.018219, 21.8743896]
+        OffsetMax: [848.018188, 61.8743896]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -728,10 +739,10 @@ Entities:
         V Align: 1
       Widget Type: 5
       Label: SFX
-      Value: 100
+      Value: 80.5
       Min: 0
       Max: 100
-  - Entity: 2514196054621993865
+  - Entity: 7414485799946767606
     ManagedScriptComponent:
       Scripts:
         - ClassName: ChainedDecos.Scripts.SettingsScript
@@ -745,10 +756,10 @@ Entities:
       {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-230, 260]
-        OffsetMax: [-20, 315]
+        AnchorMin: [0, 1]
+        AnchorMax: [0, 1]
+        OffsetMin: [40, -95]
+        OffsetMax: [250, -40]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -766,8 +777,8 @@ Entities:
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1.04
-        Pressed Scale: 0.96
+        Hover Scale: 1.03999996
+        Pressed Scale: 0.959999979
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/static/Figtree-Bold.ttf
@@ -784,7 +795,7 @@ Entities:
       Label: Apply
       Interactable: true
       Auto Size: false
-  - Entity: 2075080135391829995
+  - Entity: 10702008440535422933
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -793,15 +804,15 @@ Entities:
       Tag: back_button
     IDComponent:
       {}
-    Scene TransitionComponent:
+    SceneTransitionComponent:
       TargetScenePath: scenes/start_menu.chscene
       Triggered: false
     ControlComponent:
       Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [20, 260]
-        OffsetMax: [230, 315]
+        AnchorMin: [0, 1]
+        AnchorMax: [0, 1]
+        OffsetMin: [307.266052, -91.1544495]
+        OffsetMax: [517.266052, -38.0772209]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -819,8 +830,8 @@ Entities:
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1.04
-        Pressed Scale: 0.96
+        Hover Scale: 1.03999996
+        Pressed Scale: 0.959999979
         Transition Speed: 0.150000006
       Text Style:
         Font Name: font/static/Figtree-Bold.ttf
@@ -836,4 +847,202 @@ Entities:
       Widget Type: 1
       Label: Back
       Interactable: true
+      Auto Size: false
+  - Entity: 14909058216316866473
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: shadow_settings_title
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-210.570038, -371.43988]
+        OffsetMax: [189.429932, -311.43988]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 38
+        Text Color: [110, 231, 211, 255]
+        Shadow: true
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1.5
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Shadows Settings
+      Auto Size: false
+  - Entity: 17811213680698325170
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: option_shadows
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-188.439972, -266.115479]
+        OffsetMax: [55.7683372, -226.115524]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [40, 40, 40, 255]
+        Hover Color: [60, 60, 60, 255]
+        Pressed Color: [30, 30, 30, 255]
+        Rounding: 4
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Regular.ttf
+        Font Size: 18
+        Text Color: [255, 255, 255, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 6
+      Label: Enable Shadows
+      Checked: false
+  - Entity: 2810082941261061113
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: shadow_resolution_combobox
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-186.517181, -137.289413]
+        OffsetMax: [163.443878, -97.2894211]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [40, 40, 40, 255]
+        Hover Color: [60, 60, 60, 255]
+        Pressed Color: [30, 30, 30, 255]
+        Rounding: 4
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Regular.ttf
+        Font Size: 18
+        Text Color: [255, 255, 255, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 10
+      Label: Combo
+      Items:
+        []
+      Selected Index: 0
+  - Entity: 4732225016032991658
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: volume_master_label_copy
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-184.623871, -184.867493]
+        OffsetMax: [215.376099, -154.867493]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 20
+        Text Color: [180, 230, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Shadow Resolution
       Auto Size: false

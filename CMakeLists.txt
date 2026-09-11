@@ -15,7 +15,6 @@ project(ChainedDecos LANGUAGES CXX C)
 
 
 
-# Options
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(CH_CI "Set to ON for CI environments" OFF)
@@ -70,6 +69,14 @@ set(CH_PYTHON_EXECUTABLE "${Python3_EXECUTABLE}" CACHE FILEPATH "Python interpre
 
 set(CH_ACTIVE_GAME "chaineddecos" CACHE STRING "Active game project to build")
 set_property(CACHE CH_ACTIVE_GAME PROPERTY STRINGS chaineddecos testproject)
+
+# Source directories for dev mode — runtime reads from source tree instead of copying
+set(CH_SOURCE_RESOURCES_DIR "${CMAKE_SOURCE_DIR}" CACHE PATH "Engine resources source directory (dev mode)")
+set(CH_SOURCE_ASSETS_DIR "${CMAKE_SOURCE_DIR}/game/${CH_ACTIVE_GAME}/assets" CACHE PATH "Game assets source directory (dev mode)")
+
+# Pass source directories as compile definitions so the runtime can read from source tree
+add_compile_definitions(CH_SOURCE_RESOURCES_DIR="${CH_SOURCE_RESOURCES_DIR}")
+add_compile_definitions(CH_SOURCE_ASSETS_DIR="${CH_SOURCE_ASSETS_DIR}")
 
 if(UNIX AND NOT APPLE)
     add_compile_definitions(_GNU_SOURCE)
@@ -126,4 +133,4 @@ add_custom_target(sync-scripts
 )
 
 # ── Packaging (CPack) ────────────────────────────────────────────────────────
-include(cmake/Packaging.cmake)
+include(cmake/Packaging.cmake)

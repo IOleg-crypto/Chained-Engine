@@ -152,6 +152,8 @@ vec3 ApplyLinearFog(vec3 surfaceColor, vec3 fragPos, vec3 viewPos, vec3 lightDir
 // ══════════════════════════════════════════════════════════
 vec4 ApplyFog(vec4 surfaceColor, vec3 fragPos, vec3 viewPos, float uTime)
 {
-    vec3 fogRGB = ApplyLinearFog(surfaceColor.rgb, fragPos, viewPos, lightDir, lightColor.rgb);
+    vec3 defaultSunDir = vec3(0.0, 1.0, 0.0);
+    vec3 defaultLightColor = vec3(1.0);
+    vec3 fogRGB = ApplyLinearFog(surfaceColor.rgb, fragPos, viewPos, defaultSunDir, defaultLightColor);
     return vec4(fogRGB, surfaceColor.a);
 }

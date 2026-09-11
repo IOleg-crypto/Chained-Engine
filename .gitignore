@@ -90,6 +90,7 @@ build_error.txt
 *.chcache
 *.chasset
 *.pdf
+.texture_cache/
 
 .opencode
 .claude
@@ -110,6 +111,7 @@ package/
 *.tar.gz
 
 exported
+exported_linux
 
 nul
 

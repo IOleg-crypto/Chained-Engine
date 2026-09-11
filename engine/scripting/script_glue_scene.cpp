@@ -61,4 +61,17 @@ namespace Chained
 		return 0;
 	}
 
+	CH_SCRIPT_FUNC const Coral::UCChar* Scene_GetCurrentScenePath()
+	{
+		static thread_local Coral::UCString s_ScenePathBuffer;
+		auto* scene = GetActiveScene();
+		if (scene)
+		{
+			s_ScenePathBuffer = ToWide(scene->GetSettings().ScenePath);
+			return s_ScenePathBuffer.c_str();
+		}
+		s_ScenePathBuffer = ToWide("");
+		return s_ScenePathBuffer.c_str();
+	}
+
 } // namespace Chained

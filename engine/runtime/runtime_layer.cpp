@@ -20,6 +20,7 @@
 #include "engine/project/project.h"
 #include "engine/scene/scene_events.h"
 #include "engine/scene/scene_serializer.h"
+#include "engine/networking/network_service.h"
 #include "imgui.h"
 #include "engine/scene/systems/asset_resolution_system.h"
 #include "engine/scripting/scene_scripting_manager.h"
@@ -27,6 +28,29 @@
 
 #include <cctype>
 #include <cmath>
+
+namespace
+{
+	// Scene loading / startup timeouts (seconds)
+	constexpr float kLoadingTimeoutSec = 20.0f;
+	constexpr float kStartupTimeoutSec = 30.0f;
+	constexpr float kBoostUploadsDuration = 5.0f;
+
+	// Loading overlay appearance
+	constexpr float kOverlayCursorY = 0.45f;
+	constexpr float kDotsAnimSpeed = 2.5f;
+	constexpr int kDotsCount = 3;
+	constexpr float kOverlayBgDark = 0.02f;
+	constexpr float kOverlayBgAlpha = 0.92f;
+
+	// Default sizes
+	constexpr float kDefaultUIFontSize = 18.0f;
+	constexpr float kDefaultFontSize = 16.0f;
+	constexpr uint32_t kDefaultMsaaSamples = 4u;
+
+	// Colour channel normalisation
+	constexpr float kByteToFloat = 1.0f / 255.0f;
+} // anonymous namespace
 
 namespace Chained
 {
@@ -56,17 +80,17 @@ namespace Chained
 		if (io.Fonts->Fonts.Size == 0)
 		{
 			io.Fonts->AddFontDefault();
-			CH_CORE_INFO("RuntimeSystem: Using built-in ImGui default font.");
+			CH_CORE_TRACE("RuntimeSystem: Using built-in ImGui default font.");
 		}
 
 		InitProject(m_ProjectPath);
 
 		if (auto* fontRegistry = ServiceLocator::TryGet<UIFontRegistry>())
 		{
-			if (ImFont* projectDefaultFont = fontRegistry->EnsureDefaultProjectFont(18.0f, false))
+			if (ImFont* projectDefaultFont = fontRegistry->EnsureDefaultProjectFont(kDefaultUIFontSize, false))
 			{
 				io.FontDefault = projectDefaultFont;
-				CH_CORE_INFO("RuntimeSystem: Switched default UI font to project font.");
+				CH_CORE_TRACE("RuntimeSystem: Switched default UI font to project font.");
 			}
 			else
 			{
@@ -110,6 +134,18 @@ namespace Chained
 			return;
 		}
 
+		if (m_AssetManager)
+		{
+			m_AssetManager->FinalizePendingLoads();
+		}
+
+		TickFontRebuild(ts);
+		TickSceneLoading(ts);
+		TickRunning(ts);
+	}
+
+	void RuntimeLayer::TickFontRebuild(Timestep /*ts*/)
+	{
 		if (auto* fontRegistry = ServiceLocator::TryGet<UIFontRegistry>())
 		{
 			if (fontRegistry->NeedsAtlasRebuild())
@@ -122,64 +158,86 @@ namespace Chained
 				fontRegistry->ClearRebuildFlag();
 			}
 		}
+	}
 
-		if (m_Scene && m_LoadState.State == RuntimeLoadState::LoadingScene)
+	void RuntimeLayer::TickSceneLoading(Timestep ts)
+	{
+		if (!m_Scene || m_LoadState.State != RuntimeLoadState::LoadingScene)
 		{
-			AssetResolutionSystem::Update(m_Scene->GetRegistry());
-			m_LoadState.OverlayElapsed += (float)ts;
-
-			if (IsSceneReadyToStart() && m_LoadState.OverlayElapsed >= m_LoadState.MinOverlayDuration)
-			{
-				if (auto* wr = ServiceLocator::TryGet<WidgetRenderer>())
-				{
-					wr->ResetButtonStates(m_Scene.get());
-				}
-
-				if (m_Scene->GetSceneState() != SceneState::Play)
-				{
-					m_Scene->TransitionToState(SceneState::Play);
-				}
-
-				// Advance the scene startup while the loading overlay is still active.
-				// PhysicsBodySystem may still be waiting for an async mesh shape bake.
-				m_Scene->OnUpdateRuntime(ts);
-
-				if (!m_Scene->IsStartingUp())
-				{
-					m_LoadState.State = RuntimeLoadState::Running;
-					m_LoadState.SuppressNextUIInput = true;
-					CH_CORE_INFO("RuntimeSystem: Scene assets and physics are ready, entering runtime.");
-					return;
-				}
-			}
+			return;
 		}
 
-		if (m_Scene && IsRunning())
+		// Keep ENet alive during potentially long asset loading to prevent timeout disconnects.
+		// Any SceneLoaded messages arriving now will be safely deferred by NetworkSystem.
+		if (auto* net = ServiceLocator::TryGet<Network>())
 		{
-			bool suppress = m_LoadState.SuppressNextUIInput;
-			m_LoadState.SuppressNextUIInput = false;
-			if (auto* wr = ServiceLocator::TryGet<WidgetRenderer>())
-			{
-				wr->ProcessInput(m_Scene.get(), suppress);
-			}
-
-			m_Scene->OnUpdateRuntime(ts);
-
-			if (!m_Scene->GetPendingScenePath().empty())
-			{
-				m_PendingScenePath = m_Scene->GetPendingScenePath();
-				m_Scene->ClearPendingScenePath();
-			}
+			net->Update(ts);
 		}
 
-		if (m_LoadState.BoostUploadsTimer > 0.0f)
+		if (m_AssetManager)
 		{
-			m_LoadState.BoostUploadsTimer -= ts;
+			m_AssetManager->FinalizePendingLoads();
 		}
+
+		AssetResolutionSystem::Update(m_Scene->GetRegistry());
+		m_LoadState.OverlayElapsed += (float)ts;
+
+		bool ready = IsSceneReadyToStart();
+		if (!ready && m_LoadState.OverlayElapsed > kLoadingTimeoutSec)
+		{
+			CH_CORE_WARN(
+				"RuntimeSystem: Loading timeout ({:.0f}s) reached while waiting for assets. Forcing scene start.",
+				kLoadingTimeoutSec);
+			ready = true;
+		}
+
+		if (!ready || m_LoadState.OverlayElapsed < m_LoadState.MinOverlayDuration)
+		{
+			return;
+		}
+
+		if (auto* wr = ServiceLocator::TryGet<WidgetRenderer>())
+		{
+			wr->ResetButtonStates(m_Scene.get());
+		}
+
+		if (m_Scene->GetSceneState() != SceneState::Play)
+		{
+			m_Scene->TransitionToState(SceneState::Play);
+		}
+
+		// Advance the scene startup while the loading overlay is still active.
+		// PhysicsBodySystem may still be waiting for an async mesh shape bake.
+		m_Scene->OnUpdateRuntime(ts);
+
+		if (!m_Scene->IsStartingUp() || m_LoadState.OverlayElapsed > kStartupTimeoutSec)
+		{
+			m_LoadState.State = RuntimeLoadState::Running;
+			m_LoadState.SuppressNextUIInput = true;
+			CH_CORE_INFO("RuntimeSystem: Scene assets and physics are ready, entering runtime.");
+		}
+	}
+
+	void RuntimeLayer::TickRunning(Timestep ts)
+	{
+		if (!m_Scene || !IsRunning())
+		{
+			return;
+		}
+
+		bool suppress = m_LoadState.SuppressNextUIInput;
+		m_LoadState.SuppressNextUIInput = false;
+		if (auto* wr = ServiceLocator::TryGet<WidgetRenderer>())
+		{
+			wr->ProcessInput(m_Scene.get(), suppress);
+		}
+
+		m_Scene->OnUpdateRuntime(ts);
 	}
 
 	void RuntimeLayer::OnRender(Timestep ts)
 	{
+		(void)ts; // No work
 		Window& window = Application::Get().GetWindow();
 		uint32_t width = (uint32_t)window.GetWidth();
 		uint32_t height = (uint32_t)window.GetHeight();
@@ -199,21 +257,21 @@ namespace Chained
 
 		glm::vec4 bgColor = CalculateBackgroundColor();
 
-		auto camConfig = GetCameraConfig();
+		auto camConfig = GetActiveCamera();
 		if (camConfig)
 		{
 			SceneRenderOptions options;
 
 			m_HDRFramebuffer->Bind();
 			m_Renderer->Clear(bgColor);
-			m_SceneRenderer->RenderScene(m_Scene->GetRegistry(), m_Scene->GetSettings(), camConfig->Camera, options);
+			m_SceneRenderer->RenderScene(m_Scene->GetRegistry(), m_Scene->GetSettings(), camConfig.value(), options);
 			m_HDRFramebuffer->Unbind();
 			m_HDRFramebuffer->Resolve();
 
 			m_Renderer->SetViewport(0, 0, (int)width, (int)height);
 			m_Renderer->Clear(bgColor);
 			m_Renderer->ApplyPostProcessing(m_HDRFramebuffer->GetColorAttachmentRendererID(),
-											m_HDRFramebuffer->GetDepthAttachmentRendererID(), camConfig->Camera,
+											m_HDRFramebuffer->GetDepthAttachmentRendererID(), camConfig.value(),
 											nullptr, {});
 		}
 		else
@@ -263,7 +321,8 @@ namespace Chained
 			ImGui::End();
 			ImGui::PopStyleVar(2);
 
-			if (m_LoadState.State == RuntimeLoadState::LoadingScene)
+			if (m_LoadState.State == RuntimeLoadState::LoadingScene &&
+				m_Scene->GetSettings().Type == SceneType::Default)
 			{
 				DrawLoadingOverlay();
 			}
@@ -428,21 +487,34 @@ namespace Chained
 
 		Project::SetActive(project);
 
-		CH_CORE_INFO("RuntimeSystem: Project loaded: {}", project->GetName());
-		CH_CORE_INFO("RuntimeSystem: Project Directory: {}", project->GetConfig().ProjectDirectory.string());
-		CH_CORE_INFO("RuntimeSystem: Asset Directory: {}", project->GetAssetDirectory().string());
+		CH_CORE_TRACE("RuntimeSystem: Project loaded: {}", project->GetName());
+		CH_CORE_TRACE("RuntimeSystem: Project Directory: {}", project->GetConfig().ProjectDirectory.string());
+		CH_CORE_TRACE("RuntimeSystem: Asset Directory: {}", project->GetAssetDirectory().string());
 
 		m_AssetManager->SetProjectDirectory(project->GetConfig().ProjectDirectory);
 		m_AssetManager->SetAssetDirectory(project->GetAssetDirectory());
 
-#ifdef CH_SOURCE_GAME_DIR
+		// Source directories for dev mode — runtime reads from source tree instead of copied assets
+		// These are set by CMake via CH_SOURCE_RESOURCES_DIR / CH_SOURCE_ASSETS_DIR compile definitions.
+		// In exported games the source dirs don't exist, so SetSource*Dir() is never called
+		// and the resolver falls back to ProjectDirectory / pack files as usual.
+#ifdef CH_SOURCE_RESOURCES_DIR
 		{
-			std::filesystem::path srcGameDir(CH_SOURCE_GAME_DIR);
-			std::filesystem::path srcAssetsDir = srcGameDir / "assets";
+			std::filesystem::path srcResDir(CH_SOURCE_RESOURCES_DIR);
+			if (std::filesystem::exists(srcResDir))
+			{
+				CH_CORE_INFO("RuntimeSystem: Using source engine resources: {}", srcResDir.string());
+				m_AssetManager->SetSourceResourcesDir(srcResDir);
+			}
+		}
+#endif
+#ifdef CH_SOURCE_ASSETS_DIR
+		{
+			std::filesystem::path srcAssetsDir(CH_SOURCE_ASSETS_DIR);
 			if (std::filesystem::exists(srcAssetsDir))
 			{
 				CH_CORE_INFO("RuntimeSystem: Using source game assets: {}", srcAssetsDir.string());
-				m_AssetManager->SetAssetDirectory(srcAssetsDir);
+				m_AssetManager->SetSourceAssetsDir(srcAssetsDir);
 			}
 		}
 #endif
@@ -519,41 +591,44 @@ namespace Chained
 		Window& window = Application::Get().GetWindow();
 		window.SetTitle(config.Name);
 
-		if (config.IconPath.empty())
+		auto* am = ServiceLocator::TryGet<AssetManager>();
+		if (!am)
 		{
+			CH_CORE_WARN("RuntimeSystem: AssetManager unavailable, cannot resolve window icon");
 			return;
 		}
 
-		// Try resolving via project path first (disk)
-		std::string resolvedIconPath = project->GetAbsolutePath(config.IconPath).string();
-		if (std::filesystem::exists(resolvedIconPath))
+		std::vector<std::string> candidatePaths;
+		if (!config.IconPath.empty())
 		{
-			CH_CORE_INFO("RuntimeSystem: Setting window icon: {}", resolvedIconPath);
-			window.SetWindowIcon(resolvedIconPath);
-			return;
-		}
-
-		// Try reading from pack (export mode)
-		if (auto* am = ServiceLocator::TryGet<AssetManager>())
-		{
-			if (am->IsPacked())
+			candidatePaths.push_back(config.IconPath);
+			if (config.IconPath.rfind("engine/", 0) == 0)
 			{
-				auto data = am->ReadAssetData(config.IconPath);
-				CH_CORE_INFO("RuntimeSystem: Icon pack lookup '{}' → {} bytes", config.IconPath, data.size());
-				if (!data.empty())
-				{
-					CH_CORE_INFO("RuntimeSystem: Setting window icon from pack: {}", config.IconPath);
-					window.SetWindowIconFromMemory(data.data(), data.size());
-					return;
-				}
-			}
-			else
-			{
-				CH_CORE_WARN("RuntimeSystem: AssetManager is NOT packed");
+				candidatePaths.push_back(config.IconPath.substr(7));
 			}
 		}
 
-		CH_CORE_WARN("RuntimeSystem: Failed to resolve window icon: {}", config.IconPath);
+		// Resolve via AssetManager — handles disk, source tree, and pack fallback
+		for (const auto& cand : candidatePaths)
+		{
+			std::string absPath = am->ResolvePath(cand);
+			if (!absPath.empty() && std::filesystem::exists(absPath))
+			{
+				CH_CORE_TRACE("RuntimeSystem: Setting window icon from disk: {}", absPath);
+				window.SetWindowIcon(absPath);
+				return;
+			}
+
+			auto data = am->ReadAssetData(cand);
+			if (!data.empty())
+			{
+				CH_CORE_TRACE("RuntimeSystem: Setting window icon from pack: {}", cand);
+				window.SetWindowIconFromMemory(data.data(), data.size());
+				return;
+			}
+		}
+
+		CH_CORE_WARN("RuntimeSystem: Failed to resolve window icon from candidates");
 	}
 
 	void RuntimeLayer::LoadInitialScene()
@@ -637,7 +712,7 @@ namespace Chained
 			return;
 		}
 
-		const float fontSize = (style.FontSize > 0.0f) ? style.FontSize : 16.0f;
+		const float fontSize = (style.FontSize > 0.0f) ? style.FontSize : kDefaultFontSize;
 		const int roundedHalf = static_cast<int>(std::lround(fontSize * 2.0f));
 		const std::string key = fontName + "|" + std::to_string(roundedHalf);
 
@@ -689,7 +764,7 @@ namespace Chained
 			return;
 		}
 
-		CH_CORE_INFO("RuntimeSystem: Preloaded {} scene font tuple(s).", loadedCount);
+		CH_CORE_TRACE("RuntimeSystem: Preloaded {} scene font tuple(s).", loadedCount);
 
 		if (allowRuntimeMutation && ImGui::GetFrameCount() > 0)
 		{
@@ -718,7 +793,7 @@ namespace Chained
 		}
 
 		m_Scene = nextScene;
-		m_Scene->GetSettings().ScenePath = scenePath.string();
+		m_Scene->SetScenePath(scenePath.string());
 
 		if (auto* se = ServiceLocator::TryGet<ScriptEngine>())
 		{
@@ -758,9 +833,6 @@ namespace Chained
 
 		PreloadSceneFonts(ImGui::GetFrameCount() > 0);
 
-		m_LoadState.BoostUploadsTimer = 5.0f;
-		CH_CORE_INFO("RuntimeSystem: Boosting asset uploads for scene loading...");
-
 		m_LoadState.State = RuntimeLoadState::LoadingScene;
 		m_LoadState.OverlayElapsed = 0.0f;
 		CH_CORE_INFO("RuntimeSystem: Scene loaded, waiting for async assets before runtime start.");
@@ -781,30 +853,24 @@ namespace Chained
 		return true;
 	}
 
-	std::optional<RuntimeLayer::CameraConfig> RuntimeLayer::GetCameraConfig()
-	{
-		auto camera = GetActiveCamera();
-		if (!camera)
-		{
-			return std::nullopt;
-		}
-
-		return CameraConfig{camera.value()};
-	}
-
 	glm::vec4 RuntimeLayer::CalculateBackgroundColor() const
 	{
+		if (!m_Scene)
+		{
+			return {0.0f, 0.0f, 0.0f, 1.0f};
+		}
+
 		const auto& settings = m_Scene->GetSettings();
-		glm::vec4 bgColor = {settings.BackgroundColor.r / 255.0f, settings.BackgroundColor.g / 255.0f,
-							 settings.BackgroundColor.b / 255.0f, settings.BackgroundColor.a / 255.0f};
+		glm::vec4 bgColor = {settings.BackgroundColor.r * kByteToFloat, settings.BackgroundColor.g * kByteToFloat,
+							 settings.BackgroundColor.b * kByteToFloat, settings.BackgroundColor.a * kByteToFloat};
 
 		if (settings.Environment && settings.Mode != BackgroundMode::Color)
 		{
 			auto& env = settings.Environment->GetSettings();
 			if (env.Fog.Enabled)
 			{
-				bgColor = glm::vec4(env.Fog.FogColor.r / 255.0f, env.Fog.FogColor.g / 255.0f,
-									env.Fog.FogColor.b / 255.0f, env.Fog.FogColor.a / 255.0f);
+				bgColor = glm::vec4(env.Fog.FogColor.r * kByteToFloat, env.Fog.FogColor.g * kByteToFloat,
+									env.Fog.FogColor.b * kByteToFloat, env.Fog.FogColor.a * kByteToFloat);
 			}
 		}
 
@@ -828,7 +894,7 @@ namespace Chained
 		}
 
 		auto project = Project::GetActive();
-		int msaaSampleCount = project ? project->GetConfig().Render.AntiAliasingSamples : 4;
+		int msaaSampleCount = project ? project->GetConfig().Render.AntiAliasingSamples : (int)kDefaultMsaaSamples;
 		uint32_t msaaSamplesClamped = msaaSampleCount > 1 ? (uint32_t)msaaSampleCount : 1u;
 
 		if (m_HDRFramebuffer && msaaSamplesClamped != m_MSAAFramebufferSamples)
@@ -878,26 +944,29 @@ namespace Chained
 								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.02f, 0.02f, 0.02f, 0.92f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg,
+							  ImVec4(kOverlayBgDark, kOverlayBgDark, kOverlayBgDark, kOverlayBgAlpha));
 
 		if (ImGui::Begin("##RuntimeLoadingOverlay", nullptr, flags))
 		{
+			bool fontPushed = false;
 			if (auto* fontRegistry = ServiceLocator::TryGet<UIFontRegistry>())
 			{
 				if (ImFont* font = fontRegistry->GetDefaultFont())
 				{
 					ImGui::PushFont(font);
+					fontPushed = true;
 				}
 			}
 
-			const size_t totalPending = m_AssetManager->GetLoadingAssetCount();
+			const size_t totalPending = m_AssetManager ? m_AssetManager->GetLoadingAssetCount() : 0u;
 
-			int dotsCount = (static_cast<int>(ImGui::GetTime() * 2.5f) % 3) + 1;
+			int dotsCount = (static_cast<int>(ImGui::GetTime() * kDotsAnimSpeed) % kDotsCount) + 1;
 			std::string dots(static_cast<size_t>(dotsCount), '.');
 			std::string loadingLine = "Preparing world" + dots;
 			std::string pendingLine = "Pending assets: " + std::to_string(totalPending);
 
-			ImGui::SetCursorPosY(ImGui::GetWindowHeight() * 0.45f);
+			ImGui::SetCursorPosY(ImGui::GetWindowHeight() * kOverlayCursorY);
 
 			const char* title = "Loading scene";
 			ImVec2 titleSize = ImGui::CalcTextSize(title);
@@ -912,12 +981,9 @@ namespace Chained
 			ImGui::SetCursorPosX((ImGui::GetWindowWidth() - pendingSize.x) * 0.5f);
 			ImGui::TextUnformatted(pendingLine.c_str());
 
-			if (auto* fontRegistry = ServiceLocator::TryGet<UIFontRegistry>())
+			if (fontPushed)
 			{
-				if (ImFont* font = fontRegistry->GetDefaultFont())
-				{
-					ImGui::PopFont();
-				}
+				ImGui::PopFont();
 			}
 		}
 

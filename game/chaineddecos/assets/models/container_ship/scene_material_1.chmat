@@ -15,6 +15,6 @@ Material:
   Roughness: 1
   Transparent: false
   Alpha: 1
-  AlbedoMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship\textures/Hull_baseColor.png
-  NormalMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship\textures/Hull_normal.png
-  MetallicRoughnessMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship\textures/Hull_metallicRoughness.png
+  AlbedoMap: textures/container_ship/Hull_baseColor.png
+  NormalMap: textures/container_ship/Hull_normal.png
+  MetallicRoughnessMap: textures/container_ship/Hull_metallicRoughness.png

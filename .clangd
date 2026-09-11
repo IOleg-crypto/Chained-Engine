@@ -1,8 +1,10 @@
 CompileFlags:
-  CompilationDatabase: build/windows-clang
+  # special for each preset
+  CompilationDatabase: build/linux-clang
   Add:
     - -Wall
     - -Wextra
+    - -Wreorder-init-list
   Remove:
     - -fmodules-ts
     - -fmodule-mapper=*

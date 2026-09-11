@@ -10,7 +10,6 @@ set(INTEGRATION_SOURCES
     importer_tests.cpp
     integration_tests.cpp
     asset_manager_tests.cpp
-    primitive_tests.cpp
     material_tests.cpp
     hierarchy_tests.cpp
     serialization_tests.cpp
@@ -33,7 +32,6 @@ target_link_libraries(engine_tests_integration PRIVATE
     engine_scripting
     engine_project
     engine_assets
-    engine_pack
     engine_network
     engine_external_imgui
     engine_external_entt

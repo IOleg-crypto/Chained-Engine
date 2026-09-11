@@ -164,13 +164,15 @@ namespace Chained
 
 	void GLTexture::SetCompressedData(const void* data, uint32_t dataSize)
 	{
-		// Upload BC7 (BPTC) or BC3 (DXT5) blocks directly to GPU — no CPU decode needed.
+		// Upload BC7 (BPTC) or BC3 (DXT5) blocks directly to GPU.
+		// Note: glGenerateMipmap is invalid on block-compressed textures in OpenGL,
+		// so we set GL_LINEAR filter to ensure the texture is complete without mipmaps.
 		glBindTexture(GL_TEXTURE_2D, m_RendererID);
 		GLenum internalFmt =
 			(m_Format == TextureFormat::BC7) ? GL_COMPRESSED_RGBA_BPTC_UNORM : GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 		glCompressedTexImage2D(GL_TEXTURE_2D, 0, internalFmt, (GLsizei)m_Width, (GLsizei)m_Height, 0, (GLsizei)dataSize,
 							   data);
-		glGenerateMipmap(GL_TEXTURE_2D);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		m_IsReady = true;
 	}
 

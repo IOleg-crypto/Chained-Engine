@@ -11,12 +11,11 @@ namespace Coral
 
 namespace Chained
 {
-	class ScriptGlue
+	namespace ScriptGlue
 	{
-	public:
 		// Registers all C++ ↔ C# interop functions with Coral.
-		static void RegisterInternalCalls(Coral::ManagedAssembly& assembly);
-	};
+		void RegisterInternalCalls(Coral::ManagedAssembly& assembly);
+	} // namespace ScriptGlue
 } // namespace Chained
 
 #endif // CH_SCRIPT_GLUE_H

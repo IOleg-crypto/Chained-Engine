@@ -7,6 +7,7 @@
 #include "engine/scene/hierarchy_serializer.h"
 #include "engine/scene/yaml.h"
 #include "engine/scene/components/physics/physics_component.h"
+#include "engine/scene/systems/hierarchy_system.h"
 #include "scene.h"
 
 #include <set>
@@ -54,17 +55,15 @@ namespace Chained
 
 		static void SerializeEnvironmentSettings(YAML::Emitter& out, const SceneSettings& settings)
 		{
-			if (settings.Environment)
-			{
-				std::string envPath = ToProjectRelativePath(settings.Environment->GetPath());
-				out << YAML::Key << "EnvironmentPath" << YAML::Value << envPath;
-			}
-
-			// Also serialize the current settings for quick preview/fallback.
 			if (!settings.Environment)
 			{
 				return;
 			}
+
+			std::string envPath = ToProjectRelativePath(settings.Environment->GetPath());
+			out << YAML::Key << "EnvironmentPath" << YAML::Value << envPath;
+
+			// Also serialize the current settings for quick preview/fallback.
 
 			const auto& envSettings = settings.Environment->GetSettings();
 
@@ -353,6 +352,7 @@ namespace Chained
 					tc.PrevRotationQuat = tc.RotationQuat;
 					tc.PrevTranslation = tc.Translation;
 					tc.PrevScale = tc.Scale;
+					tc.TransformChanged = true;
 				}
 
 				// Editor-saved physics handles are stale at runtime. Reset so
@@ -396,6 +396,9 @@ namespace Chained
 					}
 				}
 			}
+
+			// Immediately compute all world transforms on startup
+			Hierarchy::UpdateWorldTransforms(scene->GetRegistry(), scene->GetRootEntities());
 		}
 	} // namespace
 
@@ -507,10 +510,12 @@ namespace Chained
 			return false;
 		}
 
-		if (!DeserializeSceneSettings(sceneRootNode, m_Scene->GetSettings(), m_LastError))
+		SceneSettings settings = m_Scene->GetSettings();
+		if (!DeserializeSceneSettings(sceneRootNode, settings, m_LastError))
 		{
 			return false;
 		}
+		m_Scene->SetSettings(settings);
 
 		auto entities = sceneRootNode["Entities"];
 		if (entities && entities.IsSequence())

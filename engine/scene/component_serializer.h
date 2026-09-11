@@ -8,22 +8,20 @@
 
 namespace Chained
 {
-	// Central helper for component serialization used by scene save/load/copy.
-	class ComponentSerializer
+	namespace ComponentSerializer
 	{
-	public:
 		// Serializes all registered components owned by an entity.
-		static void SerializeAll(YAML::Emitter& out, Entity entity);
+		void SerializeAll(YAML::Emitter& out, Entity entity);
 
 		// Deserializes all registered components from YAML.
-		static void DeserializeAll(Entity entity, YAML::Node node);
+		void DeserializeAll(Entity entity, YAML::Node node);
 
 		// Copies all registered components from source to destination.
-		static void CopyAll(Entity source, Entity destination);
+		void CopyAll(Entity source, Entity destination);
 
 		// Serializes the ID component separately.
-		static void SerializeID(YAML::Emitter& out, Entity entity);
-	};
+		void SerializeID(YAML::Emitter& out, Entity entity);
+	} // namespace ComponentSerializer
 
 } // namespace Chained
 

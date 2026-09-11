@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "engine/common/base.h"
+#include "engine/core/service.h"
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -41,12 +43,20 @@ namespace Chained
 		uint32_t ColliderCount = 0;
 	};
 
-	class Instrumentor
+	class Instrumentor : public Service
 	{
 	public:
 		Instrumentor()
 			: m_ProfileCount(0)
 		{
+		}
+
+		void Initialize() override
+		{
+		}
+		void Shutdown() override
+		{
+			EndSession();
 		}
 
 		void BeginSession(const std::string& name, const std::string& filepath = "results.json")
@@ -154,10 +164,9 @@ namespace Chained
 			m_OutputStream.flush();
 		}
 
-		static Instrumentor& Get()
+		static Instrumentor* TryGet()
 		{
-			static Instrumentor instance;
-			return instance;
+			return ServiceLocator::TryGet<Instrumentor>();
 		}
 
 	private:
@@ -201,7 +210,10 @@ namespace Chained
 			float durationMS = (float)(end - start) / 1000.0f;
 
 			uint32_t threadID = (uint32_t)std::hash<std::thread::id>{}(std::this_thread::get_id());
-			Instrumentor::Get().WriteProfile({m_Name, start, end, durationMS, threadID});
+			if (auto* inst = Instrumentor::TryGet())
+			{
+				inst->WriteProfile({m_Name, start, end, durationMS, threadID});
+			}
 
 			m_Stopped = true;
 		}
@@ -214,8 +226,12 @@ namespace Chained
 
 } // namespace Chained
 
-#define CH_PROFILE_BEGIN_SESSION(name, filepath) ::Chained::Instrumentor::Get().BeginSession(name, filepath)
-#define CH_PROFILE_END_SESSION() ::Chained::Instrumentor::Get().EndSession()
+#define CH_PROFILE_BEGIN_SESSION(name, filepath)                                                                       \
+	if (auto* _inst = ::Chained::Instrumentor::TryGet())                                                               \
+	_inst->BeginSession(name, filepath)
+#define CH_PROFILE_END_SESSION()                                                                                       \
+	if (auto* _inst = ::Chained::Instrumentor::TryGet())                                                               \
+	_inst->EndSession()
 #define CH_PROFILE_CONCAT_IMPL(x, y) x##y
 #define CH_PROFILE_CONCAT(x, y) CH_PROFILE_CONCAT_IMPL(x, y)
 #define CH_PROFILE_SCOPE(name) ::Chained::InstrumentationTimer CH_PROFILE_CONCAT(timer, __LINE__)(name)

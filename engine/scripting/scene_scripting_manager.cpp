@@ -107,7 +107,6 @@ namespace Chained
 			for (auto& script : msc.Scripts)
 			{
 				script.IsInstantiated = false;
-				script.NeedsStart = true;
 			}
 		}
 
@@ -146,7 +145,6 @@ namespace Chained
 			for (auto& script : msc.Scripts)
 			{
 				script.IsInstantiated = false;
-				script.NeedsStart = true;
 			}
 		}
 	}
@@ -179,23 +177,28 @@ namespace Chained
 				{
 					try
 					{
-						CH_CORE_INFO("C++ calling InstantiateScript for {}", script.ClassName);
+						CH_CORE_TRACE("C++ calling InstantiateScript for {}", script.ClassName);
 						std::u16string classNameStr = ch_utf8_to_u16(script.ClassName);
 						if (g_ScriptInstantiate)
 						{
 							uint8_t ok = g_ScriptInstantiate(static_cast<uint64_t>(entity), classNameStr.c_str());
 							script.IsInstantiated = ok != 0;
 							script.InstantiateTried = true;
+
+							if (ok == 0)
+							{
+								continue;
+							}
 						}
 						else
 						{
 							script.InstantiateTried = true;
+							continue;
 						}
-						CH_CORE_INFO("C++ calling InstantiateScript SUCCESS");
 
 						for (const auto& [fieldName, field] : script.Fields)
 						{
-							CH_CORE_INFO("C++ setting field {}", fieldName);
+							CH_CORE_TRACE("C++ setting field {}", fieldName);
 							Coral::String fNameStr = Coral::String::New(fieldName);
 							Coral::String cNameStr = Coral::String::New(script.ClassName);
 							if (field.Type == ScriptFieldType::Float)
@@ -235,10 +238,6 @@ namespace Chained
 							Coral::String::Free(cNameStr);
 							Coral::String::Free(fNameStr);
 						}
-
-						// Mark instantiated on C++ side
-						script.IsInstantiated = true;
-						script.NeedsStart = false; // Start is called natively on the C# side
 					} catch (const std::exception& e)
 					{
 						CH_CORE_ERROR("ScriptEngine: Exception instantiating '{}': {}", script.ClassName, e.what());

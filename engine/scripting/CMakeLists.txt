@@ -1,10 +1,13 @@
-add_library(engine_scripting STATIC
+set(SCRIPTING_ENGINE
     scriptengine.h
     scriptengine.cpp
     scriptengine_services.h
     scriptengine_services.cpp
     scene_scripting_manager.h
     scene_scripting_manager.cpp
+)
+
+set(SCRIPTING_GLUE
     script_glue.h
     script_glue.cpp
     script_glue_internal.h
@@ -20,8 +23,6 @@ add_library(engine_scripting STATIC
     script_glue_transform.cpp
     script_glue_physics.cpp
     script_glue_animation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/generated/script_glue_generated.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/generated/script_glue_generated.cpp
     script_glue_camera.h
     script_glue_camera.cpp
     script_glue_ui.h
@@ -30,6 +31,13 @@ add_library(engine_scripting STATIC
     script_glue_audio.cpp
     script_glue_network.h
     script_glue_network.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/script_glue_generated.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/script_glue_generated.cpp
+)
+
+add_library(engine_scripting STATIC
+    ${SCRIPTING_ENGINE}
+    ${SCRIPTING_GLUE}
 )
 
 target_include_directories(engine_scripting PUBLIC
@@ -69,12 +77,18 @@ endif()
 # This tells MSBuild where to find Coral.Managed.dll. The path changes per
 # build preset (windows-clang, windows-gcc, etc.), so we generate it from a
 # template at configure time using the correct CMAKE_BINARY_DIR.
+# On Linux / WSL2 the source tree may live on an NTFS mount (/mnt/d/) which
+# does not support configure_file writes into the source directory. The .csproj
+# imports the file conditionally (Condition="Exists(...)"), so skipping it on
+# non-Windows is safe — dotnet build CLI does not rely on it.
 set(CORAL_MANAGED_DIR "${CMAKE_BINARY_DIR}/vendor/coral")
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props"
-    @ONLY
-)
+if(WIN32)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedDependencies.props"
+        @ONLY
+    )
+endif()
 
 set(MANAGED_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/managed")
 set(MANAGED_PROJECT_PATH "${MANAGED_PROJECT_DIR}/Chained.Managed.csproj")

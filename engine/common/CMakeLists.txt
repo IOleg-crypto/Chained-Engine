@@ -1,4 +1,4 @@
-add_library(engine_common STATIC
+set(COMMON_SOURCES
     base.h
     color.h
     engine_assert.h
@@ -7,6 +7,10 @@ add_library(engine_common STATIC
     timestep.h
     uuid.h
     uuid.cpp
+)
+
+add_library(engine_common STATIC
+    ${COMMON_SOURCES}
 )
 
 target_include_directories(engine_common PUBLIC

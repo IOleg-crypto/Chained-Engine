@@ -4,16 +4,15 @@ using Chained;
 namespace ChainedDecos.Scripts
 {
     /// <summary>
-    /// Attach directly to the "Connect to Server" button entity.
-    /// Reads IP from input_ip and port from input_port, then calls Network.ConnectTo.
-    /// Polls for connection success/failure before loading lobby.
+    /// Attach to the "Connect to Server" button entity.
+    /// Reads IP/port from input fields, then calls Network.ConnectTo.
     /// </summary>
     public class ConnectButton : Script
     {
         public string IpInputTag   = "input_ip";
         public string PortInputTag = "input_port";
         public string NickInputTag = "input_nick";
-        public string LobbyScene = "scenes/lobby.chscene";
+        public string LobbyScene   = "scenes/lobby.chscene";
         public string DefaultIp    = "127.0.0.1";
         public ushort DefaultPort  = 7777;
         public float  ConnectTimeout = 15f;
@@ -23,11 +22,25 @@ namespace ChainedDecos.Scripts
         private string m_PendingIp    = "";
         private ushort m_PendingPort  = 0;
 
+        public override void OnCreate()
+        {
+            Network.Disconnect();
+            m_IsConnecting = false;
+            m_ConnectTimer = 0f;
+        }
+
         public override void OnUpdate(float deltaTime)
         {
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
 
-            // Poll connection state while connecting
+            // ── Auto-hide Port field when IP looks like a room code ──────
+            string ipText = ReadText(IpInputTag, DefaultIp);
+            bool looksLikeRoomCode = ipText.Length >= 4 && ipText.Length <= 6
+                && System.Linq.Enumerable.All(ipText, char.IsDigit);
+            SetVisible(PortInputTag, !looksLikeRoomCode);
+            SetVisible("label_port", !looksLikeRoomCode);
+
+            // ── Poll connection state ─────────────────────────────────────
             if (m_IsConnecting)
             {
                 m_ConnectTimer += deltaTime;
@@ -51,89 +64,131 @@ namespace ChainedDecos.Scripts
                     return;
                 }
 
-                return; // wait, don't process button clicks
+                // Allow cancel
+                if (btn != null && btn.IsClicked)
+                {
+                    m_IsConnecting = false;
+                    if (btn != null) btn.Label = "Connect to Server";
+                    Network.Disconnect();
+                    return;
+                }
+
+                return; // wait
             }
 
             if (btn == null || !btn.IsClicked)
                 return;
 
-            string ip = DefaultIp;
+            // ── Read inputs ───────────────────────────────────────────────
+            string ip   = ReadText(IpInputTag, DefaultIp);
             ushort port = DefaultPort;
 
-            Entity? ipEntity = Scene.FindEntityByTag(IpInputTag);
-            if (ipEntity != null && ipEntity.HasComponent<InputTextControl>())
+            // Detect 4-6 digit room code (e.g. "4821")
+            uint parsedRoomCode = 0;
+            bool isRoomCode = ip.Length >= 4 && ip.Length <= 6 && uint.TryParse(ip, out parsedRoomCode);
+
+            if (isRoomCode)
             {
-                InputTextControl? input = ipEntity.GetComponent<InputTextControl>();
-                if (input != null && !string.IsNullOrWhiteSpace(input.Text))
-                    ip = input.Text.Trim();
+                // Room code path: no port needed, signaling server handles it
+                string nick = ReadText(NickInputTag, "");
+                if (!string.IsNullOrWhiteSpace(nick))
+                    PlayerSettings.Nickname = nick.Trim();
+
+                ShowError("");
+                Network.SetLocalPlayerInfo(PlayerSettings.Nickname, (byte)LobbyManager.SelectedSkinIndex);
+
+                Log.Info($"[ConnectButton] Connecting via room code {parsedRoomCode}");
+                Network.ConnectRoom(parsedRoomCode);
+
+                m_PendingIp   = $"ROOM:{parsedRoomCode}";
+                m_PendingPort = 0;
+                m_IsConnecting = true;
+                m_ConnectTimer = 0f;
+                if (btn != null) btn.Label = "Connecting...";
+                return;
             }
 
-            Entity? portEntity = Scene.FindEntityByTag(PortInputTag);
-            if (portEntity != null && portEntity.HasComponent<InputTextControl>())
+            // If the user entered/pasted "IP:PORT" (e.g. "178.150.20.10:54321"), prioritize it
+            if (ip.Contains(":"))
             {
-                InputTextControl? input = portEntity.GetComponent<InputTextControl>();
-                if (input != null && ushort.TryParse(input.Text, out ushort parsed) && parsed > 0)
-                    port = parsed;
+                (ip, port) = ParseAddressField(ip, DefaultPort);
             }
-
-            // Smart check: If user pasted "IP:PORT" or "[IPv6]:port" into the IP field, parse both
-            if (ip.StartsWith("[") && ip.Contains("]"))
+            else
             {
-                // Format: [IPv6]:port
-                int closeBracket = ip.IndexOf(']');
-                string ipv6Part = ip.Substring(1, closeBracket - 1).Trim();
-                string afterBracket = ip.Substring(closeBracket + 1).Trim();
-                if (afterBracket.StartsWith(":") && ushort.TryParse(afterBracket.Substring(1), out ushort extractedPort) && extractedPort > 0)
+                string portText = ReadText(PortInputTag, "");
+                if (!string.IsNullOrWhiteSpace(portText))
                 {
-                    port = extractedPort;
-                }
-                ip = ipv6Part;
-            }
-            else if (ip.Contains(":"))
-            {
-                // Format: IPv4:port (not IPv6 — IPv6 without brackets should be entered without port in the same field)
-                int colonIndex = ip.LastIndexOf(':');
-                string ipPart = ip.Substring(0, colonIndex).Trim();
-                string portPart = ip.Substring(colonIndex + 1).Trim();
-                if (ushort.TryParse(portPart, out ushort extractedPort) && extractedPort > 0)
-                {
-                    port = extractedPort;
-                    ip = ipPart;
+                    if (ushort.TryParse(portText, out ushort parsedPort) && parsedPort > 0)
+                    {
+                        port = parsedPort;
+                    }
+                    else
+                    {
+                        ShowError($"Invalid port: '{portText}'");
+                        return;
+                    }
                 }
             }
 
-            Entity? nickEntity = Scene.FindEntityByTag(NickInputTag);
-            if (nickEntity != null && nickEntity.HasComponent<InputTextControl>())
-            {
-                InputTextControl? input = nickEntity.GetComponent<InputTextControl>();
-                if (input != null && !string.IsNullOrWhiteSpace(input.Text))
-                    PlayerSettings.Nickname = input.Text.Trim();
-            }
+            // Read nickname
+            string nick2 = ReadText(NickInputTag, "");
+            if (!string.IsNullOrWhiteSpace(nick2))
+                PlayerSettings.Nickname = nick2.Trim();
+
+            ShowError("");
+            Network.SetLocalPlayerInfo(PlayerSettings.Nickname, (byte)LobbyManager.SelectedSkinIndex);
 
             Log.Info($"[ConnectButton] Connecting to {ip}:{port}");
-            ShowError(""); // clear previous error
-            if (btn != null) btn.Label = "Connecting...";
 
-            Network.SetLocalPlayerInfo(PlayerSettings.Nickname, (byte)LobbyManager.SelectedSkinIndex);
+            LobbyManager.SelectedPort = port;
             Network.ConnectTo(ip, port);
 
-            m_PendingIp = ip;
+            m_PendingIp   = ip;
             m_PendingPort = port;
-            m_ConnectTimer = 0f;
             m_IsConnecting = true;
+            m_ConnectTimer = 0f;
+            if (btn != null) btn.Label = "Connecting...";
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────
+
+        private string ReadText(string tag, string fallback)
+        {
+            Entity? e = Scene.FindEntityByTag(tag);
+            if (e == null) return fallback;
+            InputTextControl? input = e.GetComponent<InputTextControl>();
+            return (input != null && !string.IsNullOrWhiteSpace(input.Text))
+                ? input.Text.Trim()
+                : fallback;
+        }
+
+        private static (string ip, ushort port) ParseAddressField(string raw, ushort fallbackPort)
+        {
+            if (raw.Contains(":"))
+            {
+                int colon = raw.LastIndexOf(':');
+                string ipPart   = raw.Substring(0, colon).Trim();
+                string portPart = raw.Substring(colon + 1).Trim();
+                if (ushort.TryParse(portPart, out ushort p) && p > 0)
+                    return (ipPart, p);
+            }
+            return (raw, fallbackPort);
         }
 
         private void ShowError(string message)
         {
-            Entity? errorLabel = Scene.FindEntityByTag("label_error");
-            if (errorLabel != null && errorLabel.IsValid)
-            {
-                LabelControl? lc = errorLabel.GetComponent<LabelControl>();
-                if (lc != null)
-                {
-                    lc.Text = message;
-                }
-            }
+            Entity? e = Scene.FindEntityByTag("label_error");
+            if (e == null || !e.IsValid) return;
+            LabelControl? lc = e.GetComponent<LabelControl>();
+            if (lc != null) lc.Text = message;
+        }
+
+        private static void SetVisible(string tag, bool visible)
+        {
+            Entity? e = Scene.FindEntityByTag(tag);
+            if (e == null || !e.IsValid) return;
+            WidgetControl? w = e.GetComponent<WidgetControl>();
+            if (w != null) w.IsActive = visible;
         }
     }
 }

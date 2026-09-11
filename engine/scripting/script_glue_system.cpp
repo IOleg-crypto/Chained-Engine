@@ -63,6 +63,40 @@ namespace Chained
 		return 4;
 	}
 
+	void Window_SetEnableShadows(uint8_t enabled)
+	{
+		if (auto project = Project::GetActive())
+		{
+			project->GetConfig().Render.EnableShadows = (enabled != 0);
+		}
+	}
+
+	uint8_t Window_GetEnableShadows()
+	{
+		if (auto project = Project::GetActive())
+		{
+			return project->GetConfig().Render.EnableShadows ? 1 : 0;
+		}
+		return 1;
+	}
+
+	void Window_SetShadowResolution(int resolution)
+	{
+		if (auto project = Project::GetActive())
+		{
+			project->GetConfig().Render.ShadowResolution = resolution;
+		}
+	}
+
+	int Window_GetShadowResolution()
+	{
+		if (auto project = Project::GetActive())
+		{
+			return project->GetConfig().Render.ShadowResolution;
+		}
+		return 2048;
+	}
+
 	uint8_t Window_GetVSync()
 	{
 		return Application::Get().GetWindow().GetVSync() ? 1 : 0;
@@ -188,6 +222,12 @@ namespace Chained
 			return project->GetConfig().Physics.Gravity;
 		}
 		return 20.0f;
+	}
+
+	void Clipboard_SetText(const Coral::UCChar* text)
+	{
+		std::string utf8 = ch_u16_to_string(text);
+		Application::Get().GetWindow().SetClipboardText(utf8);
 	}
 
 } // namespace Chained

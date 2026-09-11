@@ -121,9 +121,25 @@ namespace Chained
 
 		out.albedoPath = getTexWithFallback(aiTextureType_DIFFUSE, aiTextureType_BASE_COLOR);
 		out.normalPath = getTexWithFallback(aiTextureType_NORMALS, aiTextureType_HEIGHT);
-		out.emissivePath = getTex(aiTextureType_EMISSIVE);
 		out.metallicRoughnessPath = getTexWithFallback(aiTextureType_METALNESS, aiTextureType_UNKNOWN);
 		out.occlusionPath = getTexWithFallback(aiTextureType_LIGHTMAP, aiTextureType_AMBIENT_OCCLUSION);
+
+		// Only assign emissive texture if there is genuine emissive contribution.
+		// Assimp can erroneously map the shared embedded atlas (*0) to aiTextureType_EMISSIVE
+		// for glTF voxel/atlas models that have no actual emissive channel, making the
+		// Material Editor show the atlas in the Emissive slot and rendering bloom/glow artifacts.
+		{
+			std::string rawEmissive = getTex(aiTextureType_EMISSIVE);
+			bool hasEmissiveColor =
+				(out.emissiveColor.r > 0.001f || out.emissiveColor.g > 0.001f || out.emissiveColor.b > 0.001f);
+			bool hasEmissiveIntensity = (out.emissiveIntensity > 0.001f);
+			bool isEmbedded = (!rawEmissive.empty() && rawEmissive.front() == '*');
+			// Allow embedded-atlas emissive only when the material explicitly has emissive color or intensity
+			if (!rawEmissive.empty() && (!isEmbedded || hasEmissiveColor || hasEmissiveIntensity))
+			{
+				out.emissivePath = rawEmissive;
+			}
+		}
 
 		int blendMode = 0;
 		if (aiGetMaterialInteger(am, AI_MATKEY_BLEND_FUNC, &blendMode) == AI_SUCCESS)

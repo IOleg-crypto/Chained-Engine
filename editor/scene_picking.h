@@ -9,13 +9,12 @@ namespace Chained
 {
 	class Scene;
 
-	class ScenePicker
+	namespace ScenePicker
 	{
-	public:
-		static RaycastResult Raycast(Scene* scene, const Ray& ray);
-		static Ray CreateRayFromViewport(const Chained::Camera3D& camera, const glm::vec2& mousePosition,
-										 const glm::vec2& viewportSize);
-	};
+		RaycastResult Raycast(Scene* scene, const Ray& ray);
+		Ray CreateRayFromViewport(const Chained::Camera3D& camera, const glm::vec2& mousePosition,
+								  const glm::vec2& viewportSize);
+	} // namespace ScenePicker
 
 } // namespace Chained
 

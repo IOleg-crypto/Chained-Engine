@@ -1,5 +1,4 @@
-add_library(engine_graphics STATIC
-    camera_types.h
+set(GRAPHICS_API
     api/buffer.h
     api/buffer.cpp
     api/framebuffer.h
@@ -15,6 +14,9 @@ add_library(engine_graphics STATIC
     api/texture.cpp
     api/vertex_array.h
     api/vertex_array.cpp
+)
+
+set(GRAPHICS_API_OPENGL
     api/opengl/gl_buffer.h
     api/opengl/gl_buffer.cpp
     api/opengl/gl_device.h
@@ -31,6 +33,9 @@ add_library(engine_graphics STATIC
     api/opengl/gl_uniform_buffer.cpp
     api/opengl/gl_vertex_array.h
     api/opengl/gl_vertex_array.cpp
+)
+
+set(GRAPHICS_PIPELINE
     pipeline/debug_renderer.h
     pipeline/debug_renderer.cpp
     pipeline/frustum.h
@@ -54,10 +59,9 @@ add_library(engine_graphics STATIC
     pipeline/shader_storage.h
     pipeline/shader_storage.cpp
     pipeline/shader_uniform_utils.h
-    text_renderer.h
-    text_renderer.cpp
-    freetype_gl_atlas.h
-    freetype_gl_atlas.cpp
+)
+
+set(GRAPHICS_PASSES
     pipeline/passes/composite_pass.h
     pipeline/passes/composite_pass.cpp
     pipeline/passes/geometry_pass.h
@@ -66,8 +70,24 @@ add_library(engine_graphics STATIC
     pipeline/passes/shadow_pass.cpp
     pipeline/passes/skybox_pass.h
     pipeline/passes/skybox_pass.cpp
+)
+
+set(GRAPHICS_MAIN
+    camera_types.h
+    text_renderer.h
+    text_renderer.cpp
+    freetype_gl_atlas.h
+    freetype_gl_atlas.cpp
     nametag_system.h
     nametag_system.cpp
+)
+
+add_library(engine_graphics STATIC
+    ${GRAPHICS_MAIN}
+    ${GRAPHICS_API}
+    ${GRAPHICS_API_OPENGL}
+    ${GRAPHICS_PIPELINE}
+    ${GRAPHICS_PASSES}
 )
 
 target_include_directories(engine_graphics PUBLIC

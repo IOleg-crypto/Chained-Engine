@@ -14,7 +14,7 @@ namespace ChainedDecos.Scripts
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
 
             // Client restriction: Only the host can start the game!
-            if (Network.IsConnected && !Network.IsHost)
+            if (!Network.IsHost)
             {
                 if (btn != null && btn.Label != "Waiting for Host...")
                 {

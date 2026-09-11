@@ -11,6 +11,10 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/enet")
 
     add_subdirectory("${CMAKE_SOURCE_DIR}/thirdparty/enet" "${CMAKE_BINARY_DIR}/enet")
 
+    if(TARGET enet_static)
+        target_compile_definitions(enet_static PUBLIC ENET_IPV4_ONLY)
+    endif()
+
     message(STATUS "enet: configured (static lib, IPv4-only)")
 else()
     message(FATAL_ERROR "enet missing at ${CMAKE_SOURCE_DIR}/thirdparty/enet")

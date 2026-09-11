@@ -58,11 +58,13 @@ namespace Chained
 								  secs % 60);
 					std::string timestamp = ts;
 
-					std::lock_guard<std::mutex> lock(s_BufferMutex);
-					s_Buffer.push_back({static_cast<LogLevel>(msg.level), message, timestamp});
-					if (s_Buffer.size() > MAX_BUFFERED_MESSAGES)
 					{
-						s_Buffer.pop_front();
+						std::lock_guard<std::mutex> lock(s_BufferMutex);
+						s_Buffer.push_back({static_cast<LogLevel>(msg.level), message, timestamp});
+						if (s_Buffer.size() > MAX_BUFFERED_MESSAGES)
+						{
+							s_Buffer.pop_front();
+						}
 					}
 
 					if (s_LogCallback)

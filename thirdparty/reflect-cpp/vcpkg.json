@@ -1,0 +1,200 @@
+{
+  "name": "reflectcpp",
+  "version-string": "0.25.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake"
+    },
+    {
+      "name": "vcpkg-cmake-config"
+    },
+    {
+      "name": "vcpkg-pkgconfig-get-modules"
+    }
+  ],
+  "features": {
+    "avro": {
+      "description": "Enable Avro support",
+      "dependencies": [
+        {
+          "name": "avro-c",
+          "version>=": "1.11.3"
+        }
+      ]
+    },
+    "benchmarks": {
+      "description": "Compile the benchmarks",
+      "dependencies": [
+        {
+          "name": "benchmark",
+          "version>=": "1.8.3"
+        },
+        {
+          "name": "nlohmann-json",
+          "version>=": "3.11.3"
+        },
+        {
+          "name": "rapidjson",
+          "version>=": "2023-07-17"
+        },
+        {
+          "name": "simdjson",
+          "version>=": "3.9.3"
+        }
+      ]
+    },
+    "bson": {
+      "description": "Enable BSON support",
+      "dependencies": [
+        {
+          "name": "libbson",
+          "version>=": "1.25.1"
+        }
+      ]
+    },
+    "boost-serialization": {
+      "description": "Enable Boost.Serialization support",
+      "dependencies": [
+        {
+          "name": "boost-serialization"
+        }
+      ]
+    },
+    "capnproto": {
+      "description": "Enable Cap'n Proto support",
+      "dependencies": [
+        {
+          "name": "capnproto",
+          "version>=": "1.0.2#1"
+        }
+      ]
+    },
+    "cbor": {
+      "description": "Enable CBOR support",
+      "dependencies": [
+        {
+          "name": "jsoncons",
+          "version>=": "1.4.0"
+        }
+      ]
+    },
+    "cereal": {
+      "description": "Enable Cereal support",
+      "dependencies": [
+	{
+	  "name": "cereal",
+	  "version>=": "1.3.2#1"
+	}
+      ]
+    },
+    "csv": {
+      "description": "Enable CSV support",
+      "dependencies": [
+        {
+          "name": "arrow",
+          "version>=": "21.0.0",
+          "features": ["csv"]
+        }
+      ]
+    },
+    "ctre": {
+      "description": "Install CTRE using vcpkg instead of using the bundled version",
+      "dependencies": [
+        {
+          "name": "ctre",
+          "version>=": "3.10.0"
+        }
+      ]
+    },
+    "flexbuffers": {
+      "description": "Enable flexbuffers support",
+      "dependencies": [
+        {
+          "name": "flatbuffers",
+          "version>=": "23.5.26#1"
+        }
+      ]
+    },
+    "json": {
+      "description": "Enable JSON support",
+      "dependencies": [
+        {
+          "name": "yyjson",
+          "version>=": "0.12.0"
+        }
+      ]
+    },
+    "msgpack": {
+      "description": "Enable msgpack support",
+      "dependencies": [
+        {
+          "name": "msgpack-c",
+          "version>=": "6.0.0"
+        }
+      ]
+    },
+    "parquet": {
+      "description": "Enable parquet support",
+      "dependencies": [
+        {
+          "name": "arrow",
+          "version>=": "21.0.0",
+          "features": ["parquet"]
+        }
+      ]
+    },
+    "tests": {
+      "description": "Compile the tests",
+      "dependencies": [
+        {
+          "name": "gtest",
+          "version>=": "1.14.0"
+        }
+      ]
+    },
+    "toml": {
+      "description": "Enable TOML support",
+      "dependencies": [
+        {
+          "name": "tomlplusplus",
+          "version>=": "3.4.0#1"
+        }
+      ]
+    },
+    "ubjson": {
+      "description": "Enable UBJSON support",
+      "dependencies": [
+        {
+          "name": "jsoncons",
+          "version>=": "1.4.0"
+        }
+      ]
+    },
+    "xml": {
+      "description": "Enable XML support",
+      "dependencies": [
+        {
+          "name": "pugixml",
+          "version>=": "1.15"
+        }
+      ]
+    },
+    "yaml": {
+      "description": "Enable YAML support",
+      "dependencies": [
+        {
+          "name": "yaml-cpp",
+          "version>=": "0.8.0#1"
+        }
+      ]
+    },
+    "yas": {
+      "description": "Enable yas support",
+      "dependencies": [
+        {
+          "name": "yas"
+        }
+      ]
+    }
+  }
+}

@@ -1,18 +1,18 @@
 Project:
   Name: ChainedDecos
-  IconPath: engine/resources/icons/chaineddecos.jpg
+  IconPath: resources/icons/chaineddecos.jpg
   StartScene: scenes\start_menu.chscene
   AssetDirectory: assets
-  ActiveScene: assets/scenes/start_menu.chscene
+  ActiveScene: assets/scenes/rpg_strategy_scene.chscene
   Physics:
     Gravity: 17.2999992
     FixedTimestep: 0.00416666688
   Animation:
     TargetFPS: 60
   Render:
-    ShadowResolution: 2048
+    ShadowResolution: 512
     EnableShadows: true
-    AntiAliasingSamples: 8
+    AntiAliasingSamples: 2
   Mesh:
     ImportMaterials: true
     CalculateTangents: true

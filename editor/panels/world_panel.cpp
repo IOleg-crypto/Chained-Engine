@@ -329,7 +329,7 @@ namespace Chained
 						if (auto* am = ServiceLocator::TryGet<AssetManager>())
 						{
 							auto handle = am->ResolveToHandle(result->string());
-							m_Context->GetSettings().Environment = am->Get<EnvironmentAsset>(result->string());
+							m_Context->SetEnvironment(am->Get<EnvironmentAsset>(result->string()));
 						}
 					}
 				}
@@ -353,7 +353,7 @@ namespace Chained
 
 					auto newEnv = std::make_shared<EnvironmentAsset>();
 					newEnv->SetPath(result->string());
-					m_Context->GetSettings().Environment = newEnv;
+					m_Context->SetEnvironment(newEnv);
 				}
 			}
 			if (ImGui::IsItemHovered())

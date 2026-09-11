@@ -11,24 +11,24 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::NetworkIdentityComponent>()
-				   ? entity.GetComponent<Chained::NetworkIdentityComponent>().NetworkID
-				   : 0;
+			   ? entity.GetComponent<Chained::NetworkIdentityComponent>().NetworkID
+			   : 0;
 	}
 
 	CH_SCRIPT_FUNC uint8_t NetworkIdentityComponent_GetIsOwner(uint64_t entityID)
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::NetworkIdentityComponent>()
-				   ? entity.GetComponent<Chained::NetworkIdentityComponent>().IsOwner
-				   : false;
+			   ? entity.GetComponent<Chained::NetworkIdentityComponent>().IsOwner
+			   : false;
 	}
 
 	CH_SCRIPT_FUNC uint8_t NetworkIdentityComponent_GetRemoteActionFlags(uint64_t entityID)
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::NetworkIdentityComponent>()
-				   ? entity.GetComponent<Chained::NetworkIdentityComponent>().RemoteActionFlags
-				   : 0;
+			   ? entity.GetComponent<Chained::NetworkIdentityComponent>().RemoteActionFlags
+			   : 0;
 	}
 
 	// ── PlayerComponent ──────────────────────────────────────────────
@@ -36,8 +36,8 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::PlayerComponent>()
-				   ? entity.GetComponent<Chained::PlayerComponent>().MovementSpeed
-				   : 0;
+			   ? entity.GetComponent<Chained::PlayerComponent>().MovementSpeed
+			   : 0;
 	}
 
 	CH_SCRIPT_FUNC void PlayerComponent_SetMovementSpeed(uint64_t entityID, float value)
@@ -53,8 +53,8 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::PlayerComponent>()
-				   ? entity.GetComponent<Chained::PlayerComponent>().JumpForce
-				   : 0;
+			   ? entity.GetComponent<Chained::PlayerComponent>().JumpForce
+			   : 0;
 	}
 
 	CH_SCRIPT_FUNC void PlayerComponent_SetJumpForce(uint64_t entityID, float value)
@@ -70,8 +70,8 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::PlayerComponent>()
-				   ? entity.GetComponent<Chained::PlayerComponent>().LookSensitivity
-				   : 0;
+			   ? entity.GetComponent<Chained::PlayerComponent>().LookSensitivity
+			   : 0;
 	}
 
 	CH_SCRIPT_FUNC void PlayerComponent_SetLookSensitivity(uint64_t entityID, float value)
@@ -88,8 +88,8 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::SpawnComponent>()
-				   ? entity.GetComponent<Chained::SpawnComponent>().IsActive
-				   : false;
+			   ? entity.GetComponent<Chained::SpawnComponent>().IsActive
+			   : false;
 	}
 
 	CH_SCRIPT_FUNC void SpawnComponent_SetIsActive(uint64_t entityID, uint8_t value)
@@ -105,8 +105,8 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::SpawnComponent>()
-				   ? entity.GetComponent<Chained::SpawnComponent>().IsCheckpoint
-				   : false;
+			   ? entity.GetComponent<Chained::SpawnComponent>().IsCheckpoint
+			   : false;
 	}
 
 	CH_SCRIPT_FUNC void SpawnComponent_SetIsCheckpoint(uint64_t entityID, uint8_t value)
@@ -144,8 +144,8 @@ namespace Chained
 	{
 		Entity entity = GetEntity(entityID);
 		return entity && entity.HasComponent<Chained::SpawnComponent>()
-				   ? entity.GetComponent<Chained::SpawnComponent>().RenderSpawnZoneInScene
-				   : false;
+			   ? entity.GetComponent<Chained::SpawnComponent>().RenderSpawnZoneInScene
+			   : false;
 	}
 
 	CH_SCRIPT_FUNC void SpawnComponent_GetZoneSize(uint64_t entityID, glm::vec3* outVal)

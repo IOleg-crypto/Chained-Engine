@@ -9,6 +9,9 @@ namespace Chained
     /// </summary>
     public static class Network
     {
+        /// <summary>Default UDP port for game networking.</summary>
+        public const ushort DefaultPort = 7777;
+
 #pragma warning disable 0649
 
         internal static unsafe delegate* unmanaged<ushort, int, void> Network_HostGame_Ptr;
@@ -23,7 +26,6 @@ namespace Chained
         internal static unsafe delegate* unmanaged<int> Network_GetRole_Ptr;
         internal static unsafe delegate* unmanaged<char*, int, void> Network_GetListenAddress_Ptr;
         internal static unsafe delegate* unmanaged<char*, int, void> Network_GetPublicAddress_Ptr;
-        internal static unsafe delegate* unmanaged<char*, int, void> Network_GetPublicIPv6Address_Ptr;
         internal static unsafe delegate* unmanaged<char*, void> Network_BroadcastSceneChange_Ptr;
         internal static unsafe delegate* unmanaged<byte> Network_HasPendingSceneChange_Ptr;
         internal static unsafe delegate* unmanaged<char*, int, void> Network_GetPendingSceneChange_Ptr;
@@ -48,20 +50,31 @@ namespace Chained
         // UPnP
         internal static unsafe delegate* unmanaged<byte> Network_IsUpnpAvailable_Ptr;
 
-        // Firewall
-        internal static unsafe delegate* unmanaged<byte> Network_IsFirewallRuleActive_Ptr;
+        // STUN / NAT Traversal
+        internal static unsafe delegate* unmanaged<byte> Network_HasStunResult_Ptr;
+        internal static unsafe delegate* unmanaged<char*, int, void> Network_GetStunPublicAddress_Ptr;
+        internal static unsafe delegate* unmanaged<char*, ushort, void> Network_StartHolePunch_Ptr;
+        internal static unsafe delegate* unmanaged<ushort, void> Network_QueryStun_Ptr;
+
+        // Room Code Signaling
+        internal static unsafe delegate* unmanaged<ushort, int, uint> Network_HostRoom_Ptr;
+        internal static unsafe delegate* unmanaged<uint, void> Network_ConnectRoom_Ptr;
+        internal static unsafe delegate* unmanaged<uint> Network_GetRoomCode_Ptr;
+
+        // Ping / RTT
+        internal static unsafe delegate* unmanaged<uint> Network_GetPing_Ptr;
 
 #pragma warning restore 0649
 
         /// <summary>Starts a listen server on the given port.</summary>
-        public static unsafe void HostGame(ushort port = 7777, int maxClients = 4)
+        public static unsafe void HostGame(ushort port = DefaultPort, int maxClients = 4)
         {
             if (Network_HostGame_Ptr == null) return;
             Network_HostGame_Ptr(port, maxClients);
         }
 
         /// <summary>Connects to a remote server.</summary>
-        public static unsafe void ConnectTo(string ip, ushort port = 7777)
+        public static unsafe void ConnectTo(string ip, ushort port = DefaultPort)
         {
             if (Network_ConnectTo_Ptr == null || string.IsNullOrEmpty(ip)) return;
             fixed (char* ptr = ip) Network_ConnectTo_Ptr(ptr, port);
@@ -120,18 +133,6 @@ namespace Chained
             return new string(buf);
         }
 
-        /// <summary>
-        /// Public IPv6 address string for internet hosting (e.g. "[2001:db8::1]:7777").
-        /// Returns "Not available" if the host has no public IPv6.
-        /// IPv6 bypasses CGNAT — prefer this over IPv4 when available.
-        /// </summary>
-        public static unsafe string GetPublicIPv6Address()
-        {
-            if (Network_GetPublicIPv6Address_Ptr == null) return string.Empty;
-            sbyte* buf = stackalloc sbyte[128];
-            Network_GetPublicIPv6Address_Ptr((char*)buf, 128);
-            return new string(buf);
-        }
 
         public static unsafe void BroadcastSceneChange(string scenePath)
         {
@@ -176,6 +177,9 @@ namespace Chained
 
         /// <summary>Number of players in the lobby (including host).</summary>
         public static unsafe int PlayerCount => Network_GetPlayerCount_Ptr != null ? Network_GetPlayerCount_Ptr() : 0;
+
+        /// <summary>Returns the player count in the lobby.</summary>
+        public static int GetPlayerCount() => PlayerCount;
 
         /// <summary>Returns the player list as a JSON string.</summary>
         public static unsafe string GetPlayerListJSON()
@@ -238,7 +242,71 @@ namespace Chained
         /// <summary>True when UPnP port forwarding is available on the local network.</summary>
         public static unsafe bool IsUpnpAvailable => Network_IsUpnpAvailable_Ptr != null && Network_IsUpnpAvailable_Ptr() != 0;
 
-        /// <summary>True when a Windows Firewall / iptables rule was added for the game port.</summary>
-        public static unsafe bool IsFirewallRuleActive => Network_IsFirewallRuleActive_Ptr != null && Network_IsFirewallRuleActive_Ptr() != 0;
+        // ── STUN / NAT Traversal ─────────────────────────────────────────
+
+        /// <summary>True when STUN has successfully queried the public endpoint.</summary>
+        public static unsafe bool HasStunResult => Network_HasStunResult_Ptr != null && Network_HasStunResult_Ptr() != 0;
+
+        /// <summary>Returns the STUN-discovered public IP:port (e.g. "203.0.113.5:7777").</summary>
+        public static unsafe string GetStunPublicAddress()
+        {
+            if (Network_GetStunPublicAddress_Ptr == null) return string.Empty;
+            sbyte* buf = stackalloc sbyte[64];
+            Network_GetStunPublicAddress_Ptr((char*)buf, 64);
+            return new string(buf);
+        }
+
+        /// <summary>Starts UDP hole punching to the remote host's public IP:port.</summary>
+        public static unsafe void StartHolePunch(string remoteIP, ushort remotePort)
+        {
+            if (Network_StartHolePunch_Ptr == null || string.IsNullOrEmpty(remoteIP)) return;
+            fixed (char* ptr = remoteIP) Network_StartHolePunch_Ptr(ptr, remotePort);
+        }
+
+        /// <summary>Queries STUN servers for the public endpoint.</summary>
+        public static unsafe void QueryStun(ushort localPort)
+        {
+            if (Network_QueryStun_Ptr == null) return;
+            Network_QueryStun_Ptr(localPort);
+        }
+
+        // ── Room Code (STUN Hole Punch) ───────────────────────────────────
+
+        /// <summary>
+        /// Hosts a game and registers with the signaling server.
+        /// Returns a 4-digit room code clients can use to connect without knowing your IP.
+        /// </summary>
+        public static unsafe uint HostRoom(ushort port = DefaultPort, int maxClients = 4)
+        {
+            if (Network_HostRoom_Ptr == null) { HostGame(port, maxClients); return 0; }
+            return Network_HostRoom_Ptr(port, maxClients);
+        }
+
+        /// <summary>
+        /// Connects to a room by its 4-digit code (e.g. 4821).
+        /// Automatically performs STUN + hole punch via the signaling server.
+        /// </summary>
+        public static unsafe void ConnectRoom(uint roomCode)
+        {
+            if (Network_ConnectRoom_Ptr == null) return;
+            Network_ConnectRoom_Ptr(roomCode);
+        }
+
+        /// <summary>
+        /// Returns the current room code (host-side only). Returns 0 if not in a room.
+        /// </summary>
+        public static unsafe uint GetRoomCode()
+        {
+            return Network_GetRoomCode_Ptr != null ? Network_GetRoomCode_Ptr() : 0;
+        }
+
+        /// <summary>Returns the round-trip time (RTT) in milliseconds to the server. Returns 0 if not connected.</summary>
+        public static unsafe uint GetPing()
+        {
+            if (Network_GetPing_Ptr == null) return 0;
+            return Network_GetPing_Ptr();
+        }
+
+
     }
 }

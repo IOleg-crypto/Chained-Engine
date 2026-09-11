@@ -348,6 +348,26 @@ namespace Chained
 				{
 					std::string lowerName = name;
 					std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+					if (lowerName.find("arial") != std::string::npos)
+					{
+						if (IsSupportedFontFormat(std::filesystem::path(absPath)))
+						{
+							chosen = name;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (chosen.empty())
+		{
+			for (const auto& [name, absPath] : m_KnownPaths)
+			{
+				if (name.rfind("font/", 0) == 0 || name.rfind("fonts/", 0) == 0)
+				{
+					std::string lowerName = name;
+					std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
 					if (lowerName.find("regular") != std::string::npos ||
 						lowerName.find("alansans") != std::string::npos)
 					{

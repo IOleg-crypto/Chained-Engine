@@ -7,11 +7,23 @@ namespace Chained
 // ─────────────────────────────────────────────────────────────────────────────
 //  Script — base class for all user-defined C# scripts
 // ─────────────────────────────────────────────────────────────────────────────
-/// <summary>Base class for managed scripts.</summary>
-public abstract class Script
-{
-    /// <summary>The entity this script is attached to.</summary>
-    public Entity Entity { get; private set; } = null!;
+    /// <summary>Base class for managed scripts.</summary>
+    public abstract class Script
+    {
+        /// <summary>The entity this script is attached to.</summary>
+        public Entity Entity { get; private set; } = null!;
+
+        /// <summary>Execution priority — lower values run first. Default is 0.</summary>
+        public int Priority { get; set; } = 0;
+
+        /// <summary>Set to true by ConsumeEvent() to stop event propagation to lower-priority scripts.</summary>
+        internal bool EventConsumed { get; private set; }
+
+        /// <summary>Call to stop this event from reaching scripts with lower priority.</summary>
+        protected void ConsumeEvent() => EventConsumed = true;
+
+        /// <summary>Resets event state between frames. Called by engine.</summary>
+        internal void __ResetEventState() => EventConsumed = false;
 
     /// <summary>Returns a component from the entity.</summary>
     public T? GetComponent<T>() where T : Component, new() => Entity.GetComponent<T>();

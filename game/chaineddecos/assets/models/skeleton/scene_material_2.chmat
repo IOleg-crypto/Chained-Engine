@@ -15,4 +15,4 @@ Material:
   Roughness: 1
   Transparent: false
   Alpha: 1
-  AlbedoMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/skeleton\textures/Fight_Rework_Sword_MAT_baseColor.png
+  AlbedoMap: textures/skeleton/Fight_Rework_Sword_MAT_baseColor.png

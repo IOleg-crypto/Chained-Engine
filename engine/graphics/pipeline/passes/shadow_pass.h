@@ -49,6 +49,7 @@ namespace Chained
 		glm::mat4 m_LightSpaceMatrix{1.0f};
 		uint32_t m_ShadowMapSize = 2048;
 		bool m_HasShadows = false;
+		bool m_DisabledWarningShown = false;
 
 		bool m_Initialized = false;
 	};

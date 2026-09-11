@@ -63,49 +63,6 @@ namespace Chained
 			}
 		}
 
-		// Primitive Component picking
-		auto primitiveView = scene->GetRegistry().view<TransformComponent, PrimitiveComponent>();
-		primitiveView.each([&](entt::entity entityID, TransformComponent& tc, PrimitiveComponent& primComp) {
-			if (finalResult.Hit && finalResult.Entity == entityID)
-			{
-				return;
-			}
-			if (primComp.Type == PrimitiveType::None)
-			{
-				return;
-			}
-
-			glm::mat4 modelTransform = TransformSystem::ComputeLocalMatrix(tc);
-			glm::mat4 invTransform = glm::inverse(modelTransform);
-
-			Ray localRay;
-			localRay.position = glm::vec3(invTransform * glm::vec4(ray.position, 1.0f));
-			glm::vec3 localTarget = glm::vec3(invTransform * glm::vec4(ray.position + ray.direction, 1.0f));
-			localRay.direction = glm::normalize(localTarget - localRay.position);
-
-			glm::vec3 halfSize = primComp.Dimensions * 0.5f;
-			if (primComp.Type == PrimitiveType::Sphere)
-			{
-				halfSize = glm::vec3(primComp.Radius);
-			}
-
-			float t = 0.0f;
-			if (RayAABBInternal(localRay.position, localRay.direction, -halfSize, halfSize, t))
-			{
-				glm::vec3 hitPosLocal = localRay.position + localRay.direction * t;
-				glm::vec3 hitPosWorld = glm::vec3(modelTransform * glm::vec4(hitPosLocal, 1.0f));
-				float distWorld = glm::distance(ray.position, hitPosWorld);
-
-				if (distWorld < finalResult.Distance)
-				{
-					finalResult.Distance = distWorld;
-					finalResult.Hit = true;
-					finalResult.Entity = entityID;
-					finalResult.Position = hitPosWorld;
-				}
-			}
-		});
-
 		auto modelView = scene->GetRegistry().view<TransformComponent, ModelComponent>();
 		modelView.each([&](entt::entity entityID, TransformComponent& tc, ModelComponent& modelComp) {
 			if (finalResult.Hit && finalResult.Entity == entityID)

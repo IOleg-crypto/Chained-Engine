@@ -5,7 +5,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <future>
 
 #include "engine/core/events/events.h"
 #include "engine/common/base.h"
@@ -47,6 +46,7 @@ namespace Chained
 		void OnUpdate(Timestep timestep);
 		void OnViewportResize(uint32_t width, uint32_t height);
 
+	public:
 	public: // Entity Management
 		Entity CreateEntity(const std::string& name = std::string());
 		Entity CreateEntityWithUUID(UUID uuid, const std::string& name = std::string());
@@ -59,8 +59,18 @@ namespace Chained
 		Entity GetEntityByUUID(UUID uuid);
 
 	public:
-		SceneSettings& GetSettings();
-		const SceneSettings& GetSettings() const;
+		SceneSettings& GetSettings()
+		{
+			return m_Settings;
+		}
+		const SceneSettings& GetSettings() const
+		{
+			return m_Settings;
+		}
+		void SetSettings(const SceneSettings& settings)
+		{
+			m_Settings = settings;
+		}
 		bool IsSimulationRunning() const;
 		const std::vector<entt::entity>& GetRootEntities() const;
 		bool IsStartingUp() const
@@ -158,8 +168,6 @@ namespace Chained
 		void OnUpdateEditor(Timestep timestep);
 		void OnUpdateRuntime(Timestep timestep);
 
-		// Async scene loading
-		std::future<std::shared_ptr<Scene>> LoadSceneAsync(const std::string& path);
 		void SwapScene(std::shared_ptr<Scene> newScene);
 
 		// EnTT Dispatcher for Zero-Allocation Publish/Subscribe
@@ -172,21 +180,8 @@ namespace Chained
 			return m_Dispatcher;
 		}
 
-		// Pending scene change (from SceneTransitionSystem)
-		const std::string& GetPendingScenePath() const
-		{
-			return m_PendingScenePath;
-		}
-		void ClearPendingScenePath()
-		{
-			m_PendingScenePath.clear();
-		}
-		void SetPendingScenePath(const std::string& path)
-		{
-			m_PendingScenePath = path;
-		}
-
 	private:
+		void TickCommonSystems(Timestep ts);
 		void InitializePhysicsStartup();
 		void RebuildRootCache() const;
 
@@ -203,7 +198,6 @@ namespace Chained
 		SceneSettings m_Settings;
 
 		std::unique_ptr<SceneScriptingManager> m_ScriptingManager;
-		std::string m_PendingScenePath;
 
 		bool m_IsStartingUp = false;
 		bool m_PhysicsStartupInitialized = false;

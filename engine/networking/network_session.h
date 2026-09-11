@@ -3,13 +3,12 @@
 
 #include "network_types.h"
 #include "net_packet.h"
+#include "network_driver.h"
 
-#include <enet.h>
-
-#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <memory>
 #include <unordered_map>
 
 namespace Chained
@@ -22,7 +21,7 @@ namespace Chained
 		using ConnectionCallback = std::function<void(int peerIndex, uint64_t networkID)>;
 		using DisconnectionCallback = std::function<void(int peerIndex, uint64_t networkID)>;
 
-		NetworkSession() = default;
+		NetworkSession();
 		~NetworkSession();
 
 		NetworkSession(const NetworkSession&) = delete;
@@ -34,41 +33,25 @@ namespace Chained
 		NetworkError HostGame(uint16_t port, int maxClients);
 		NetworkError ConnectTo(const std::string& ip, uint16_t port);
 		void Disconnect();
-		void ForceDisconnect();
 
 		void Update(float dt);
 
-		Role GetRole() const
-		{
-			return m_Role;
-		}
+		Role GetRole() const;
 		bool IsHost() const
 		{
-			return m_Role == Role::Host || m_Role == Role::HostAndClient;
+			return GetRole() == Role::Host;
 		}
 		bool IsClient() const
 		{
-			return m_Role == Role::Client || m_Role == Role::HostAndClient;
+			return GetRole() == Role::Client;
 		}
-		bool IsConnected() const
-		{
-			return m_Role != Role::Offline;
-		}
-		bool IsFullyConnected() const
-		{
-			return m_Connected;
-		}
+		bool IsConnected() const;
+		bool IsFullyConnected() const;
 
-		int GetMaxClients() const
-		{
-			return m_MaxClients;
-		}
-		uint16_t GetPort() const
-		{
-			return m_Port;
-		}
+		int GetMaxClients() const;
+		uint16_t GetPort() const;
 		std::string GetListenAddress() const;
-		std::string GetPublicAddress() const;
+		void PunchHole(const std::string& targetIP, uint16_t targetPort, int count = 10);
 
 		void SetEventCallback(EventCallback cb)
 		{
@@ -83,27 +66,23 @@ namespace Chained
 			m_DisconnectionCallback = std::move(cb);
 		}
 
-		void SetMaxClients(int max)
+		INetworkDriver* GetDriver() const
 		{
-			m_MaxClients = max;
+			return m_Driver.get();
+		}
+		void SetDriver(std::unique_ptr<INetworkDriver> driver)
+		{
+			m_Driver = std::move(driver);
 		}
 
-		void MarkClientConnected(int peerIndex);
-		void MarkClientDisconnected(int peerIndex);
+		void SetDriverType(DriverType type);
+		DriverType GetDriverType() const
+		{
+			return m_DriverType;
+		}
 
-		ENetHost* GetHost() const
-		{
-			return m_Host;
-		}
-		ENetPeer* GetServerPeer() const
-		{
-			return m_ServerPeer;
-		}
-		ENetPeer* GetPeerForClient(int clientIndex) const;
-		const std::unordered_map<int, ENetPeer*>& GetPeerMap() const
-		{
-			return m_PeerMap;
-		}
+		bool IsClientConnected(int clientIndex) const;
+		uint32_t GetPeerRtt(int peerIndex) const;
 
 		void SetServerConnection(int conn)
 		{
@@ -114,27 +93,22 @@ namespace Chained
 			return m_ServerConnection;
 		}
 
-		std::atomic<bool> m_ShuttingDown{false};
+		// Heartbeat / timeout tracking
+		void RecordPeerActivity(int peerIndex);
+		float GetTimeSinceLastActivity(int peerIndex) const;
+		void CheckPeerTimeouts(float dt, float timeoutSeconds);
 
 	private:
-		void ProcessEvents();
-
-		Role m_Role = Role::Offline;
-		ENetHost* m_Host = nullptr;
-		ENetPeer* m_ServerPeer = nullptr;
-		int m_MaxClients = 0;
-		uint16_t m_Port = 0;
+		DriverType m_DriverType = DriverType::ENet;
+		std::unique_ptr<INetworkDriver> m_Driver;
 		int m_ServerConnection = kInvalidPeerHandle;
-		bool m_Connected = false; ///< true only after ENET handshake completes
-
-		std::string m_CachedPublicAddress;
-		std::atomic<bool> m_PublicAddressFetched{false};
 
 		EventCallback m_EventCallback;
 		ConnectionCallback m_ConnectionCallback;
 		DisconnectionCallback m_DisconnectionCallback;
 
-		std::unordered_map<int, ENetPeer*> m_PeerMap;
+		std::unordered_map<int, float> m_PeerLastActivityTime;
+		bool m_IsUpdating = false;
 	};
 
 } // namespace Chained

@@ -70,7 +70,6 @@ namespace Chained
 		void SetPendingData(PendingModelData&& data)
 		{
 			m_PendingData = std::move(data);
-			m_HasPendingData = true;
 		}
 		PendingModelData& GetPendingData()
 		{
@@ -78,7 +77,7 @@ namespace Chained
 		}
 		bool HasPendingData() const
 		{
-			return m_HasPendingData;
+			return m_PendingData.isValid;
 		}
 
 		void SetModel(const Model& model)
@@ -135,7 +134,6 @@ namespace Chained
 		// Loading data
 		PendingModelData m_PendingData;
 		std::vector<std::shared_ptr<Texture>> m_EmbeddedTextures;
-		bool m_HasPendingData = false;
 	};
 } // namespace Chained
 

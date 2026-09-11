@@ -8,6 +8,14 @@
 
 namespace Chained
 {
+	template <typename T> static void ReadField(YAML::Node node, const char* key, T& out)
+	{
+		if (node[key])
+		{
+			out = node[key].as<T>();
+		}
+	}
+
 	void RegisterUIControlComponent()
 	{
 		ComponentMetadata metadata;
@@ -110,99 +118,40 @@ namespace Chained
 			// Box Style
 			if (auto boxStyleNode = widgetNode["Box Style"])
 			{
-				if (boxStyleNode["BG Color"])
-				{
-					widgetComp.BoxStyle.BackgroundColor = boxStyleNode["BG Color"].as<Color>();
-				}
-				if (boxStyleNode["Hover Color"])
-				{
-					widgetComp.BoxStyle.HoverColor = boxStyleNode["Hover Color"].as<Color>();
-				}
-				if (boxStyleNode["Pressed Color"])
-				{
-					widgetComp.BoxStyle.PressedColor = boxStyleNode["Pressed Color"].as<Color>();
-				}
-				if (boxStyleNode["Rounding"])
-				{
-					widgetComp.BoxStyle.Rounding = boxStyleNode["Rounding"].as<float>();
-				}
-				if (boxStyleNode["Border Size"])
-				{
-					widgetComp.BoxStyle.BorderSize = boxStyleNode["Border Size"].as<float>();
-				}
-				if (boxStyleNode["Border Color"])
-				{
-					widgetComp.BoxStyle.BorderColor = boxStyleNode["Border Color"].as<Color>();
-				}
-				if (boxStyleNode["Gradient"])
-				{
-					widgetComp.BoxStyle.UseGradient = boxStyleNode["Gradient"].as<bool>();
-				}
-				if (boxStyleNode["Gradient Color"])
-				{
-					widgetComp.BoxStyle.GradientColor = boxStyleNode["Gradient Color"].as<Color>();
-				}
-				if (boxStyleNode["Padding"])
-				{
-					widgetComp.BoxStyle.Padding = boxStyleNode["Padding"].as<float>();
-				}
-				if (boxStyleNode["Hover Scale"])
-				{
-					widgetComp.BoxStyle.HoverScale = boxStyleNode["Hover Scale"].as<float>();
-				}
-				if (boxStyleNode["Pressed Scale"])
-				{
-					widgetComp.BoxStyle.PressedScale = boxStyleNode["Pressed Scale"].as<float>();
-				}
-				if (boxStyleNode["Transition Speed"])
-				{
-					widgetComp.BoxStyle.TransitionSpeed = boxStyleNode["Transition Speed"].as<float>();
-				}
+				ReadField(boxStyleNode, "BG Color", widgetComp.BoxStyle.BackgroundColor);
+				ReadField(boxStyleNode, "Hover Color", widgetComp.BoxStyle.HoverColor);
+				ReadField(boxStyleNode, "Pressed Color", widgetComp.BoxStyle.PressedColor);
+				ReadField(boxStyleNode, "Rounding", widgetComp.BoxStyle.Rounding);
+				ReadField(boxStyleNode, "Border Size", widgetComp.BoxStyle.BorderSize);
+				ReadField(boxStyleNode, "Border Color", widgetComp.BoxStyle.BorderColor);
+				ReadField(boxStyleNode, "Gradient", widgetComp.BoxStyle.UseGradient);
+				ReadField(boxStyleNode, "Gradient Color", widgetComp.BoxStyle.GradientColor);
+				ReadField(boxStyleNode, "Padding", widgetComp.BoxStyle.Padding);
+				ReadField(boxStyleNode, "Hover Scale", widgetComp.BoxStyle.HoverScale);
+				ReadField(boxStyleNode, "Pressed Scale", widgetComp.BoxStyle.PressedScale);
+				ReadField(boxStyleNode, "Transition Speed", widgetComp.BoxStyle.TransitionSpeed);
 			}
 
 			// Text Style
 			if (auto textStyleNode = widgetNode["Text Style"])
 			{
-				if (textStyleNode["Font Name"])
+				ReadField(textStyleNode, "Font Name", widgetComp.TextStyle.FontName);
+				ReadField(textStyleNode, "Font Size", widgetComp.TextStyle.FontSize);
+				ReadField(textStyleNode, "Text Color", widgetComp.TextStyle.TextColor);
+				ReadField(textStyleNode, "Shadow", widgetComp.TextStyle.Shadow);
+				ReadField(textStyleNode, "Shadow Offset", widgetComp.TextStyle.ShadowOffset);
+				ReadField(textStyleNode, "Shadow Color", widgetComp.TextStyle.ShadowColor);
+				ReadField(textStyleNode, "Letter Spacing", widgetComp.TextStyle.LetterSpacing);
+				ReadField(textStyleNode, "Line Height", widgetComp.TextStyle.LineHeight);
 				{
-					widgetComp.TextStyle.FontName = textStyleNode["Font Name"].as<std::string>();
+					int h = static_cast<int>(widgetComp.TextStyle.Horizontal);
+					ReadField(textStyleNode, "H Align", h);
+					widgetComp.TextStyle.Horizontal = static_cast<HorizontalAlignment>(h);
 				}
-				if (textStyleNode["Font Size"])
 				{
-					widgetComp.TextStyle.FontSize = textStyleNode["Font Size"].as<float>();
-				}
-				if (textStyleNode["Text Color"])
-				{
-					widgetComp.TextStyle.TextColor = textStyleNode["Text Color"].as<Color>();
-				}
-				if (textStyleNode["Shadow"])
-				{
-					widgetComp.TextStyle.Shadow = textStyleNode["Shadow"].as<bool>();
-				}
-				if (textStyleNode["Shadow Offset"])
-				{
-					widgetComp.TextStyle.ShadowOffset = textStyleNode["Shadow Offset"].as<float>();
-				}
-				if (textStyleNode["Shadow Color"])
-				{
-					widgetComp.TextStyle.ShadowColor = textStyleNode["Shadow Color"].as<Color>();
-				}
-				if (textStyleNode["Letter Spacing"])
-				{
-					widgetComp.TextStyle.LetterSpacing = textStyleNode["Letter Spacing"].as<float>();
-				}
-				if (textStyleNode["Line Height"])
-				{
-					widgetComp.TextStyle.LineHeight = textStyleNode["Line Height"].as<float>();
-				}
-				if (textStyleNode["H Align"])
-				{
-					widgetComp.TextStyle.Horizontal =
-						static_cast<HorizontalAlignment>(textStyleNode["H Align"].as<int>());
-				}
-				if (textStyleNode["V Align"])
-				{
-					widgetComp.TextStyle.Vertical = static_cast<VerticalAlignment>(textStyleNode["V Align"].as<int>());
+					int v = static_cast<int>(widgetComp.TextStyle.Vertical);
+					ReadField(textStyleNode, "V Align", v);
+					widgetComp.TextStyle.Vertical = static_cast<VerticalAlignment>(v);
 				}
 			}
 

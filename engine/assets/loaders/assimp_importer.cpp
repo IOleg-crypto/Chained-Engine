@@ -3,7 +3,6 @@
 #include "engine/assets/loaders/assimp_helpers.h"
 #include "engine/assets/loaders/material_extractor.h"
 #include "engine/assets/loaders/animation_sampler.h"
-#include "engine/assets/loaders/mesh_merger.h"
 #include "engine/assets/asset_manager.h"
 
 #include "engine/core/profiler.h"
@@ -84,9 +83,11 @@ namespace Chained
 		std::string ext = path.extension().string();
 		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 
-		// Use fast realtime import flags to bypass Assimp's heavy CPU mesh-merging (OptimizeMeshes / FindInstances)
+		// Let Assimp merge compatible meshes and improve vertex cache locality during import.
 		unsigned int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace |
-							 aiProcess_JoinIdenticalVertices | aiProcess_LimitBoneWeights;
+							 aiProcess_JoinIdenticalVertices | aiProcess_LimitBoneWeights |
+							 aiProcess_ImproveCacheLocality | aiProcess_OptimizeMeshes |
+							 aiProcess_RemoveRedundantMaterials | aiProcess_FindInvalidData;
 
 		if (ext != ".gltf" && ext != ".glb")
 		{
@@ -149,6 +150,15 @@ namespace Chained
 				if (am->IsPacked())
 				{
 					auto packData = am->ReadAssetData(path.string());
+					if (packData.empty())
+					{
+						std::string pStr = path.generic_string();
+						auto pos = pStr.find("assets/");
+						if (pos != std::string::npos)
+						{
+							packData = am->ReadAssetData(pStr.substr(pos));
+						}
+					}
 					if (!packData.empty())
 					{
 						modelFileData.assign(packData.begin(), packData.end());
@@ -207,8 +217,6 @@ namespace Chained
 
 		MaterialExtractor::Process(m_Scene, m_ModelDir, m_Data.materials, m_Data.meshes);
 		AnimationSampler::Process(m_Scene, m_SamplingFPS, m_Data.nodeNames, m_NameToIndex, m_Data.animations);
-		MeshMerger::Process(m_Path, m_Data.meshes, m_Data.materials, m_Data.instances);
-
 		m_Data.isValid = true;
 		return std::move(m_Data);
 	}

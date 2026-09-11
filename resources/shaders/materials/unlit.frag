@@ -3,6 +3,9 @@
 #include "../include/surface.glsl"
 #include "../include/fog.glsl"
 
+uniform vec3 viewPos;
+uniform float uTime;
+
 in vec3 fragPosition;
 in vec2 fragTexCoord;
 in vec4 fragColor;

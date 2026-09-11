@@ -7,12 +7,11 @@
 
 namespace Chained
 {
-	class EditorProjectSerializer
+	namespace EditorProjectSerializer
 	{
-	public:
-		static bool Serialize(const std::shared_ptr<Project>& project, const std::filesystem::path& filepath);
-		static bool Deserialize(const std::shared_ptr<Project>& project, const std::filesystem::path& filepath);
-	};
+		bool Serialize(const std::shared_ptr<Project>& project, const std::filesystem::path& filepath);
+		bool Deserialize(const std::shared_ptr<Project>& project, const std::filesystem::path& filepath);
+	} // namespace EditorProjectSerializer
 } // namespace Chained
 
 #endif // CH_PROJECT_SERIALIZER_H

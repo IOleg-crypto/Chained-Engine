@@ -112,7 +112,7 @@ namespace Chained
 				float dt = Application::Get().GetFrameTime();
 				float lerpT = glm::clamp(dt * kPivotSmoothSpeed, 0.0f, 1.0f);
 
-				if (!camera.PivotInitialized)
+				if (!camera.PivotInitialized || glm::distance2(camera.SmoothedPivot, rawPos) > 25.0f)
 				{
 					camera.SmoothedPivot = rawPos;
 					camera.PivotInitialized = true;
@@ -141,6 +141,11 @@ namespace Chained
 
 			TransformSystem::SetTranslation(tc, newPos);
 			TransformSystem::SetRotationQuat(tc, rotation);
+
+			tc.WorldTransform =
+				glm::translate(glm::mat4(1.0f), newPos) * glm::toMat4(rotation) * glm::scale(glm::mat4(1.0f), tc.Scale);
+			tc.InverseWorldTransform = glm::inverse(tc.WorldTransform);
+			tc.TransformChanged = false;
 		}
 	}
 	void Camera_GetOrbit(uint64_t entityID, float* yaw, float* pitch, float* distance)

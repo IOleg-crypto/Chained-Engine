@@ -11,7 +11,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace Chained
@@ -31,7 +30,6 @@ namespace Chained
 		float OverlayElapsed = 0.0f;
 		float MinOverlayDuration = 0.35f;
 		bool SuppressNextUIInput = false;
-		float BoostUploadsTimer = 0.0f;
 	};
 
 	// Runs the game/runtime experience, including scene loading and the scene renderer.
@@ -72,13 +70,11 @@ namespace Chained
 		void DrawLoadingOverlay();
 
 		std::optional<Camera3D> GetActiveCamera();
-
-		struct CameraConfig
-		{
-			Camera3D Camera;
-		};
-		std::optional<CameraConfig> GetCameraConfig();
 		glm::vec4 CalculateBackgroundColor() const;
+
+		void TickFontRebuild(Timestep ts);
+		void TickSceneLoading(Timestep ts);
+		void TickRunning(Timestep ts);
 
 		bool SetupNewScene(const std::filesystem::path& scenePath);
 		void ResetUIState();

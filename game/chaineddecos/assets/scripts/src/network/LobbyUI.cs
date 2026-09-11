@@ -19,15 +19,37 @@ namespace ChainedDecos.Scripts
         private readonly List<string> m_ChatLines = new List<string>();
         private string m_LastDisplayed = "";
         private string m_LastDisplayedInfo = "";
-        private bool   m_WasEnterDown  = false;
+        private int m_DisconnectGraceFrames = 0;
+        private const int DisconnectGraceLimit = 15;
+        private bool m_WasEnterDown = false;
 
         public override void OnCreate()
         {
             Log.Info("LobbyUI: Initialized");
+            m_DisconnectGraceFrames = 0;
         }
 
         public override void OnUpdate(float deltaTime)
         {
+            // 0. Detect host disconnect (client side)
+            if (Network.IsClient)
+            {
+                if (!Network.IsConnected)
+                {
+                    m_DisconnectGraceFrames++;
+                    if (m_DisconnectGraceFrames > DisconnectGraceLimit)
+                    {
+                        Log.Info("[LobbyUI] Host disconnected — returning to menu.");
+                        Scene.LoadScene("scenes/start_menu.chscene");
+                        return;
+                    }
+                }
+                else
+                {
+                    m_DisconnectGraceFrames = 0;
+                }
+            }
+
             // 1. Scene change from host (client side)
             if (Network.IsClient && Network.HasPendingSceneChange)
             {
@@ -138,6 +160,21 @@ namespace ChainedDecos.Scripts
 
         private void UpdateServerInfo()
         {
+            int count = Network.PlayerCount;
+            if (count <= 0) count = 1;
+            int max = LobbyManager.MaxClients > 0 ? LobbyManager.MaxClients : 4;
+            string players = $"Players: {count}/{max}";
+
+            Entity? playersLabelEntity = Scene.FindEntityByTag("label_players_count");
+            if (playersLabelEntity != null && playersLabelEntity.IsValid)
+            {
+                LabelControl? plc = playersLabelEntity.GetComponent<LabelControl>();
+                if (plc != null)
+                {
+                    plc.Text = $"PLAYERS: {count} / {max}";
+                }
+            }
+
             Entity? labelEntity = Scene.FindEntityByTag("label_server_info");
             if (labelEntity == null || !labelEntity.IsValid) return;
             LabelControl? lc = labelEntity.GetComponent<LabelControl>();
@@ -147,20 +184,19 @@ namespace ChainedDecos.Scripts
             if (Network.IsHost)
             {
                 string pub = Network.GetPublicAddress();
-                bool fetching = pub == "Fetching..." || pub == string.Empty;
+                bool fetching = pub == "Fetching..." || string.IsNullOrEmpty(pub);
                 string local = Network.GetListenAddress();
                 if (string.IsNullOrEmpty(local)) local = $"127.0.0.1:{LobbyManager.SelectedPort}";
-                string upnp = Network.IsUpnpAvailable ? "UPnP: Open (Auto)" : "UPnP: Off";
-                string fw = Network.IsFirewallRuleActive ? " | FW: OK" : "";
-                string hint = !Network.IsUpnpAvailable ? " (Tip: Use Radmin VPN or Port Forwarding for Internet)" : "";
-                text = $"[HOST] Local/LAN: {local}  |  Internet (Friends): {pub}  |  {upnp}{fw}{hint}";
+                string upnp = Network.IsUpnpAvailable ? "UPnP: OK" : "UPnP: Off";
+                string nat = Network.HasStunResult ? " | STUN: Ready" : (fetching ? "" : " | STUN: Direct");
+                uint roomCode = Network.GetRoomCode();
+                string room = roomCode > 0 ? $" | ROOM: {roomCode:D4}" : "";
+                text = $"LAN: {local} | WAN: {pub} | {players} | {upnp}{nat}{room}";
                 if (!fetching && text == m_LastDisplayedInfo) return;
             }
             else if (Network.IsClient)
             {
-                string lan = Network.GetListenAddress();
-                if (string.IsNullOrEmpty(lan)) lan = $"Port: {LobbyManager.SelectedPort}";
-                text = $"[CLIENT] Connected | Port: {LobbyManager.SelectedPort}";
+                text = $"[CLIENT] Connected | {players} | Port: {LobbyManager.SelectedPort}";
             }
             else
             {
@@ -172,6 +208,11 @@ namespace ChainedDecos.Scripts
                 m_LastDisplayedInfo = text;
                 lc.Text = text;
             }
+        }
+
+        private void UpdateIceTokenDisplay()
+        {
+            // ICE/libjuice removed — method kept as stub so call sites compile.
         }
     }
 }

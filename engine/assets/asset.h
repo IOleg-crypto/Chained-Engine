@@ -60,25 +60,25 @@ namespace Chained
 		{
 			return m_State.load(std::memory_order_relaxed);
 		}
-		// Updates the loading state and logs state transitions for diagnostics.
 		void SetState(AssetState state)
 		{
 			AssetState oldState = m_State.exchange(state, std::memory_order_release);
 			if (state != oldState)
 			{
-				CH_CORE_INFO("[ASSET] '{}' state change: {} -> {}", m_Path, (int)oldState, (int)state);
-
 				if (state == AssetState::Failed)
 				{
 					if (!m_Error.empty())
 					{
-						CH_CORE_WARN("Asset: FAILED for '{}' (Type: {}, ID: {}) - {}", m_Path, (int)m_Type,
-									 (uint64_t)m_ID, m_Error);
+						CH_CORE_WARN("[ASSET] '{}' FAILED: {} -> {} | {}", m_Path, (int)oldState, (int)state, m_Error);
 					}
 					else
 					{
-						CH_CORE_WARN("Asset: FAILED for '{}' (Type: {}, ID: {})", m_Path, (int)m_Type, (uint64_t)m_ID);
+						CH_CORE_WARN("[ASSET] '{}' FAILED: {} -> {}", m_Path, (int)oldState, (int)state);
 					}
+				}
+				else
+				{
+					CH_CORE_TRACE("[ASSET] '{}' state: {} -> {}", m_Path, (int)oldState, (int)state);
 				}
 			}
 		}

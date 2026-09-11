@@ -1,7 +1,7 @@
 // Windows resource file for ChainedDecos.exe
-// Embeds the application icon into the executable binary
-// so Windows Explorer and the taskbar show it before the game loads.
+// Embeds the application icon and UAC manifest into the executable binary.
 
 #include <windows.h>
 
 IDI_ICON1 ICON CHAINED_ICON_PATH
+

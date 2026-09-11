@@ -11,100 +11,127 @@
 
 namespace Chained
 {
-	namespace
+	void TextureLoader::EnsureBasisuInit()
 	{
-		static void EnsureBasisuInit()
+		basist::basisu_transcoder_init();
+	}
+
+	void TextureLoader::FlipImageVertically(void* pixels, int width, int height, int channels, size_t bytesPerChannel)
+	{
+		if (pixels == nullptr || width <= 0 || height <= 0 || channels <= 0)
 		{
-			static std::once_flag s_BasisuInitOnce;
-			std::call_once(s_BasisuInitOnce, []() { basist::basisu_transcoder_init(); });
+			return;
 		}
 
-		bool TryTranscodeKTX2(const void* data, size_t dataSize, std::shared_ptr<TextureAsset> texAsset)
+		const size_t rowBytes = static_cast<size_t>(width) * static_cast<size_t>(channels) * bytesPerChannel;
+		std::vector<unsigned char> temp(rowBytes);
+		auto* bytes = static_cast<unsigned char*>(pixels);
+
+		for (int row = 0; row < height / 2; ++row)
 		{
-			if (!data || dataSize < 12)
-			{
-				return false;
-			}
+			const size_t topOffset = static_cast<size_t>(row) * rowBytes;
+			const size_t bottomOffset = static_cast<size_t>(height - row - 1) * rowBytes;
 
-			// KTX2 magic identifier: "\xABKTX 20\xBB\r\n\x1A\n"
-			static const uint8_t ktx2Magic[12] = {0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32,
-												  0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A};
-			if (std::memcmp(data, ktx2Magic, 12) != 0)
-			{
-				return false;
-			}
+			std::memcpy(temp.data(), bytes + topOffset, rowBytes);
+			std::memcpy(bytes + topOffset, bytes + bottomOffset, rowBytes);
+			std::memcpy(bytes + bottomOffset, temp.data(), rowBytes);
+		}
+	}
 
-			EnsureBasisuInit();
+	bool TextureLoader::TryTranscodeKTX2(const void* data, size_t dataSize, std::shared_ptr<TextureAsset> texAsset,
+										 bool flipY)
+	{
+		if (!data || dataSize < 12)
+		{
+			return false;
+		}
 
-			basist::ktx2_transcoder transcoder;
-			if (!transcoder.init(data, static_cast<uint32_t>(dataSize)))
-			{
-				return false;
-			}
+		// KTX2 magic identifier: "\xABKTX 20\xBB\r\n\x1A\n"
+		static const uint8_t ktx2Magic[12] = {0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A};
+		if (std::memcmp(data, ktx2Magic, 12) != 0)
+		{
+			return false;
+		}
 
-			uint32_t width = transcoder.get_width();
-			uint32_t height = transcoder.get_height();
-			uint32_t levels = transcoder.get_levels();
+		EnsureBasisuInit();
 
-			// Transcode directly to BC7 GPU format (highest quality for PC)
-			basist::transcoder_texture_format targetFormat = basist::transcoder_texture_format::cTFBC7_RGBA;
-			TextureFormat gpuFormat = TextureFormat::BC7;
+		basist::ktx2_transcoder transcoder;
+		if (!transcoder.init(data, static_cast<uint32_t>(dataSize)))
+		{
+			return false;
+		}
 
-			uint32_t blocksX = (width + 3) / 4;
-			uint32_t blocksY = (height + 3) / 4;
-			uint32_t totalBytes = blocksX * blocksY * 16;
+		if (!transcoder.start_transcoding())
+		{
+			return false;
+		}
 
-			void* gpuBuffer = std::malloc(totalBytes);
+		uint32_t width = transcoder.get_width();
+		uint32_t height = transcoder.get_height();
+
+		// Try BC7 GPU-compressed transcode first (1 byte/pixel, direct GPU upload)
+		basist::transcoder_texture_format targetFormat = basist::transcoder_texture_format::cTFBC7_RGBA;
+		uint32_t blockCount = ((width + 3) / 4) * ((height + 3) / 4);
+		uint32_t compressedBytes = blockCount * 16;
+
+		void* gpuBuffer = std::malloc(compressedBytes);
+		if (!gpuBuffer)
+		{
+			return false;
+		}
+
+		if (!transcoder.transcode_image_level(0, 0, 0, gpuBuffer, blockCount, targetFormat, 0))
+		{
+			// BC7 failed — fall back to uncompressed RGBA32
+			std::free(gpuBuffer);
+			targetFormat = basist::transcoder_texture_format::cTFRGBA32;
+			compressedBytes = width * height * 4;
+			gpuBuffer = std::malloc(compressedBytes);
 			if (!gpuBuffer)
 			{
 				return false;
 			}
 
-			if (!transcoder.transcode_image_level(0, 0, 0, gpuBuffer, blocksX * blocksY, targetFormat, 0))
+			if (!transcoder.transcode_image_level(0, 0, 0, gpuBuffer, width * height, targetFormat, 0))
 			{
 				std::free(gpuBuffer);
 				return false;
 			}
-
-			DecodedImage rawImage;
-			rawImage.data = gpuBuffer;
-			rawImage.width = static_cast<int>(width);
-			rawImage.height = static_cast<int>(height);
-			rawImage.channels = 4;
-			rawImage.isHDR = false;
-			rawImage.isCompressedGPU = true;
-			rawImage.compressedFormat = gpuFormat;
-			rawImage.compressedDataSize = totalBytes;
-			rawImage.format = 0;
-			rawImage.mipmaps = static_cast<int>(levels);
-
-			texAsset->SetIsHDR(false);
-			texAsset->SetPendingImage(rawImage);
-			return true;
 		}
 
-		void FlipImageVertically(void* pixels, int width, int height, int channels, size_t bytesPerChannel)
+		DecodedImage rawImage;
+		rawImage.data = gpuBuffer;
+		rawImage.width = static_cast<int>(width);
+		rawImage.height = static_cast<int>(height);
+		rawImage.channels = 4;
+		rawImage.isHDR = false;
+		rawImage.format = 0;
+		rawImage.mipmaps = 1;
+
+		if (targetFormat == basist::transcoder_texture_format::cTFBC7_RGBA)
 		{
-			if (pixels == nullptr || width <= 0 || height <= 0 || channels <= 0)
-			{
-				return;
-			}
-
-			const size_t rowBytes = static_cast<size_t>(width) * static_cast<size_t>(channels) * bytesPerChannel;
-			std::vector<unsigned char> temp(rowBytes);
-			auto* bytes = static_cast<unsigned char*>(pixels);
-
-			for (int row = 0; row < height / 2; ++row)
-			{
-				const size_t topOffset = static_cast<size_t>(row) * rowBytes;
-				const size_t bottomOffset = static_cast<size_t>(height - row - 1) * rowBytes;
-
-				std::memcpy(temp.data(), bytes + topOffset, rowBytes);
-				std::memcpy(bytes + topOffset, bytes + bottomOffset, rowBytes);
-				std::memcpy(bytes + bottomOffset, temp.data(), rowBytes);
-			}
+			// BC7 compressed — upload directly to GPU
+			rawImage.isCompressedGPU = true;
+			rawImage.compressedFormat = TextureFormat::BC7;
+			rawImage.compressedDataSize = compressedBytes;
 		}
-	} // namespace
+		else
+		{
+			// RGBA8 uncompressed — apply Y-flip if needed
+			if (flipY)
+			{
+				FlipImageVertically(gpuBuffer, static_cast<int>(width), static_cast<int>(height), 4,
+									sizeof(unsigned char));
+			}
+			rawImage.isCompressedGPU = false;
+			rawImage.compressedFormat = TextureFormat::RGBA8;
+			rawImage.compressedDataSize = compressedBytes;
+		}
+
+		texAsset->SetIsHDR(false);
+		texAsset->SetPendingImage(rawImage);
+		return true;
+	}
 
 	std::shared_ptr<Asset> TextureLoader::Create()
 	{
@@ -168,7 +195,7 @@ namespace Chained
 			if (!fileData.empty())
 			{
 				// Check for Khronos KTX2 container
-				if (TryTranscodeKTX2(fileData.data(), fileData.size(), texAsset))
+				if (TryTranscodeKTX2(fileData.data(), fileData.size(), texAsset, shouldFlipVertically))
 				{
 					return true;
 				}
@@ -198,7 +225,7 @@ namespace Chained
 						std::vector<uint8_t> fileBytes(static_cast<size_t>(sz));
 						if (diskFile.read(reinterpret_cast<char*>(fileBytes.data()), sz))
 						{
-							if (TryTranscodeKTX2(fileBytes.data(), fileBytes.size(), texAsset))
+							if (TryTranscodeKTX2(fileBytes.data(), fileBytes.size(), texAsset, shouldFlipVertically))
 							{
 								return true;
 							}

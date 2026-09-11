@@ -9,10 +9,9 @@
 
 namespace Chained
 {
-	class Zstd
+	namespace Zstd
 	{
-	public:
-		static std::vector<unsigned char> Compress(const void* src, size_t srcSize, int compressionLevel = 3)
+		inline std::vector<unsigned char> Compress(const void* src, size_t srcSize, int compressionLevel = 3)
 		{
 			size_t const maxBounds = ZSTD_compressBound(srcSize);
 			std::vector<unsigned char> compressed(maxBounds);
@@ -28,8 +27,21 @@ namespace Chained
 			return compressed;
 		}
 
-		static std::vector<unsigned char> Decompress(const void* src, size_t srcSize, size_t expectedOriginalSize)
+		inline std::vector<unsigned char> Decompress(const void* src, size_t srcSize, size_t expectedOriginalSize = 0)
 		{
+			if (expectedOriginalSize == 0)
+			{
+				unsigned long long const contentSize = ZSTD_getFrameContentSize(src, srcSize);
+				if (contentSize != ZSTD_CONTENTSIZE_UNKNOWN && contentSize != ZSTD_CONTENTSIZE_ERROR)
+				{
+					expectedOriginalSize = static_cast<size_t>(contentSize);
+				}
+				else
+				{
+					expectedOriginalSize = srcSize * 4;
+				}
+			}
+
 			std::vector<unsigned char> decompressed(expectedOriginalSize);
 
 			size_t const dSize = ZSTD_decompress(decompressed.data(), expectedOriginalSize, src, srcSize);
@@ -39,16 +51,10 @@ namespace Chained
 				return {};
 			}
 
-			if (dSize != expectedOriginalSize)
-			{
-				CH_CORE_ERROR("Zstd: Decompression result size mismatch ({} vs expected {})", dSize,
-							  expectedOriginalSize);
-				return {};
-			}
-
+			decompressed.resize(dSize);
 			return decompressed;
 		}
-	};
+	} // namespace Zstd
 } // namespace Chained
 
 #endif // CH_ZSTD_COMPRESSION_H

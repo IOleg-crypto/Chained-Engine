@@ -60,6 +60,26 @@ namespace Chained
 		/// Clear the cached mesh shapes.
 		void ClearShapeCache();
 
+		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> GetMeshShapeCache() const
+		{
+			std::lock_guard<std::mutex> lock(m_CacheMutex);
+			return m_MeshShapeCache;
+		}
+
+		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> GetConvexHullCache() const
+		{
+			std::lock_guard<std::mutex> lock(m_CacheMutex);
+			return m_ConvexHullCache;
+		}
+
+		void RestoreShapeCache(std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> meshCache,
+							   std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> convexCache)
+		{
+			std::lock_guard<std::mutex> lock(m_CacheMutex);
+			m_MeshShapeCache = std::move(meshCache);
+			m_ConvexHullCache = std::move(convexCache);
+		}
+
 		/// Preserves the compiled BVH mesh shape cache from a previous world instance.
 		void PreserveShapeCacheFrom(const JoltPhysicsWorld& otherWorld)
 		{
@@ -100,6 +120,8 @@ namespace Chained
 		// Built MeshShapes are cached per triangle fingerprint (model path + scale)
 		// so that multiple bodies using the same mesh share a single BVH build.
 		mutable std::mutex m_CacheMutex;
+		std::condition_variable m_BakeCondition;
+		bool m_IsShuttingDown = false;
 		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> m_MeshShapeCache;
 		std::unordered_set<std::string> m_InFlightMeshBakes;
 

@@ -3,12 +3,14 @@
 
 #include "engine/common/timestep.h"
 #include "engine/common/uuid.h"
+#include "engine/core/service.h"
 #include "engine/networking/net_packet.h"
 #include "engine/networking/network_service.h"
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -40,14 +42,22 @@ namespace Chained
 		float MouseY = 0.0f;
 	};
 
-	class NetworkSystem
+	class NetworkSystem : public Service
 	{
 	public:
 		static NetworkSystem& GetInstance();
 
+		void Initialize() override
+		{
+		}
+		void Shutdown() override
+		{
+			Reset();
+		}
+
 		// Maximum distance (m) between local and server position before snap-correction
 		// kicks in for owned entities. Below this threshold, local physics runs freely.
-		static constexpr float kMaxCorrectionDistance = 2.0f;
+		static constexpr float kMaxCorrectionDistance = 10.0f;
 
 		// Ensure the local player entity has a NetworkIdentityComponent BEFORE scripts
 		// run. Must be called early in the frame so PlayerController etc. can find it.
@@ -73,13 +83,7 @@ namespace Chained
 		void SetPlayerPrefab(const std::string& path);
 		const std::string& GetPlayerPrefab();
 
-		// Chat messages received from the network (for C# consumption).
-		const std::vector<ChatMessagePacket>& GetPendingChatMessages();
-		void ClearPendingChatMessages();
-
 	private:
-		NetworkSystem() = default;
-
 		// ---- Incoming message processing ----
 		void ProcessWorldStateMessage(WorldStateMessage* msg);
 		void ProcessSceneChangeMessage(SceneChangeMessage* msg);
@@ -110,13 +114,14 @@ namespace Chained
 		// ---- Member state (previously file-scope globals) ----
 		std::unordered_map<uint64_t, PendingNetworkState> m_PendingStates;
 		std::vector<ProcessedInput> m_PendingInputs;
+		std::unordered_map<uint64_t, ProcessedInput> m_ActiveClientInputs;
+		std::unordered_map<uint64_t, float> m_ActiveClientInputTimers;
 		uint32_t m_ClientTick = 0;
 		uint32_t m_HostTick = 0;
 		std::unordered_map<int, uint64_t> m_PeerToNetworkID;
 		Role m_CallbackRole = Role::Offline;
 		std::string m_PlayerPrefab = "prefab/player.chprefab";
 		std::unordered_map<int, UUID> m_PeerToAvatar;
-		std::vector<ChatMessagePacket> m_PendingChatMessages;
 		std::unordered_map<uint64_t, UUID> m_NetworkIDToEntity;
 		uint64_t m_LocalNetworkID = 0;
 		std::unordered_map<int, std::pair<std::string, uint8_t>> m_PendingPlayerInfo;
@@ -124,8 +129,12 @@ namespace Chained
 		Scene* m_ReplicationScene = nullptr;
 		bool m_PrefabWarnedOnce = false;
 		bool m_SceneLoadedPending = false;
-
-		static constexpr uint64_t HostAvatarNetworkID = 1;
+		std::unordered_map<int, std::string> m_DeferredSceneLoaded;
+		std::vector<EntitySpawnMessage>
+			m_PendingEntitySpawns; // BUG #2: buffer spawns that arrive before scene is ready
+		std::unordered_set<uint64_t> m_WarnedInputNetID;
+		float m_NetworkTickAccumulator = 0.0f;
+		static constexpr float kNetworkTickInterval = 1.0f / 64.0f; // 64 Hz (Valve / Source tickrate standard)
 	};
 
 } // namespace Chained

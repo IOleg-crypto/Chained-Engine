@@ -11,19 +11,6 @@ namespace Chained
 
 	class AsyncSceneLoaderTest : public ::testing::Test
 	{
-	protected:
-		void SetUp() override
-		{
-			m_ThreadPool = std::make_unique<ThreadPool>(2);
-			ServiceLocator::Provide<ThreadPool>([this]() { return std::move(m_ThreadPool); });
-		}
-
-		void TearDown() override
-		{
-			ServiceLocator::Shutdown();
-		}
-
-		std::unique_ptr<ThreadPool> m_ThreadPool;
 	};
 
 	TEST_F(AsyncSceneLoaderTest, InitialStateIsIdle)

@@ -12,6 +12,7 @@
 #include <type_traits>
 
 #include "engine/core/service.h"
+#include "engine/core/log.h"
 
 namespace Chained
 {
@@ -71,12 +72,13 @@ namespace Chained
 		void WaitIdle()
 		{
 			std::unique_lock<std::mutex> lock(m_QueueMutex);
-			m_Condition.wait(lock, [this]() { return m_Tasks.empty(); });
+			m_IdleCondition.wait(lock, [this]() { return m_Tasks.empty() && m_ActiveTasks == 0; });
 		}
 
 	public:
 		explicit ThreadPool(unsigned int workerCount)
-			: m_Stop(false)
+			: m_Stop(false),
+			  m_ActiveTasks(0)
 		{
 			m_Workers.reserve(workerCount);
 			for (unsigned int i = 0; i < workerCount; ++i)
@@ -97,9 +99,28 @@ namespace Chained
 
 							task = std::move(this->m_Tasks.front());
 							this->m_Tasks.pop();
+							++this->m_ActiveTasks;
 						}
 
-						task();
+						try
+						{
+							task();
+						} catch (const std::exception& e)
+						{
+							CH_CORE_ERROR("ThreadPool: task threw exception: {}", e.what());
+						} catch (...)
+						{
+							CH_CORE_ERROR("ThreadPool: task threw unknown exception");
+						}
+
+						{
+							std::unique_lock<std::mutex> lock(this->m_QueueMutex);
+							--this->m_ActiveTasks;
+							if (this->m_Tasks.empty() && this->m_ActiveTasks == 0)
+							{
+								this->m_IdleCondition.notify_all();
+							}
+						}
 					}
 				});
 			}
@@ -144,7 +165,9 @@ namespace Chained
 
 		std::mutex m_QueueMutex;
 		std::condition_variable m_Condition;
+		std::condition_variable m_IdleCondition;
 		bool m_Stop;
+		size_t m_ActiveTasks;
 	};
 
 } // namespace Chained

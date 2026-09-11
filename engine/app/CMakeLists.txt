@@ -20,7 +20,6 @@ target_link_libraries(engine_app PUBLIC
     engine_physics
     engine_audio
     engine_assets
-    engine_pack
     engine_core
     engine_imgui
     engine_platform

@@ -1,0 +1,221 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'release-*'
+      - 'release/*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. 1.0.0-beta)'
+        required: true
+        default: '1.0.0-beta'
+      prerelease:
+        description: 'Mark as prerelease'
+        type: boolean
+        default: true
+      draft:
+        description: 'Create as draft'
+        type: boolean
+        default: false
+
+env:
+  CI: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  build-release:
+    name: Build (${{ matrix.os }}, ${{ matrix.preset }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            preset: windows-clang
+            compiler: clang
+            shell: bash
+          - os: ubuntu-latest
+            preset: linux-clang
+            compiler: clang
+            shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Write submodule SHA manifest
+        run: git submodule status | tee submodule-shas.txt
+
+      - name: Cache submodules
+        uses: actions/cache@v4
+        with:
+          path: |
+            .git/modules
+            thirdparty
+          key: submodules-${{ runner.os }}-${{ hashFiles('submodule-shas.txt') }}
+          restore-keys: |
+            submodules-${{ runner.os }}-
+
+      - name: Init submodules
+        run: git submodule update --init --recursive --depth 1
+
+      # -- Windows Setup --
+      - name: Setup MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          path-type: inherit
+          install: mingw-w64-x86_64-clang lld mingw-w64-x86_64-lld mingw-w64-x86_64-make
+
+      - name: Prefer MSYS2 toolchain (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: cygpath -w /mingw64/bin >> "$GITHUB_PATH"
+
+      # -- Linux Setup --
+      - name: Setup Mold Linker (Linux)
+        if: runner.os == 'Linux'
+        uses: rui314/setup-mold@v1
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential xorg-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libasound2-dev pkg-config libgtk-3-dev libdrm-dev libgbm-dev \
+            clang-18 clang++-18 libc++-18-dev libc++abi-18-dev lld-18 llvm-18
+          echo "CC=clang-18" >> $GITHUB_ENV
+          echo "CXX=clang++-18" >> $GITHUB_ENV
+          echo "LDFLAGS=-fuse-ld=mold" >> $GITHUB_ENV
+
+      # -- Common Tools --
+      - name: Get CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: ccache
+          key: Release-${{ matrix.os }}-${{ matrix.preset }}
+          max-size: 5G
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install jinja2
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      # -- Build Release --
+      - name: Configure CMake
+        run: |
+          set -euo pipefail
+          PYTHON_EXE=$(python -c "import sys; print(sys.executable)")
+          cmake --preset ${{ matrix.preset }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DPython_EXECUTABLE="${PYTHON_EXE}" \
+            -DPython3_EXECUTABLE="${PYTHON_EXE}" \
+            -DCH_CI=ON \
+            -DENABLE_UNITY_BUILD=OFF \
+            -DENABLE_LTO=OFF \
+            -DENABLE_PCH=OFF
+
+      - name: Build (Release)
+        run: |
+          set -euo pipefail
+          cmake --build "build/${{ matrix.preset }}" --config Release --parallel
+
+      - name: Run Smoke / Unit Tests
+        run: |
+          set -euo pipefail
+          BUILD_DIR="build/${{ matrix.preset }}"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ./$BUILD_DIR/bin/Release/engine_tests_unit.exe || ./$BUILD_DIR/bin/engine_tests_unit.exe || true
+          else
+            ./$BUILD_DIR/bin/Release/engine_tests_unit || ./$BUILD_DIR/bin/engine_tests_unit || true
+          fi
+
+      - name: Package Release
+        run: |
+          set -euo pipefail
+          VERSION_TAG="${{ github.ref_name }}"
+          if [[ -z "$VERSION_TAG" || "$VERSION_TAG" == *"merge"* || "$VERSION_TAG" == "main" || "$VERSION_TAG" == "opengl" ]]; then
+            VERSION_TAG="${{ inputs.version || '1.0.0-beta' }}"
+          fi
+          python tools/package_release.py \
+            --build-dir "build/${{ matrix.preset }}" \
+            --config Release \
+            --version "$VERSION_TAG" \
+            --output dist
+
+      - name: Upload Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 2
+
+  publish:
+    name: Publish GitHub Release
+    needs: build-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Inspect artifacts
+        run: |
+          echo "Release files to upload:"
+          ls -lh dist/
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version }}
+          name: Chained Engine ${{ github.ref_name || inputs.version }}
+          draft: ${{ inputs.draft || false }}
+          prerelease: ${{ inputs.prerelease || startsWith(github.ref_name, 'v0.') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## Chained Engine Release
+
+            ### Downloads
+            - **Windows (x64)**: `ChainedEngine-v...-windows-x64.zip`
+            - **Linux (x64)**: `ChainedEngine-v...-linux-x64.tar.gz`
+
+            ### Prerequisites
+            - **.NET 9.0 SDK** or higher is required for C# scripting: [Download .NET 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
+            - **OpenGL 4.5+** compatible GPU.

@@ -1,7 +1,7 @@
 #ifndef CH_COMPONENT_REGISTRY_H
-// std::remove/erase used in RegisterReflective
-#include <algorithm>
 #define CH_COMPONENT_REGISTRY_H
+
+#include <algorithm> // std::remove used in RegisterReflective
 
 #include "engine/scene/entity.h"
 #include "engine/scene/scene.h"

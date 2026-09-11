@@ -1,0 +1,8 @@
+AnimationGraph:
+  EntryNodeID: -1
+  NextNodeID: 1
+  NextLinkID: 1
+  Nodes:
+    []
+  Transitions:
+    []

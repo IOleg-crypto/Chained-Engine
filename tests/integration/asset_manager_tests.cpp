@@ -40,7 +40,7 @@ namespace
 
 	struct CountingLoaderData
 	{
-		int LoadCalls = 0;
+		std::atomic<int> LoadCalls{0};
 	};
 
 	class DummyLoader final : public IAssetLoader
@@ -62,7 +62,10 @@ namespace
 				return false;
 			}
 
-			++m_Data->LoadCalls;
+			if (m_Data)
+			{
+				++m_Data->LoadCalls;
+			}
 			if (!m_ShouldSucceed)
 			{
 				if (outError)
@@ -106,6 +109,10 @@ protected:
 
 	void TearDown() override
 	{
+		if (m_AssetManager)
+		{
+			m_AssetManager->Shutdown();
+		}
 		m_AssetManager.reset();
 	}
 

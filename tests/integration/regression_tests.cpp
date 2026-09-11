@@ -83,6 +83,10 @@ protected:
 
 	void TearDown() override
 	{
+		if (m_AssetManager)
+		{
+			m_AssetManager->Shutdown();
+		}
 		m_AssetManager.reset();
 	}
 

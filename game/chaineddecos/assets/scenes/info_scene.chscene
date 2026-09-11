@@ -1,4 +1,5 @@
 Scene: Info Scene
+SceneType: 1
 Background:
   Mode: 0
   Color: [0, 0, 0, 255]
@@ -24,6 +25,17 @@ Fog:
   Density: 0.00999999978
   Start: 10
   End: 100
+Grid:
+  Spacing: 1
+  SecondarySpacing: 10
+  Color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.400000006
+  FadeStart: 0
+  FadeEnd: 8000
+  PlaneSize: 15000
 DebugSettings:
   DiagnosticMode: 0
   DrawColliders: false
@@ -34,24 +46,21 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 9713408907339877801
+  - Entity: 17047749411150576149
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: back_button
+      Tag: info_project
     IDComponent:
       {}
-    Scene TransitionComponent:
-      TargetScenePath: scenes/start_menu.chscene
-      Triggered: false
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-694.28064, 272.122009]
-        OffsetMax: [-448.361908, 352.654694]
+        OffsetMin: [-218.921143, -175.490417]
+        OffsetMax: [155.589325, -88.986969]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -60,132 +69,33 @@ Entities:
       HiddenInHierarchy: false
     WidgetComponent:
       Box Style:
-        BG Color: [30, 33, 40, 255]
-        Hover Color: [56, 178, 166, 255]
-        Pressed Color: [40, 130, 122, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 28]
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1.03000009
-        Pressed Scale: 0.970000029
-        Transition Speed: 0.150000006
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
       Text Style:
         Font Name: font/static/Figtree-Regular.ttf
-        Font Size: 18
+        Font Size: 22
         Text Color: [235, 238, 242, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Back
-      Interactable: true
-      Auto Size: false
-  - Entity: 15340164695204985997
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: info_text_4
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-220.071594, -93.3335114]
-        OffsetMax: [166.901703, -7.93653107]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
-        Font Size: 20
-        Text Color: [200, 204, 212, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
+        Letter Spacing: 1.20000005
+        Line Height: 1.28600001
         H Align: 1
         V Align: 1
       Widget Type: 3
-      Text: "Developer: Oleg (IOleg-crypto)"
+      Text: "Project: Chained Decos"
       Auto Size: false
-  - Entity: 14452598080826121559
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: info_text_3
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-235.868973, -244.783401]
-        OffsetMax: [172.181335, -177.221115]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
-        Font Size: 20
-        Text Color: [200, 204, 212, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 3
-      Text: "Engine: Chained Engine"
-      Auto Size: false
-  - Entity: 14564633910809536244
+  - Entity: 7620473408511263627
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -234,21 +144,21 @@ Entities:
       Widget Type: 3
       Text: Information
       Auto Size: false
-  - Entity: 4167907334565114158
+  - Entity: 7143560616779915217
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: info_project
+      Tag: info_text_3
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-218.921143, -175.490417]
-        OffsetMax: [155.589325, -88.986969]
+        OffsetMin: [-235.868973, -244.783401]
+        OffsetMax: [172.181335, -177.221115]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -271,15 +181,117 @@ Entities:
         Transition Speed: 0.100000001
       Text Style:
         Font Name: font/static/Figtree-Regular.ttf
-        Font Size: 22
+        Font Size: 20
+        Text Color: [200, 204, 212, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 3
+      Text: "Engine: Chained Engine"
+      Auto Size: false
+  - Entity: 7322171990093333479
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: info_text_4
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-220.071594, -93.3335114]
+        OffsetMax: [166.901703, -7.93653107]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Regular.ttf
+        Font Size: 20
+        Text Color: [200, 204, 212, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 3
+      Text: "Developer: Oleg (IOleg-crypto)"
+      Auto Size: false
+  - Entity: 5961609588037343467
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: back_button
+    IDComponent:
+      {}
+    SceneTransitionComponent:
+      TargetScenePath: scenes/start_menu.chscene
+      Triggered: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-694.28064, 272.122009]
+        OffsetMax: [-448.361908, 352.654694]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [30, 33, 40, 255]
+        Hover Color: [56, 178, 166, 255]
+        Pressed Color: [40, 130, 122, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 28]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.03000009
+        Pressed Scale: 0.970000029
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/static/Figtree-Regular.ttf
+        Font Size: 18
         Text Color: [235, 238, 242, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.20000005
-        Line Height: 1.28600001
+        Letter Spacing: 1
+        Line Height: 1.20000005
         H Align: 1
         V Align: 1
-      Widget Type: 3
-      Text: "Project: Chained Decos"
+      Widget Type: 1
+      Label: Back
+      Interactable: true
       Auto Size: false

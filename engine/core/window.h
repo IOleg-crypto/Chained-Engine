@@ -62,6 +62,14 @@ namespace Chained
 		virtual void SetCursorMode(CursorMode mode) = 0;
 		virtual bool IsFocused() const = 0;
 
+		virtual void SetClipboardText(const std::string& /*text*/)
+		{
+		}
+		virtual std::string GetClipboardText() const
+		{
+			return "";
+		}
+
 		virtual void* GetNativeWindow() const = 0;
 
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;

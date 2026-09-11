@@ -1,25 +1,5 @@
-add_library(engine_assets STATIC
-    asset.h
-    asset_manager.h
-    asset_manager.cpp
-    asset_metadata.h
-    asset_metadata.cpp
-    asset_path_resolver.cpp
-    asset_path_resolver.h
-    model_data.h
-    types/audio_asset.h
-    types/environment_asset.h
-    types/font_asset.h
-    types/font_asset.cpp
-    types/material_asset.h
-    types/material_asset.cpp
-    types/model_asset.h
-    types/model_asset.cpp
-    types/shader_asset.h
-    types/texture_asset.h
-    types/texture_asset.cpp
-    types/animation_graph_asset.h
-    loaders/iasset_loader.h
+
+set (ASSET_LOADERS loaders/iasset_loader.h
     loaders/anim_graph_loader.h
     loaders/anim_graph_loader.cpp
     loaders/assimp_importer.h
@@ -31,8 +11,6 @@ add_library(engine_assets STATIC
     loaders/material_extractor.cpp
     loaders/animation_sampler.h
     loaders/animation_sampler.cpp
-    loaders/mesh_merger.h
-    loaders/mesh_merger.cpp
     loaders/audio_loader.h
     loaders/audio_loader.cpp
     loaders/environment_loader.h
@@ -49,6 +27,43 @@ add_library(engine_assets STATIC
     loaders/texture_loader.h
     loaders/texture_loader.cpp
 )
+
+set(ASSET_TYPES
+    types/audio_asset.h
+    types/environment_asset.h
+    types/font_asset.h
+    types/font_asset.cpp
+    types/material_asset.h
+    types/material_asset.cpp
+    types/model_asset.h
+    types/model_asset.cpp
+    types/shader_asset.h
+    types/texture_asset.h
+    types/texture_asset.cpp
+    types/animation_graph_asset.h
+)
+
+set(ASSET_MAIN
+    asset.h
+    asset_manager.h
+    asset_manager.cpp
+    asset_metadata.h
+    asset_metadata.cpp
+    asset_pack_store.h
+    asset_pack_store.cpp
+    asset_path_resolver.cpp
+    asset_path_resolver.h
+    asset_pack_store.cpp
+    asset_pack_store.h
+    model_data.h
+)
+
+add_library(engine_assets STATIC
+    ${ASSET_MAIN}
+    ${ASSET_LOADERS}
+    ${ASSET_TYPES}
+)
+    
 
 target_include_directories(engine_assets PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -70,9 +85,6 @@ if(TARGET pack-static)
     target_link_libraries(engine_assets PUBLIC pack-static)
 endif()
 
-if(TARGET engine_pack)
-    target_link_libraries(engine_assets PUBLIC engine_pack)
-endif()
 
 if(TARGET engine_external_basisu_transcoder)
     target_link_libraries(engine_assets PUBLIC engine_external_basisu_transcoder)

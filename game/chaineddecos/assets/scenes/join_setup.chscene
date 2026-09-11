@@ -25,6 +25,17 @@ Fog:
   Density: 0.00999999978
   Start: 10
   End: 100
+Grid:
+  Spacing: 1
+  SecondarySpacing: 10
+  Color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.400000006
+  FadeStart: 0
+  FadeEnd: 8000
+  PlaneSize: 15000
 DebugSettings:
   DiagnosticMode: 0
   DrawColliders: false
@@ -35,7 +46,7 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 7037658707394121711
+  - Entity: 12904639473657281643
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -44,7 +55,7 @@ Entities:
       Tag: btn_back
     IDComponent:
       {}
-    Scene TransitionComponent:
+    SceneTransitionComponent:
       TargetScenePath: scenes/multiplayer_menu.chscene
       Triggered: false
     ControlComponent:
@@ -88,10 +99,7 @@ Entities:
       Label: Back
       Interactable: true
       Auto Size: false
-  - Entity: 15349157472545293824
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.ConnectButton
+  - Entity: 9324550015038102408
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -100,6 +108,9 @@ Entities:
       Tag: btn_connect
     IDComponent:
       {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.ConnectButton
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
@@ -141,7 +152,7 @@ Entities:
       Label: Connect to Server
       Interactable: true
       Auto Size: false
-  - Entity: 106195967097032646
+  - Entity: 14905117153586086547
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -195,7 +206,7 @@ Entities:
       Multiline: false
       Read Only: false
       Password: false
-  - Entity: 15748609262065323096
+  - Entity: 17206688748574139750
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -244,7 +255,7 @@ Entities:
       Widget Type: 3
       Text: Nickname
       Auto Size: false
-  - Entity: 4442177719855331895
+  - Entity: 7679912155366356535
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -298,7 +309,7 @@ Entities:
       Multiline: false
       Read Only: false
       Password: false
-  - Entity: 4547297835837580507
+  - Entity: 5723027676792920726
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -347,7 +358,7 @@ Entities:
       Widget Type: 3
       Text: Port
       Auto Size: false
-  - Entity: 9014834773303136563
+  - Entity: 4906001378112920698
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -401,7 +412,7 @@ Entities:
       Multiline: false
       Read Only: false
       Password: false
-  - Entity: 144981501275222977
+  - Entity: 5977615576954170780
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -450,7 +461,7 @@ Entities:
       Widget Type: 3
       Text: IP Address
       Auto Size: false
-  - Entity: 4797089471926780887
+  - Entity: 9021019183732381316
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]

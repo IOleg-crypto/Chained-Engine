@@ -1,15 +1,7 @@
-"""Build managed C# projects for Chained Engine.
-
-Usage:
-    python tools/build_managed.py build-managed \\
-        --project managed/Chained.Managed.csproj \\
-        --output build/bin/Debug \\
-        --coral-dir build/vendor/coral \\
-        --configuration Debug \\
-        --copy-coral --write-props --parallel
-"""
+"""Build managed C# projects for Chained Engine."""
 import argparse
 import os
+import platform
 import shutil
 import subprocess
 from pathlib import Path
@@ -53,6 +45,16 @@ def write_if_changed(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
 
 
+def _is_ntfs_mount(path: Path) -> bool:
+    """Return True when path lives on a Windows NTFS mount under WSL2/Linux (/mnt/)."""
+    if platform.system() != "Linux":
+        return False
+    try:
+        return str(path.resolve()).startswith("/mnt/")
+    except Exception:
+        return False
+
+
 def build_managed(
     project: Path,
     output_dir: Path,
@@ -61,11 +63,15 @@ def build_managed(
     copy_coral: bool,
     parallel: bool,
     write_props: bool,
+    intermediate_dir: Optional[Path] = None,
 ) -> None:
     if not (dotnet := find_dotnet()):
         raise FileNotFoundError("Could not find dotnet. Set DOTNET_ROOT or add dotnet to PATH.")
 
-    if write_props:
+    # On WSL2 the source tree lives on an NTFS mount (/mnt/d/).
+    # Writing ManagedDependencies.props into the source directory fails there;
+    # the .csproj already imports it conditionally so skipping is safe.
+    if write_props and not _is_ntfs_mount(project.parent):
         relative = os.path.normpath(os.path.relpath(coral_dir, start=project.parent))
         write_if_changed(
             project.parent / "ManagedDependencies.props",
@@ -79,10 +85,39 @@ def build_managed(
         "--output", str(output_dir),
         f"-p:CoralManagedDir={coral_dir}",
     ]
+
+    # On WSL2, the source tree lives on an NTFS DrvFs mount (/mnt/d/…).
+    # DrvFs does not support utime()/utimes() — MSBuild's WriteStateFile writes
+    # a *.Up2Date sentinel and calls SetLastWriteTime on it, which raises MSB3374.
+    #
+    # Fix: set CH_MANAGED_OBJ_DIR env var before invoking dotnet.
+    # engine/scripting/managed/Directory.Build.props reads this var and sets
+    #   BaseIntermediateOutputPath = $(CH_MANAGED_OBJ_DIR)/$(MSBuildProjectName)/
+    # Each project (Chained.Managed, Chained.Managed.Generator, …) gets its own
+    # named subfolder, so project.assets.json is never shared → no NETSDK1005.
+    # On Windows CH_MANAGED_OBJ_DIR is never set, so behavior is unchanged.
+    build_env: Optional[dict] = None
+
+    if intermediate_dir is not None:
+        # Explicit --intermediate-dir CLI override.
+        intermediate_dir.mkdir(parents=True, exist_ok=True)
+        build_env = {**os.environ, "CH_MANAGED_OBJ_DIR": str(intermediate_dir)}
+    elif _is_ntfs_mount(project):
+        managed_obj = output_dir.parent / "managed-obj"
+        managed_obj.mkdir(parents=True, exist_ok=True)
+        build_env = {**os.environ, "CH_MANAGED_OBJ_DIR": str(managed_obj)}
+
+    if build_env is not None:
+        # Restore all projects with the redirected obj path first so that
+        # project.assets.json lands in the right location before build reads it.
+        restore_cmd = [dotnet, "restore", str(project), "--force"]
+        subprocess.run(restore_cmd, env=build_env, cwd=str(project.parent), check=True)
+        command.append("--no-restore")
+
     if parallel:
         command.append("-m")
 
-    subprocess.run(command, cwd=str(project.parent), check=True)
+    subprocess.run(command, env=build_env, cwd=str(project.parent), check=True)
 
     if copy_coral:
         for name in CORAL_ARTIFACTS:
@@ -100,6 +135,11 @@ def main() -> None:
     parser.add_argument("--copy-coral", action="store_true", help="Copy Coral.Managed artifacts to output")
     parser.add_argument("--write-props", action="store_true", help="Write ManagedDependencies.props")
     parser.add_argument("--parallel", action="store_true", help="Use parallel MSBuild")
+    parser.add_argument(
+        "--intermediate-dir",
+        default=None,
+        help="Override MSBuild BaseIntermediateOutputPath (useful on WSL2 to keep obj/ off NTFS mounts)",
+    )
 
     args = parser.parse_args()
 
@@ -111,6 +151,7 @@ def main() -> None:
         args.copy_coral,
         args.parallel,
         args.write_props,
+        Path(args.intermediate_dir).resolve() if args.intermediate_dir else None,
     )
 
 

@@ -79,8 +79,8 @@ namespace Chained
 		m_Data->Shaders.reset();
 		m_Data->CameraUBO.reset();
 
-		m_Data->Instancing.VAOCache.clear();
-		m_Data->Instancing.Buffer.reset();
+		m_Data->Instancing.SSBO.reset();
+		m_Data->Instancing.Capacity = 0;
 
 		GraphicsDevice::Get().Shutdown();
 	}
@@ -167,17 +167,23 @@ namespace Chained
 		// Set model matrix
 		shader->SetMatrix("matModel", transform);
 
-		glm::mat4 matNormal = glm::transpose(glm::inverse(transform));
-		shader->SetMatrix("matNormal", matNormal);
+		float sx = glm::dot(glm::vec3(transform[0]), glm::vec3(transform[0]));
+		float sy = glm::dot(glm::vec3(transform[1]), glm::vec3(transform[1]));
+		float sz = glm::dot(glm::vec3(transform[2]), glm::vec3(transform[2]));
+		if (std::abs(sx - sy) < 0.001f && std::abs(sx - sz) < 0.001f)
+		{
+			shader->SetMatrix("matNormal", transform);
+		}
+		else
+		{
+			glm::mat4 matNormal = glm::transpose(glm::inverse(transform));
+			shader->SetMatrix("matNormal", matNormal);
+		}
 
 		// Bind VAO and Draw
 		if (mesh.VAO)
 		{
 			mesh.VAO->Bind();
-			// DrawIndexed only if the VAO actually has an index buffer. A mesh can carry
-			// TriangleCount > 0 yet lack an EBO (e.g. a malformed procedural mesh); calling
-			// glDrawElements then reads from a null index buffer and segfaults. Fall back to
-			// DrawArrays in that case rather than crashing the whole renderer.
 			if (mesh.TriangleCount > 0 && mesh.VAO->GetIndexBuffer())
 			{
 				GraphicsDevice::Get().DrawIndexed(mesh.VAO, mesh.TriangleCount * 3);
@@ -186,7 +192,6 @@ namespace Chained
 			{
 				GraphicsDevice::Get().DrawArrays(mesh.VertexCount);
 			}
-			mesh.VAO->Unbind();
 		}
 	}
 
@@ -195,6 +200,12 @@ namespace Chained
 	{
 		if (transforms.empty() || !mesh.VAO)
 		{
+			return;
+		}
+
+		if (transforms.size() == 1)
+		{
+			DrawMesh(mesh, material, transforms[0]);
 			return;
 		}
 
@@ -222,50 +233,30 @@ namespace Chained
 
 		shader->Bind();
 
-		// Set up matrices
-		glm::mat4 mvp = m_Data->Frame.Proj * m_Data->Frame.View;
-		shader->SetMatrix("u_ViewProjection", mvp);
-		shader->SetMatrix("u_Transform", glm::mat4(1.0f));
-
-		// 1. Manage/Reuse Instance Buffer
+		// Upload instance transforms to SSBO slot 2
 		uint32_t dataSize = (uint32_t)(transforms.size() * sizeof(glm::mat4));
-		if (!m_Data->Instancing.Buffer || m_Data->Instancing.Capacity < dataSize)
+		if (!m_Data->Instancing.SSBO || m_Data->Instancing.Capacity < dataSize)
 		{
-			// Reallocate if needed (starting at 1024 instances or required size)
-			m_Data->Instancing.Capacity = std::max(dataSize, (uint32_t)(1024 * sizeof(glm::mat4)));
-			m_Data->Instancing.Buffer = VertexBuffer::Create(m_Data->Instancing.Capacity);
-			m_Data->Instancing.Buffer->SetLayout({{VertexAttributeType::Mat4, "a_InstanceTransform", false, true}});
-
-			// Clear VAO cache because the VBO handle changed
-			m_Data->Instancing.VAOCache.clear();
+			m_Data->Instancing.Capacity = std::max(dataSize, (uint32_t)(4096 * sizeof(glm::mat4)));
+			m_Data->Instancing.SSBO = StorageBuffer::Create(m_Data->Instancing.Capacity);
 		}
-		m_Data->Instancing.Buffer->SetData(transforms.data(), dataSize);
+		m_Data->Instancing.SSBO->SetData(transforms.data(), dataSize);
+		m_Data->Instancing.SSBO->BindBase(2);
 
-		// 2. Get or Create Cached Instanced VAO
-		auto& instancedVAO = m_Data->Instancing.VAOCache[mesh.VAO.get()];
-		if (!instancedVAO)
-		{
-			instancedVAO = VertexArray::Create();
-			for (const auto& vbo : mesh.VAO->GetVertexBuffers())
-			{
-				instancedVAO->AddVertexBuffer(vbo);
-			}
-			instancedVAO->AddVertexBuffer(m_Data->Instancing.Buffer);
-			instancedVAO->SetIndexBuffer(mesh.VAO->GetIndexBuffer());
-		}
+		shader->SetInt("u_IsInstanced", 1);
 
-		// 3. Bind and Draw
-		instancedVAO->Bind();
-		if (mesh.TriangleCount > 0 && instancedVAO->GetIndexBuffer())
+		// Bind mesh VAO and draw instanced
+		mesh.VAO->Bind();
+		if (mesh.TriangleCount > 0 && mesh.VAO->GetIndexBuffer())
 		{
-			GraphicsDevice::Get().DrawIndexedInstanced(instancedVAO, (uint32_t)transforms.size(),
-													   mesh.TriangleCount * 3);
+			GraphicsDevice::Get().DrawIndexedInstanced(mesh.VAO, (uint32_t)transforms.size(), mesh.TriangleCount * 3);
 		}
 		else
 		{
 			GraphicsDevice::Get().DrawArraysInstanced(mesh.VertexCount, (uint32_t)transforms.size());
 		}
-		instancedVAO->Unbind();
+
+		shader->SetInt("u_IsInstanced", 0);
 	}
 
 	void Renderer::DrawSkybox(uint32_t textureId, int skyboxMode, bool isHDR, float exposure, float brightness,

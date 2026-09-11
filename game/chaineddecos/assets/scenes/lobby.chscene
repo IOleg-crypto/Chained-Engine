@@ -25,6 +25,17 @@ Fog:
   Density: 0.00100000005
   Start: 10
   End: 5000
+Grid:
+  Spacing: 1
+  SecondarySpacing: 10
+  Color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.400000006
+  FadeStart: 0
+  FadeEnd: 8000
+  PlaneSize: 15000
 DebugSettings:
   DiagnosticMode: 0
   DrawColliders: false
@@ -35,146 +46,63 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 2163670510110017044
+  - Entity: 8219895157982558792
     TransformComponent:
       Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
-    PrimitiveComponent:
-      Type: 1
-      Radius: 0.5
-      InnerRadius: 0.200000003
-      Height: 1
-      Slices: 16
-      Stacks: 16
-      Dimensions: [1, 1, 1]
-      AlbedoPath: ""
-      AlbedoColor: [1, 1, 1, 1]
-      NormalPath: ""
-      MetallicRoughnessPath: ""
-      EmissivePath: ""
-      EmissiveColor: [0, 0, 0, 1]
-      EmissiveIntensity: 0
-      Metalness: 0
-      Roughness: 0.5
-      Transparent: false
-      Alpha: 1
     TagComponent:
       Tag: avatar_3
     IDComponent:
       {}
-  - Entity: 15195757239442346361
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 5839768795410184732
     TransformComponent:
       Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
-    PrimitiveComponent:
-      Type: 1
-      Radius: 0.5
-      InnerRadius: 0.200000003
-      Height: 1
-      Slices: 16
-      Stacks: 16
-      Dimensions: [1, 1, 1]
-      AlbedoPath: ""
-      AlbedoColor: [1, 1, 1, 1]
-      NormalPath: ""
-      MetallicRoughnessPath: ""
-      EmissivePath: ""
-      EmissiveColor: [0, 0, 0, 1]
-      EmissiveIntensity: 0
-      Metalness: 0
-      Roughness: 0.5
-      Transparent: false
-      Alpha: 1
     TagComponent:
       Tag: avatar_2
     IDComponent:
       {}
-  - Entity: 16763722746931335686
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 11501576161532787228
     TransformComponent:
       Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
-    PrimitiveComponent:
-      Type: 1
-      Radius: 0.5
-      InnerRadius: 0.200000003
-      Height: 1
-      Slices: 16
-      Stacks: 16
-      Dimensions: [1, 1, 1]
-      AlbedoPath: ""
-      AlbedoColor: [1, 1, 1, 1]
-      NormalPath: ""
-      MetallicRoughnessPath: ""
-      EmissivePath: ""
-      EmissiveColor: [0, 0, 0, 1]
-      EmissiveIntensity: 0
-      Metalness: 0
-      Roughness: 0.5
-      Transparent: false
-      Alpha: 1
     TagComponent:
       Tag: avatar_1
     IDComponent:
       {}
-  - Entity: 50237590426086779
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 9602968260172400354
     TransformComponent:
       Translation: [0, -100, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
-    PrimitiveComponent:
-      Type: 1
-      Radius: 0.5
-      InnerRadius: 0.200000003
-      Height: 1
-      Slices: 16
-      Stacks: 16
-      Dimensions: [1, 1, 1]
-      AlbedoPath: ""
-      AlbedoColor: [1, 1, 1, 1]
-      NormalPath: ""
-      MetallicRoughnessPath: ""
-      EmissivePath: ""
-      EmissiveColor: [0, 0, 0, 1]
-      EmissiveIntensity: 0
-      Metalness: 0
-      Roughness: 0.5
-      Transparent: false
-      Alpha: 1
     TagComponent:
       Tag: avatar_0
     IDComponent:
       {}
-  - Entity: 14565665045984815288
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 7
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_7
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.819999993, 0.850000024]
-        AnchorMax: [0.920000017, 0.920000017]
-        OffsetMin: [0, 0]
-        OffsetMax: [0, 0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 20
-      IsActive: true
-      HiddenInHierarchy: false
+    ModelComponent:
+      ModelPath: models/primitives/Sphere.obj
+      ModelUUID: 1095150319693539168
+      MaterialPaths:
+        []
+  - Entity: 13094770424270891923
     WidgetComponent:
       Box Style:
         BG Color: [255, 128, 0, 255]
@@ -190,7 +118,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -204,26 +132,10 @@ Entities:
       Label: Orange
       Interactable: true
       Auto Size: false
-  - Entity: 3730352326450737938
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 6
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_6
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.709999979, 0.850000024]
-        AnchorMax: [0.810000002, 0.920000017]
+        AnchorMin: [0.819999993, 0.850000024]
+        AnchorMax: [0.920000017, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -232,6 +144,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_7
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 7
+  - Entity: 18062999030053109456
     WidgetComponent:
       Box Style:
         BG Color: [0, 204, 204, 255]
@@ -247,7 +175,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -261,26 +189,10 @@ Entities:
       Label: Cyan
       Interactable: true
       Auto Size: false
-  - Entity: 11166470100013338923
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 5
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_5
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.600000024, 0.850000024]
-        AnchorMax: [0.699999988, 0.920000017]
+        AnchorMin: [0.709999979, 0.850000024]
+        AnchorMax: [0.810000002, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -289,6 +201,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_6
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 6
+  - Entity: 1784520826731827447
     WidgetComponent:
       Box Style:
         BG Color: [204, 51, 255, 255]
@@ -304,7 +232,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -318,26 +246,10 @@ Entities:
       Label: Purple
       Interactable: true
       Auto Size: false
-  - Entity: 16762231271915398359
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 4
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_4
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.49000001, 0.850000024]
-        AnchorMax: [0.589999974, 0.920000017]
+        AnchorMin: [0.600000024, 0.850000024]
+        AnchorMax: [0.699999988, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -346,6 +258,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_5
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 5
+  - Entity: 5376914906278293850
     WidgetComponent:
       Box Style:
         BG Color: [255, 204, 0, 255]
@@ -361,7 +289,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [30, 30, 30, 255]
         Shadow: false
@@ -375,26 +303,10 @@ Entities:
       Label: Yellow
       Interactable: true
       Auto Size: false
-  - Entity: 11051277910905632287
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 3
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_3
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.379999995, 0.850000024]
-        AnchorMax: [0.479999989, 0.920000017]
+        AnchorMin: [0.49000001, 0.850000024]
+        AnchorMax: [0.589999974, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -403,6 +315,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_4
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 4
+  - Entity: 8509799466560337105
     WidgetComponent:
       Box Style:
         BG Color: [51, 102, 255, 255]
@@ -418,7 +346,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -432,26 +360,10 @@ Entities:
       Label: Blue
       Interactable: true
       Auto Size: false
-  - Entity: 1521358411477463717
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 2
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_2
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.270000011, 0.850000024]
-        AnchorMax: [0.370000005, 0.920000017]
+        AnchorMin: [0.379999995, 0.850000024]
+        AnchorMax: [0.479999989, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -460,6 +372,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_3
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 3
+  - Entity: 9979604263234168691
     WidgetComponent:
       Box Style:
         BG Color: [51, 204, 51, 255]
@@ -475,7 +403,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -489,26 +417,10 @@ Entities:
       Label: Green
       Interactable: true
       Auto Size: false
-  - Entity: 8253676054281124036
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 1
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_1
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.159999996, 0.850000024]
-        AnchorMax: [0.25999999, 0.920000017]
+        AnchorMin: [0.270000011, 0.850000024]
+        AnchorMax: [0.370000005, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -517,6 +429,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_2
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 2
+  - Entity: 304485699082955946
     WidgetComponent:
       Box Style:
         BG Color: [255, 51, 51, 255]
@@ -532,7 +460,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -546,26 +474,10 @@ Entities:
       Label: Red
       Interactable: true
       Auto Size: false
-  - Entity: 6954020226423012674
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SelectSkinButton
-          Fields:
-            - Name: SkinIndex
-              Type: 2
-              Value: 0
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_skin_0
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.0500000007, 0.850000024]
-        AnchorMax: [0.150000006, 0.920000017]
+        AnchorMin: [0.159999996, 0.850000024]
+        AnchorMax: [0.25999999, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -574,6 +486,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_1
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 1
+  - Entity: 13418816367905996251
     WidgetComponent:
       Box Style:
         BG Color: [255, 255, 255, 255]
@@ -589,7 +517,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [30, 30, 30, 255]
         Shadow: false
@@ -603,19 +531,10 @@ Entities:
       Label: White
       Interactable: true
       Auto Size: false
-  - Entity: 697316193292682461
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_send_chat
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.889999986, 0.200000003]
-        AnchorMax: [0.980000019, 0.270000011]
+        AnchorMin: [0.0500000007, 0.850000024]
+        AnchorMax: [0.150000006, 0.920000017]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -624,6 +543,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_skin_0
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SelectSkinButton
+          Fields:
+            - Name: SkinIndex
+              Type: 2
+              Value: 0
+  - Entity: 8173008099772800295
     WidgetComponent:
       Box Style:
         BG Color: [60, 100, 200, 255]
@@ -639,7 +574,7 @@ Entities:
         Pressed Scale: 0.949999988
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -653,19 +588,10 @@ Entities:
       Label: Send
       Interactable: true
       Auto Size: false
-  - Entity: 12854606682601253265
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: chat_input
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.200000003]
-        AnchorMax: [0.879999995, 0.270000011]
+        AnchorMin: [0.889999986, 0.200000003]
+        AnchorMax: [0.980000019, 0.270000011]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -674,6 +600,15 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_send_chat
+    IDComponent:
+      {}
+  - Entity: 16555843832417342604
     WidgetComponent:
       Box Style:
         BG Color: [30, 32, 44, 255]
@@ -689,7 +624,7 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 15
         Text Color: [220, 225, 240, 255]
         Shadow: false
@@ -707,27 +642,27 @@ Entities:
       Multiline: false
       Read Only: false
       Password: false
-  - Entity: 695765240982621471
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: chat_messages
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.289999992]
-        AnchorMax: [0.980000019, 0.74000001]
+        AnchorMin: [0.670000017, 0.200000003]
+        AnchorMax: [0.879999995, 0.270000011]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
-        Pivot: [0.5, 1]
+        Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: chat_input
+    IDComponent:
+      {}
+  - Entity: 12986039170504622839
     WidgetComponent:
       Box Style:
         BG Color: [12, 14, 20, 180]
@@ -743,7 +678,7 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [210, 215, 230, 255]
         Shadow: false
@@ -756,19 +691,59 @@ Entities:
       Widget Type: 3
       Text: ""
       Auto Size: false
-  - Entity: 15462606184185002690
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.670000017, 0.289999992]
+        AnchorMax: [0.980000019, 0.74000001]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 1]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: label_chat_title
+      Tag: chat_messages
     IDComponent:
       {}
+  - Entity: 5622786046136279372
+    WidgetComponent:
+      Box Style:
+        BG Color: [18, 20, 28, 210]
+        Hover Color: [18, 20, 28, 210]
+        Pressed Color: [18, 20, 28, 210]
+        Rounding: 6
+        Border Size: 1
+        Border Color: [60, 62, 80, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 6
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/arial.ttf
+        Font Size: 18
+        Text Color: [110, 231, 211, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 3
+      Text: "PLAYERS: 1 / 4"
+      Auto Size: false
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.75]
-        AnchorMax: [0.980000019, 0.819999993]
+        AnchorMin: [0.0500000007, 0.75]
+        AnchorMax: [0.300000012, 0.819999993]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -777,6 +752,15 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: label_players_count
+    IDComponent:
+      {}
+  - Entity: 3243140455516661595
     WidgetComponent:
       Box Style:
         BG Color: [25, 27, 38, 0]
@@ -792,7 +776,7 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 15
         Text Color: [140, 145, 175, 255]
         Shadow: false
@@ -805,27 +789,27 @@ Entities:
       Widget Type: 3
       Text: CHAT
       Auto Size: false
-  - Entity: 12710633908340845533
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: chat_panel
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.670000017, 0.140000001]
+        AnchorMin: [0.670000017, 0.75]
         AnchorMax: [0.980000019, 0.819999993]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
-      ZOrder: 15
+      ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: label_chat_title
+    IDComponent:
+      {}
+  - Entity: 14207474856315999375
     WidgetComponent:
       Box Style:
         BG Color: [18, 20, 28, 210]
@@ -841,7 +825,7 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 14
         Text Color: [200, 200, 210, 255]
         Shadow: false
@@ -854,34 +838,27 @@ Entities:
       Widget Type: 8
       Texture Path: ""
       Full Screen: false
-  - Entity: 13452941908663936165
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.DisconnectButton
-          Fields:
-            - Name: MenuScene
-              Type: 4
-              Value: scenes/multiplayer_menu.chscene
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_disconnect
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.0500000007, 0.0500000007]
-        AnchorMax: [0.200000003, 0.119999997]
+        AnchorMin: [0.670000017, 0.140000001]
+        AnchorMax: [0.980000019, 0.819999993]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
-      ZOrder: 20
+      ZOrder: 15
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: chat_panel
+    IDComponent:
+      {}
+  - Entity: 10124174963513324297
     WidgetComponent:
       Box Style:
         BG Color: [180, 50, 50, 255]
@@ -897,7 +874,7 @@ Entities:
         Pressed Scale: 0.970000029
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 18
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -911,22 +888,10 @@ Entities:
       Label: Disconnect
       Interactable: true
       Auto Size: false
-  - Entity: 197702033032135749
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.StartGameButton
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_start_game
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.699999988, 0.0500000007]
-        AnchorMax: [0.949999988, 0.119999997]
+        AnchorMin: [0.0500000007, 0.0500000007]
+        AnchorMax: [0.200000003, 0.119999997]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -935,6 +900,22 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_disconnect
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.DisconnectButton
+          Fields:
+            - Name: MenuScene
+              Type: 4
+              Value: scenes/multiplayer_menu.chscene
+  - Entity: 7330845542082217534
     WidgetComponent:
       Box Style:
         BG Color: [40, 160, 80, 255]
@@ -950,7 +931,7 @@ Entities:
         Pressed Scale: 0.970000029
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 20
         Text Color: [255, 255, 255, 255]
         Shadow: false
@@ -964,19 +945,10 @@ Entities:
       Label: Start Game
       Interactable: true
       Auto Size: false
-  - Entity: 6310467683453004953
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: label_server_info
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
-        AnchorMin: [0.25, 0.0500000007]
-        AnchorMax: [0.649999976, 0.119999997]
+        AnchorMin: [0.699999988, 0.0500000007]
+        AnchorMax: [0.949999988, 0.119999997]
         OffsetMin: [0, 0]
         OffsetMax: [0, 0]
         Pivot: [0.5, 0.5]
@@ -985,6 +957,18 @@ Entities:
       ZOrder: 20
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_start_game
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.StartGameButton
+  - Entity: 1886632723851404709
     WidgetComponent:
       Box Style:
         BG Color: [30, 35, 48, 180]
@@ -1000,7 +984,7 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 16
         Text Color: [110, 231, 211, 255]
         Shadow: false
@@ -1013,30 +997,27 @@ Entities:
       Widget Type: 3
       Text: "Server IP & Port"
       Auto Size: false
-  - Entity: 6451330714062150842
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.LobbyUI
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.25, 0.0500000007]
+        AnchorMax: [0.649999976, 0.119999997]
+        OffsetMin: [0, 0]
+        OffsetMax: [0, 0]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 20
+      IsActive: true
+      HiddenInHierarchy: false
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: LobbyUIRoot
+      Tag: label_server_info
     IDComponent:
       {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0, 0]
-        AnchorMax: [1, 1]
-        OffsetMin: [20, 20]
-        OffsetMax: [-20, -20]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 10
-      IsActive: true
-      HiddenInHierarchy: false
+  - Entity: 1833527042896378179
     WidgetComponent:
       Box Style:
         BG Color: [20, 22, 30, 200]
@@ -1052,7 +1033,7 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: font/arial.ttf
         Font Size: 18
         Text Color: [235, 238, 242, 255]
         Shadow: false
@@ -1065,10 +1046,30 @@ Entities:
       Widget Type: 8
       Texture Path: ""
       Full Screen: false
-  - Entity: 13984942435077209345
+    ControlComponent:
+      Transform:
+        AnchorMin: [0, 0]
+        AnchorMax: [1, 1]
+        OffsetMin: [20, 20]
+        OffsetMax: [-20, -20]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 10
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: LobbyUIRoot
+    IDComponent:
+      {}
     ManagedScriptComponent:
       Scripts:
-        - ClassName: ChainedDecos.Scripts.LobbyManager
+        - ClassName: ChainedDecos.Scripts.LobbyUI
+  - Entity: 10636182072576429579
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -1077,7 +1078,18 @@ Entities:
       Tag: LobbyRoot
     IDComponent:
       {}
-  - Entity: 3774568952061291611
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.LobbyManager
+  - Entity: 7190329943476180267
+    TransformComponent:
+      Translation: [0, 0, 10]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: Main Camera
+    IDComponent:
+      {}
     CameraComponent:
       Primary: true
       FixedAspectRatio: false
@@ -1087,15 +1099,3 @@ Entities:
       OrbitYaw: 0
       OrbitPitch: 20
       LookSensitivity: 0.899999976
-      nearClip: 0.100000001
-      farClip: 1000
-      verticalFov: 60
-      orthographicSize: 10
-    TransformComponent:
-      Translation: [0, 0, 10]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: Main Camera
-    IDComponent:
-      {}

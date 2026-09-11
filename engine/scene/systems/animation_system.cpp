@@ -9,14 +9,18 @@
 #include "engine/scene/components/render/model_component.h"
 #include "engine/scene/scene.h"
 
-static int s_AnimLogFrame = 0;
+#include <unordered_set>
 
 namespace Chained::AnimationSystem
 {
-
-	static void EvaluateGraph(AnimationComponent& anim, bool isRuntimePlay)
+	namespace
 	{
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		std::unordered_set<std::string> s_ReportedGraphLoadFailures;
+		std::unordered_set<AssetHandle> s_ReportedMissingGraphHandles;
+	} // namespace
+
+	static void EvaluateGraph(AnimationComponent& anim, bool isRuntimePlay, AssetManager* assets)
+	{
 		if (!assets)
 		{
 			return;
@@ -33,17 +37,14 @@ namespace Chained::AnimationSystem
 			if (asset)
 			{
 				anim.GraphAssetHandle = asset->GetID();
-				if (s_AnimLogFrame < 10)
-				{
-					CH_CORE_INFO("[AnimGraph] Loaded graph asset: {} (handle={})", anim.GraphPath,
-								 (uint64_t)anim.GraphAssetHandle);
-				}
+				CH_CORE_TRACE("[AnimGraph] Loaded graph asset: {} (handle={})", anim.GraphPath,
+							  (uint64_t)anim.GraphAssetHandle);
 			}
 			else
 			{
-				if (s_AnimLogFrame < 10)
+				if (s_ReportedGraphLoadFailures.insert(anim.GraphPath).second)
 				{
-					CH_CORE_ERROR("[AnimGraph] FAILED to load graph asset: {}", anim.GraphPath);
+					CH_CORE_WARN("[AnimGraph] Failed to load graph asset: {}", anim.GraphPath);
 				}
 			}
 		}
@@ -51,10 +52,10 @@ namespace Chained::AnimationSystem
 		auto graphAsset = assets->Get<AnimationGraphAsset>(anim.GraphAssetHandle);
 		if (!graphAsset)
 		{
-			if (s_AnimLogFrame < 10)
+			if (s_ReportedMissingGraphHandles.insert(anim.GraphAssetHandle).second)
 			{
-				CH_CORE_ERROR("[AnimGraph] graphAsset is NULL (handle={}), isRuntime={}",
-							  (uint64_t)anim.GraphAssetHandle, isRuntimePlay);
+				CH_CORE_WARN("[AnimGraph] graphAsset is NULL (handle={}), isRuntime={}",
+							 (uint64_t)anim.GraphAssetHandle, isRuntimePlay);
 			}
 			return;
 		}
@@ -66,8 +67,8 @@ namespace Chained::AnimationSystem
 			{
 				anim.CurrentNodeID = graphAsset->Nodes[0].ID;
 			}
-			CH_CORE_INFO("[AnimGraph] Set entry NodeID={} (nodes={}, transitions={})", anim.CurrentNodeID,
-						 graphAsset->Nodes.size(), graphAsset->Transitions.size());
+			// CH_CORE_TRACE("[AnimGraph] Set entry NodeID={} (nodes={}, transitions={})", anim.CurrentNodeID,
+			//  graphAsset->Nodes.size(), graphAsset->Transitions.size());
 		}
 
 		// Seed missing Variables from the graph's DefaultVariables.
@@ -155,15 +156,14 @@ namespace Chained::AnimationSystem
 			}
 		}
 
-		if (s_AnimLogFrame < 10)
 		{
 			std::string varStr;
 			for (auto& [k, v] : anim.Variables)
 			{
 				varStr += k + "=" + std::to_string(v) + " ";
 			}
-			CH_CORE_INFO("[AnimGraph] runtime={} node={} blending={} vars=[{}] validTrans={}", isRuntimePlay,
-						 anim.CurrentNodeID, anim.Blending, varStr, validTransitions.size());
+			// CH_CORE_TRACE("[AnimGraph] runtime={} node={} blending={} vars=[{}] validTrans={}", isRuntimePlay,
+			/// anim.CurrentNodeID, anim.Blending, varStr, validTransitions.size());
 		}
 
 		// Only evaluate transitions during simulation.
@@ -202,17 +202,17 @@ namespace Chained::AnimationSystem
 			anim.IsPlaying = true;
 			anim.IsFinished = false;
 
-			CH_CORE_INFO("[AnimGraph] TRANSITION: node {} -> {} (blend={}s)", anim.CurrentNodeID, anim.TargetNodeID,
-						 anim.BlendDuration);
+			// CH_CORE_TRACE("[AnimGraph] TRANSITION: node {} -> {} (blend={}s)", anim.CurrentNodeID, anim.TargetNodeID,
+			// anim.BlendDuration);
 
 			// Target node params will be applied after blend completes
 			// Current anim params (StartFrame, EndFrame, Speed, IsLooping) remain unchanged during blend
 		}
 	}
 
-	static void ProcessPlayback(entt::registry& reg, AnimationComponent& anim, const ModelComponent& model, Timestep ts)
+	static void ProcessPlayback(entt::registry& reg, AnimationComponent& anim, const ModelComponent& model, Timestep ts,
+								AssetManager* assets)
 	{
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
 		if (!assets)
 		{
 			return;
@@ -467,6 +467,8 @@ namespace Chained::AnimationSystem
 	{
 		CH_PROFILE_FUNCTION();
 
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+
 		bool isRuntimePlay = true;
 		if (auto* scenePtr = reg.ctx().find<Scene*>())
 		{
@@ -484,15 +486,11 @@ namespace Chained::AnimationSystem
 
 			if (anim.IsGraphDriven())
 			{
-				// Only evaluate graph transitions during simulation.
-				// Variables are only set by scripts, which don't run in edit mode.
-				EvaluateGraph(anim, isRuntimePlay);
+				EvaluateGraph(anim, isRuntimePlay, assets);
 			}
 
-			ProcessPlayback(reg, anim, model, ts);
+			ProcessPlayback(reg, anim, model, ts, assets);
 		}
-
-		s_AnimLogFrame++;
 	}
 
 } // namespace Chained::AnimationSystem

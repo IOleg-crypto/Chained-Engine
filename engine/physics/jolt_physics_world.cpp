@@ -164,7 +164,14 @@ namespace Chained
 
 	JoltPhysicsWorld::~JoltPhysicsWorld()
 	{
-		// PhysicsSystem destroyed automatically (member variable).
+		// 1. Signal background tasks that this world is shutting down and wait for in-flight tasks to finish
+		{
+			std::unique_lock<std::mutex> lock(m_CacheMutex);
+			m_IsShuttingDown = true;
+			m_BakeCondition.wait(lock, [this]() { return m_InFlightMeshBakes.empty(); });
+		}
+
+		// 2. PhysicsSystem destroyed automatically (member variable).
 		// Factory is destroyed last due to declaration order.
 		JPH::Factory::sInstance = nullptr;
 	}
@@ -201,6 +208,10 @@ namespace Chained
 
 		{
 			std::lock_guard lock(m_CacheMutex);
+			if (m_IsShuttingDown)
+			{
+				return;
+			}
 			if (m_MeshShapeCache.count(desc.CacheKey) > 0 || m_ConvexHullCache.count(desc.CacheKey) > 0 ||
 				m_ConvexHullCache.count(desc.CacheKey + "_convex") > 0 || m_InFlightMeshBakes.count(desc.CacheKey) > 0)
 			{
@@ -212,9 +223,24 @@ namespace Chained
 		if (auto* tp = ServiceLocator::TryGet<ThreadPool>())
 		{
 			tp->QueueTask([this, desc]() {
+				// Check if world is still alive before building
+				{
+					std::lock_guard lock(m_CacheMutex);
+					if (m_IsShuttingDown)
+					{
+						m_InFlightMeshBakes.erase(desc.CacheKey);
+						m_BakeCondition.notify_all();
+						return;
+					}
+				}
+
 				PrebuildShape(desc);
-				std::lock_guard lock(m_CacheMutex);
-				m_InFlightMeshBakes.erase(desc.CacheKey);
+
+				{
+					std::lock_guard lock(m_CacheMutex);
+					m_InFlightMeshBakes.erase(desc.CacheKey);
+					m_BakeCondition.notify_all();
+				}
 			});
 		}
 		else
@@ -222,6 +248,7 @@ namespace Chained
 			PrebuildShape(desc);
 			std::lock_guard lock(m_CacheMutex);
 			m_InFlightMeshBakes.erase(desc.CacheKey);
+			m_BakeCondition.notify_all();
 		}
 	}
 
@@ -232,30 +259,28 @@ namespace Chained
 		switch (desc.Shape)
 		{
 		case ColliderType::Box: {
-			JPH::BoxShapeSettings boxSettings(JPH::Vec3(desc.Dimensions.x, desc.Dimensions.y, desc.Dimensions.z));
-			shape = boxSettings.Create().Get();
-			if (!shape)
-			{
-				shape = FallbackUnitBox("Box shape creation failed");
-			}
+			// Use HasError() check — calling .Get() on a failed Result triggers
+			// JPH_ASSERT(IsValid()), which was happening when AutoCalculate produced
+			// a zero-sized box (model not yet Ready).
+			auto result =
+				JPH::BoxShapeSettings(JPH::Vec3(desc.Dimensions.x, desc.Dimensions.y, desc.Dimensions.z)).Create();
+			shape = result.HasError()
+						? FallbackUnitBox("Box shape creation failed: " + std::string(result.GetError().c_str()))
+						: result.Get();
 			break;
 		}
 		case ColliderType::Sphere: {
-			JPH::SphereShapeSettings sphereSettings(desc.Dimensions.x);
-			shape = sphereSettings.Create().Get();
-			if (!shape)
-			{
-				shape = FallbackUnitBox("Sphere shape creation failed");
-			}
+			auto result = JPH::SphereShapeSettings(desc.Dimensions.x).Create();
+			shape = result.HasError()
+						? FallbackUnitBox("Sphere shape creation failed: " + std::string(result.GetError().c_str()))
+						: result.Get();
 			break;
 		}
 		case ColliderType::Capsule: {
-			JPH::CapsuleShapeSettings capsuleSettings(desc.Dimensions.y, desc.Dimensions.x);
-			shape = capsuleSettings.Create().Get();
-			if (!shape)
-			{
-				shape = FallbackUnitBox("Capsule shape creation failed");
-			}
+			auto result = JPH::CapsuleShapeSettings(desc.Dimensions.y, desc.Dimensions.x).Create();
+			shape = result.HasError()
+						? FallbackUnitBox("Capsule shape creation failed: " + std::string(result.GetError().c_str()))
+						: result.Get();
 			break;
 		}
 		case ColliderType::Mesh: {
@@ -350,7 +375,10 @@ namespace Chained
 				if (!convexKey.empty())
 				{
 					std::lock_guard<std::mutex> lock(m_CacheMutex);
-					m_ConvexHullCache[convexKey] = hull;
+					if (!m_IsShuttingDown)
+					{
+						m_ConvexHullCache[convexKey] = hull;
+					}
 				}
 
 				shape = hull;
@@ -443,9 +471,7 @@ namespace Chained
 				}
 
 				JPH::MeshShapeSettings s(std::move(joltTris));
-				s.mBuildQuality = desc.UseFastBuildQuality
-									  ? JPH::MeshShapeSettings::EBuildQuality::FavorBuildSpeed
-									  : JPH::MeshShapeSettings::EBuildQuality::FavorRuntimePerformance;
+				s.mBuildQuality = JPH::MeshShapeSettings::EBuildQuality::FavorBuildSpeed;
 				auto result = s.Create();
 				if (result.HasError())
 				{
@@ -458,7 +484,10 @@ namespace Chained
 				if (!desc.CacheKey.empty())
 				{
 					std::lock_guard<std::mutex> lock(m_CacheMutex);
-					m_MeshShapeCache[desc.CacheKey] = baseShape;
+					if (!m_IsShuttingDown)
+					{
+						m_MeshShapeCache[desc.CacheKey] = baseShape;
+					}
 				}
 
 				const auto buildEnd = std::chrono::steady_clock::now();

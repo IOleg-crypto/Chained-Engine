@@ -13,6 +13,7 @@ namespace Chained
 	CH_SCRIPT_FUNC uint64_t Scene_CopyEntity(uint64_t entityID);
 	CH_SCRIPT_FUNC void Scene_LoadScene(const Coral::UCChar* path);
 	CH_SCRIPT_FUNC uint64_t Scene_GetPrimaryCameraEntity();
+	CH_SCRIPT_FUNC const Coral::UCChar* Scene_GetCurrentScenePath();
 
 } // namespace Chained
 #endif

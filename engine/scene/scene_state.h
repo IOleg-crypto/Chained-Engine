@@ -8,10 +8,9 @@ namespace Chained
 
 	enum class SceneState : uint8_t
 	{
-		None = 0,
-		Edit = 1,
-		Play = 2,
-		Simulate = 3
+		Edit = 0,
+		Play = 1,
+		Simulate = 2
 	};
 
 } // namespace Chained

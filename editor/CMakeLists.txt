@@ -1,27 +1,110 @@
 
-file(GLOB EDITOR_CORE_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/panels/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/panels/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/project/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/project/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/undo/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/undo/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ui/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ui/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/viewport/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/viewport/*.h"
+set(EDITOR_SOURCES
+    action_commands.h
+    action_commands.cpp
+    asset_types.h
+    editor_colors.h
+    editor_menu.h
+    editor_menu.cpp
+    events.h
+    events.cpp
+    font_choice_gui.h
+    font_choice_gui.cpp
+    font_manager.h
+    font_manager.cpp
+    gui.h
+    gui.cpp
+    icons.h
+    layer.h
+    layer.cpp
+    layout.h
+    layout.cpp
+    panels.h
+    panels.cpp
+    project_manager.h
+    project_manager.cpp
+    scene_manager.h
+    scene_manager.cpp
+    scene_picking.h
+    scene_picking.cpp
+    types.h
+    ui_properties.h
+    ui_properties.cpp
+
+    panels/panel.h
+    panels/anim_graph_panel.h
+    panels/anim_graph_panel.cpp
+    panels/console_panel.h
+    panels/console_panel.cpp
+    panels/content_browser_panel.h
+    panels/content_browser_panel.cpp
+    panels/effects_panel.h
+    panels/effects_panel.cpp
+    panels/inspector_panel.h
+    panels/inspector_panel.cpp
+    panels/material_panel.h
+    panels/material_panel.cpp
+    panels/profiler_panel.h
+    panels/profiler_panel.cpp
+    panels/project_settings_panel.h
+    panels/project_settings_panel.cpp
+    panels/property_editor.h
+    panels/property_editor.cpp
+    panels/scene_hierarchy_panel.h
+    panels/scene_hierarchy_panel.cpp
+    panels/viewport_panel.h
+    panels/viewport_panel.cpp
+    panels/world_panel.h
+    panels/world_panel.cpp
+
+    project/asset_dependency_collector.h
+    project/asset_dependency_collector.cpp
+    project/binary_deployer.h
+    project/binary_deployer.cpp
+    project/editor_settings.h
+    project/project_exporter.h
+    project/project_exporter.cpp
+    project/project_serializer.h
+    project/project_serializer.cpp
+    project/resource_packer.h
+    project/resource_packer.cpp
+    project/texture_compressor.h
+    project/texture_compressor.cpp
+
+    ui/project_selector_ui.h
+    ui/project_selector_ui.cpp
+
+    undo/command.h
+    undo/command_history.h
+    undo/command_history.cpp
+    undo/component_commands.h
+    undo/entity_commands.h
+    undo/modify_component_command.h
+
+    viewport/camera.h
+    viewport/camera.cpp
+    viewport/gizmo.h
+    viewport/gizmo.cpp
+    viewport/ui_manipulator.h
+    viewport/ui_manipulator.cpp
+    viewport/viewport_icons.h
+    viewport/viewport_icons.cpp
+    viewport/viewport_picking.h
+    viewport/viewport_picking.cpp
+    viewport/viewport_renderer.h
+    viewport/viewport_renderer.cpp
+    viewport/viewport_toolbar.h
+    viewport/viewport_toolbar.cpp
 )
-# NetworkPanel is only compiled when the networking module is enabled
-list(REMOVE_ITEM EDITOR_CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/panels/network_panel.cpp")
-# The editor executable entry point is built separately
-list(REMOVE_ITEM EDITOR_CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+
 if(CH_NETWORKING)
-    list(APPEND EDITOR_CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/panels/network_panel.cpp")
+    list(APPEND EDITOR_SOURCES
+        panels/network_panel.h
+        panels/network_panel.cpp
+    )
 endif()
 
-add_library(editor_core STATIC ${EDITOR_CORE_SOURCES})
+add_library(editor_core STATIC ${EDITOR_SOURCES})
 
 target_link_libraries(editor_core PUBLIC
     ChainedEngine::Framework
@@ -30,11 +113,6 @@ target_link_libraries(editor_core PUBLIC
 # Pack library — asset packing for shipped builds
 if(TARGET pack-static)
     target_link_libraries(editor_core PUBLIC pack-static)
-endif()
-
-# Dictionary pack support — ZSTD dictionary compression for asset packs
-if(TARGET engine_pack)
-    target_link_libraries(editor_core PUBLIC engine_pack)
 endif()
 
 if(TARGET engine_external_basisu_encoder)
@@ -53,7 +131,18 @@ target_include_directories(editor_core PUBLIC
 
 # Define the Editor executable
 add_executable(ChainedEditor ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
-        
+
+# Embed Windows application icon into the editor executable
+set(EDITOR_RC_FILE "")
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ChainedEditor.rc")
+    set(EDITOR_RC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ChainedEditor.rc")
+    target_sources(ChainedEditor PRIVATE ${EDITOR_RC_FILE})
+    set(EDITOR_ICON_ABS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/icons/chaineddecos.ico")
+    set_source_files_properties("${EDITOR_RC_FILE}" PROPERTIES
+        COMPILE_DEFINITIONS "CHAINED_ICON_PATH=\"${EDITOR_ICON_ABS_PATH}\""
+    )
+endif()
+
 target_link_libraries(ChainedEditor PRIVATE editor_core)
 
 # Packer utility — build-time tool, not linked to the editor

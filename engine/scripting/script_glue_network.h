@@ -11,8 +11,11 @@ namespace Chained
 {
 
 	CH_SCRIPT_FUNC void Network_HostGame(uint16_t port, int maxClients);
+	CH_SCRIPT_FUNC uint32_t Network_HostRoom(uint16_t port, int maxClients);
 
 	CH_SCRIPT_FUNC void Network_ConnectTo(const Coral::UCChar* ip, uint16_t port);
+	CH_SCRIPT_FUNC void Network_ConnectRoom(uint32_t roomCode);
+	CH_SCRIPT_FUNC uint32_t Network_GetRoomCode();
 
 	CH_SCRIPT_FUNC void Network_Disconnect();
 
@@ -32,8 +35,6 @@ namespace Chained
 	CH_SCRIPT_FUNC void Network_GetListenAddress(char* outBuffer, int bufferSize);
 
 	CH_SCRIPT_FUNC void Network_GetPublicAddress(char* outBuffer, int bufferSize);
-
-	CH_SCRIPT_FUNC void Network_GetPublicIPv6Address(char* outBuffer, int bufferSize);
 
 	CH_SCRIPT_FUNC void Network_BroadcastSceneChange(const Coral::UCChar* scenePath);
 
@@ -62,8 +63,14 @@ namespace Chained
 	// UPnP
 	CH_SCRIPT_FUNC uint8_t Network_IsUpnpAvailable();
 
-	// Firewall
-	CH_SCRIPT_FUNC uint8_t Network_IsFirewallRuleActive();
+	// STUN / NAT Traversal
+	CH_SCRIPT_FUNC uint8_t Network_HasStunResult();
+	CH_SCRIPT_FUNC void Network_GetStunPublicAddress(char* outBuffer, int bufferSize);
+	CH_SCRIPT_FUNC void Network_StartHolePunch(const Coral::UCChar* remoteIP, uint16_t remotePort);
+	CH_SCRIPT_FUNC void Network_QueryStun(uint16_t localPort);
+
+	// Ping / RTT
+	CH_SCRIPT_FUNC uint32_t Network_GetPing();
 
 } // namespace Chained
 #endif

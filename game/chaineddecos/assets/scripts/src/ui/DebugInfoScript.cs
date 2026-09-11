@@ -30,6 +30,11 @@ namespace ChainedDecos.Scripts
             {
                 UI.Text($"FPS: {Time.FPS}");
                 UI.Text($"DeltaTime: {Time.DeltaTime:F4}s");
+                if (Network.IsClient)
+                {
+                    uint ping = Network.GetPing();
+                    UI.Text($"Ping: {ping}ms");
+                }
             }
         }
     }

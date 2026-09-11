@@ -15,6 +15,8 @@ public class CameraController : Script
 
     public override void OnCreate()
     {
+        Priority = -10;
+
         Entity? camEntity = Scene.GetMainCamera();
         if (camEntity == null)
         {
@@ -47,12 +49,20 @@ public class CameraController : Script
 
     public override void OnUpdate(float deltaTime)
     {
-        var netComp = Entity.GetComponent<NetworkIdentityComponent>();
-        if (netComp != null && !netComp.IsOwner) return;
+        if (GameHUD.IsPaused || InGameChat.IsChatOpen)
+            return;
 
         Entity? camEntity = Scene.GetMainCamera();
         if (camEntity == null)
             return;
+
+        // If this script is attached to a non-camera entity (e.g. Player prefab):
+        if (Entity.ID != camEntity.ID)
+        {
+            var netComp = Entity.GetComponent<NetworkIdentityComponent>();
+            if (netComp != null && !netComp.IsOwner)
+                return;
+        }
 
         CameraComponent? camera = camEntity.GetComponent<CameraComponent>();
         if (camera == null)

@@ -20,13 +20,11 @@ namespace Chained
 {
 
 	/// Performs a blocking HTTP GET to api.ipify.org and returns the plain-text
-	/// public IP. Called from a background thread via std::async — must not touch
+	/// public IPv4 address. Called from a background thread via std::async — must not touch
 	/// ImGui or any engine state.
-	/// @param useIPv6 If true, fetches IPv6 address from ipv6.api.ipify.org
-	static std::string FetchPublicIPBlocking(bool useIPv6 = false)
+	static std::string FetchPublicIPBlocking()
 	{
 #ifdef _WIN32
-		const wchar_t* host = useIPv6 ? L"ipv6.api.ipify.org" : L"api.ipify.org";
 		HINTERNET hSession = WinHttpOpen(L"ChainedEditor/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
 										 WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
 		if (!hSession)
@@ -34,7 +32,7 @@ namespace Chained
 			return "(error: WinHttpOpen)";
 		}
 
-		HINTERNET hConnect = WinHttpConnect(hSession, host, INTERNET_DEFAULT_HTTP_PORT, 0);
+		HINTERNET hConnect = WinHttpConnect(hSession, L"api.ipify.org", INTERNET_DEFAULT_HTTP_PORT, 0);
 		if (!hConnect)
 		{
 			WinHttpCloseHandle(hSession);
@@ -76,9 +74,8 @@ namespace Chained
 		WinHttpCloseHandle(hSession);
 		return result.empty() ? "(empty response)" : result;
 #else
-		const char* url = useIPv6 ? "https://ipv6.api.ipify.org" : "https://api.ipify.org";
 		char cmd[256];
-		snprintf(cmd, sizeof(cmd), "curl -s --max-time 5 %s 2>/dev/null", url);
+		snprintf(cmd, sizeof(cmd), "curl -s --max-time 5 https://api.ipify.org 2>/dev/null");
 		FILE* pipe = popen(cmd, "r");
 		if (!pipe)
 		{
@@ -187,16 +184,6 @@ namespace Chained
 			}
 		}
 
-		// --- Poll async IPv6 public IP result ---
-		if (m_FetchingIPv6 && m_IpFutureIPv6.valid())
-		{
-			if (m_IpFutureIPv6.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-			{
-				m_PublicIPv6 = m_IpFutureIPv6.get();
-				m_FetchingIPv6 = false;
-			}
-		}
-
 		if (net && net->IsHost())
 		{
 			ImGui::Text("Server is running.");
@@ -222,7 +209,7 @@ namespace Chained
 				if (ImGui::SmallButton("Fetch##ipv4"))
 				{
 					m_FetchingIP = true;
-					m_IpFuture = std::async(std::launch::async, []() { return FetchPublicIPBlocking(false); });
+					m_IpFuture = std::async(std::launch::async, []() { return FetchPublicIPBlocking(); });
 				}
 				if (ImGui::IsItemHovered())
 				{
@@ -249,7 +236,7 @@ namespace Chained
 				{
 					m_PublicIP.clear();
 					m_FetchingIP = true;
-					m_IpFuture = std::async(std::launch::async, []() { return FetchPublicIPBlocking(false); });
+					m_IpFuture = std::async(std::launch::async, []() { return FetchPublicIPBlocking(); });
 				}
 				if (ImGui::IsItemHovered())
 				{
@@ -257,63 +244,6 @@ namespace Chained
 				}
 			}
 			ImGui::TextDisabled("Forward UDP port %u on your router to play over the internet.", net->GetPort());
-
-			ImGui::Separator();
-
-			// ── Public IPv6 block ───────────────────────────────────────────────
-			ImGui::TextColored(ImVec4(0.6f, 0.4f, 1.0f, 1.0f), "Public IPv6 (if available):");
-			ImGui::SameLine();
-			if (m_FetchingIPv6)
-			{
-				ImGui::TextDisabled("fetching...");
-			}
-			else if (m_PublicIPv6.empty())
-			{
-				ImGui::TextDisabled("(not fetched)");
-				ImGui::SameLine();
-				if (ImGui::SmallButton("Fetch##ipv6"))
-				{
-					m_FetchingIPv6 = true;
-					m_IpFutureIPv6 = std::async(std::launch::async, []() { return FetchPublicIPBlocking(true); });
-				}
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::SetTooltip("Fetch your public IPv6 address");
-				}
-			}
-			else if (m_PublicIPv6.find("error") != std::string::npos || m_PublicIPv6.find("empty") != std::string::npos)
-			{
-				ImGui::TextDisabled("IPv6 not available (CGNAT or no IPv6 support)");
-			}
-			else
-			{
-				// IPv6 addresses need brackets in URLs
-				ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "[%s]:%u", m_PublicIPv6.c_str(), net->GetPort());
-				ImGui::SameLine();
-				if (ImGui::SmallButton("Copy##ipv6"))
-				{
-					std::string full = "[" + m_PublicIPv6 + "]:" + std::to_string(net->GetPort());
-					ImGui::SetClipboardText(full.c_str());
-					m_StatusMessage = "Copied IPv6: " + full;
-					m_StatusIsError = false;
-				}
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::SetTooltip("Copy IPv6 address to clipboard");
-				}
-				ImGui::SameLine();
-				if (ImGui::SmallButton("Refresh##ipv6"))
-				{
-					m_PublicIPv6.clear();
-					m_FetchingIPv6 = true;
-					m_IpFutureIPv6 = std::async(std::launch::async, []() { return FetchPublicIPBlocking(true); });
-				}
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::SetTooltip("Re-fetch your public IPv6 address");
-				}
-				ImGui::TextDisabled("IPv6 bypasses CGNAT — share this address with friends!");
-			}
 
 			ImGui::Separator();
 
@@ -326,22 +256,12 @@ namespace Chained
 				ImGui::TextDisabled("UPnP: not available (manual port forwarding needed)");
 			}
 
-			if (net->IsFirewallRuleActive())
-			{
-				ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Firewall: Rule added for UDP %u", net->GetPort());
-			}
-			else
-			{
-				ImGui::TextDisabled("Firewall: no auto-rule (run as admin to enable)");
-			}
-
 			if (!net->IsUpnpAvailable())
 			{
 				ImGui::Separator();
-				ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "For internet play:");
-				ImGui::BulletText("Install Radmin VPN, create/join a network");
-				ImGui::BulletText("Share your Radmin IP (e.g. 26.xx.xx.xx:7777) with friends");
-				ImGui::BulletText("Or forward UDP port %u on your router manually", net->GetPort());
+				ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "For direct internet play:");
+				ImGui::BulletText("Share your Public IP with clients, or forward UDP port %u on your router",
+								  net->GetPort());
 			}
 
 			ImGui::Separator();
@@ -352,9 +272,7 @@ namespace Chained
 				m_StatusMessage = "Server stopped.";
 				m_StatusIsError = false;
 				m_PublicIP.clear();
-				m_PublicIPv6.clear();
 				m_FetchingIP = false;
-				m_FetchingIPv6 = false;
 			}
 			if (ImGui::IsItemHovered())
 			{
@@ -370,7 +288,7 @@ namespace Chained
 			ImGui::InputText("Port", m_HostPort, sizeof(m_HostPort), ImGuiInputTextFlags_CharsDecimal);
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("UDP port to listen on (default: 7777)");
+				ImGui::SetTooltip("UDP port to listen on (default: %d)", kDefaultPort);
 			}
 
 			ImGui::SetNextItemWidth(120);
@@ -388,10 +306,7 @@ namespace Chained
 				m_MaxClients = 32;
 			}
 
-			ImGui::Separator();
-
-			ImGui::TextDisabled("Direct IP connection — no NAT traversal.");
-			ImGui::TextDisabled("For internet play, use Radmin VPN or forward UDP port on your router.");
+			ImGui::TextDisabled("Direct IP / UPnP connection supported.");
 
 			ImGui::Separator();
 
@@ -400,20 +315,17 @@ namespace Chained
 				uint16_t port = static_cast<uint16_t>(std::atoi(m_HostPort));
 				if (port == 0)
 				{
-					port = 7777;
+					port = kDefaultPort;
 				}
 
 				if (net)
 				{
-					NetworkSystem::GetInstance().SetPlayerPrefab("prefab/player.chprefab");
+					ServiceLocator::Get<NetworkSystem>()->SetPlayerPrefab("prefab/player.chprefab");
 					net->HostGame(port, m_MaxClients);
 					// Auto-fetch public IP when server starts
 					m_PublicIP.clear();
-					m_PublicIPv6.clear();
 					m_FetchingIP = true;
-					m_FetchingIPv6 = true;
-					m_IpFuture = std::async(std::launch::async, []() { return FetchPublicIPBlocking(false); });
-					m_IpFutureIPv6 = std::async(std::launch::async, []() { return FetchPublicIPBlocking(true); });
+					m_IpFuture = std::async(std::launch::async, []() { return FetchPublicIPBlocking(); });
 
 					m_StatusMessage = "Server started on port " + std::string(m_HostPort);
 					m_StatusIsError = false;
@@ -471,7 +383,7 @@ namespace Chained
 			ImGui::InputText("Port", m_ConnectPort, sizeof(m_ConnectPort), ImGuiInputTextFlags_CharsDecimal);
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("Server port to connect to (default: 7777)");
+				ImGui::SetTooltip("Server port to connect to (default: %d)", kDefaultPort);
 			}
 
 			ImGui::Separator();
@@ -481,12 +393,12 @@ namespace Chained
 				uint16_t port = static_cast<uint16_t>(std::atoi(m_ConnectPort));
 				if (port == 0)
 				{
-					port = 7777;
+					port = kDefaultPort;
 				}
 
 				if (net)
 				{
-					NetworkSystem::GetInstance().SetPlayerPrefab("prefab/player.chprefab");
+					ServiceLocator::Get<NetworkSystem>()->SetPlayerPrefab("prefab/player.chprefab");
 					net->ConnectTo(m_ConnectIP, port);
 					m_StatusMessage =
 						"Connecting to " + std::string(m_ConnectIP) + ":" + std::string(m_ConnectPort) + "...";

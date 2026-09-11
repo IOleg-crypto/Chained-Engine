@@ -187,6 +187,14 @@ namespace Chained
 		float m_SavedPitch = 0.0f;
 		float m_SavedYaw = 0.0f;
 		ProjectionType m_SavedProjectionType = ProjectionType::Perspective;
+
+#if CH_PLATFORM_LINUX
+		// Previous-frame button state used to detect the first pressed frame and
+		// discard the spurious large delta that WSLg/XWayland reports on button down.
+		bool m_WasRightDown = false;
+		bool m_WasMiddleDown = false;
+		bool m_WasLeftDown = false;
+#endif
 	};
 
 } // namespace Chained

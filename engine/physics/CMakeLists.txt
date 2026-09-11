@@ -1,4 +1,4 @@
-add_library(engine_physics STATIC
+set(PHYSICS_SOURCES
     physics.h
     physics.cpp
     iphysics_world.h
@@ -6,6 +6,10 @@ add_library(engine_physics STATIC
     raycast_result.h
     jolt_physics_world.h
     jolt_physics_world.cpp
+)
+
+add_library(engine_physics STATIC
+    ${PHYSICS_SOURCES}
 )
 
 target_include_directories(engine_physics PUBLIC

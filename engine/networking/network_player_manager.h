@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 
 namespace Chained
 {
@@ -24,26 +25,31 @@ namespace Chained
 		void Reset();
 
 		void SetLocalPlayerInfo(const char* name, uint8_t skinIndex);
-		const std::string& GetLocalPlayerName() const
+		std::string GetLocalPlayerName() const
 		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			return m_LocalPlayerName;
 		}
 		uint8_t GetLocalSkinIndex() const
 		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			return m_LocalSkinIndex;
 		}
 
 		uint64_t GetLocalNetworkID() const
 		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			return m_LocalNetworkID;
 		}
 		void SetLocalNetworkID(uint64_t id)
 		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			m_LocalNetworkID = id;
 		}
 
 		void SetHostNetworkID(uint64_t id)
 		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			m_HostNetworkID = id;
 		}
 
@@ -51,22 +57,18 @@ namespace Chained
 		void OnClientConnected(int clientIndex);
 		void OnClientDisconnected(int clientIndex);
 
-		const std::vector<PlayerNetInfo>& GetPlayerList() const
+		std::vector<PlayerNetInfo> GetPlayerList() const
 		{
-			return m_PlayerList;
-		}
-		std::vector<PlayerNetInfo>& GetPlayerListMutable()
-		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			return m_PlayerList;
 		}
 
 		void SetPlayerListFromMessage(const std::vector<PlayerNetInfo>& list);
 		void UpdatePlayerInfo(uint64_t networkID, const char* name, uint8_t skinIndex);
 
-		uint64_t GenerateClientId();
-
 		size_t GetClientCount() const
 		{
+			std::lock_guard<std::mutex> lock(m_Mutex);
 			return m_ClientIndexToNetworkID.size();
 		}
 		std::vector<int> GetClients() const;
@@ -74,6 +76,7 @@ namespace Chained
 		void AddHostSelf(uint64_t hostNetworkID, const std::string& localPlayerName, uint8_t localSkinIndex);
 
 	private:
+		mutable std::mutex m_Mutex;
 		std::vector<PlayerNetInfo> m_PlayerList;
 		std::unordered_map<int, uint64_t> m_ClientIndexToNetworkID;
 		uint64_t m_LocalNetworkID = 0;

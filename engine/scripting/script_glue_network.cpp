@@ -73,6 +73,17 @@ namespace Chained
 		net->HostGame(port, maxClients);
 	}
 
+	CH_SCRIPT_FUNC uint32_t Network_HostRoom(uint16_t port, int maxClients)
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net)
+		{
+			return 0;
+		}
+		CH_CORE_INFO("[Script] Network.HostRoom(port={}, maxClients={})", port, maxClients);
+		return net->HostRoom(port, maxClients);
+	}
+
 	CH_SCRIPT_FUNC void Network_ConnectTo(const Coral::UCChar* ip, uint16_t port)
 	{
 		auto* net = ServiceLocator::TryGet<Network>();
@@ -83,6 +94,23 @@ namespace Chained
 		std::string ipStr = ch_u16_to_string(ip);
 		CH_CORE_INFO("[Script] Network.ConnectTo(ip='{}', port={})", ipStr, port);
 		net->ConnectTo(ipStr, port);
+	}
+
+	CH_SCRIPT_FUNC void Network_ConnectRoom(uint32_t roomCode)
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net)
+		{
+			return;
+		}
+		CH_CORE_INFO("[Script] Network.ConnectRoom(code={})", roomCode);
+		net->ConnectRoom(roomCode);
+	}
+
+	CH_SCRIPT_FUNC uint32_t Network_GetRoomCode()
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		return net ? net->GetRoomCode() : 0;
 	}
 
 	CH_SCRIPT_FUNC void Network_Disconnect()
@@ -166,22 +194,6 @@ namespace Chained
 			return;
 		}
 		std::string addr = net->GetPublicAddress();
-		std::strncpy(outBuffer, addr.c_str(), bufferSize - 1);
-		outBuffer[bufferSize - 1] = '\0';
-	}
-
-	CH_SCRIPT_FUNC void Network_GetPublicIPv6Address(char* outBuffer, int bufferSize)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || !outBuffer || bufferSize <= 0)
-		{
-			if (outBuffer && bufferSize > 0)
-			{
-				outBuffer[0] = '\0';
-			}
-			return;
-		}
-		std::string addr = net->GetPublicIPv6Address();
 		std::strncpy(outBuffer, addr.c_str(), bufferSize - 1);
 		outBuffer[bufferSize - 1] = '\0';
 	}
@@ -364,7 +376,7 @@ namespace Chained
 			return;
 		}
 		std::string pathStr = ch_u16_to_string(path);
-		NetworkSystem::GetInstance().SetPlayerPrefab(pathStr.c_str());
+		ServiceLocator::Get<NetworkSystem>()->SetPlayerPrefab(pathStr.c_str());
 		CH_CORE_INFO("[Script] Network.SetPlayerPrefab(path='{}')", pathStr);
 	}
 
@@ -376,12 +388,61 @@ namespace Chained
 		return net && net->IsUpnpAvailable();
 	}
 
-	// ---- Firewall ----
+	// ── STUN / NAT Traversal ─────────────────────────────────────────────
 
-	CH_SCRIPT_FUNC uint8_t Network_IsFirewallRuleActive()
+	CH_SCRIPT_FUNC uint8_t Network_HasStunResult()
 	{
 		auto* net = ServiceLocator::TryGet<Network>();
-		return net && net->IsFirewallRuleActive();
+		return net && net->HasStunResult();
+	}
+
+	CH_SCRIPT_FUNC void Network_GetStunPublicAddress(char* outBuffer, int bufferSize)
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net || !outBuffer || bufferSize <= 0)
+		{
+			if (outBuffer && bufferSize > 0)
+			{
+				outBuffer[0] = '\0';
+			}
+			return;
+		}
+		std::string addr = net->GetPublicAddress();
+		std::strncpy(outBuffer, addr.c_str(), bufferSize - 1);
+		outBuffer[bufferSize - 1] = '\0';
+	}
+
+	CH_SCRIPT_FUNC void Network_StartHolePunch(const Coral::UCChar* remoteIP, uint16_t remotePort)
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net || !remoteIP)
+		{
+			return;
+		}
+		std::string ip = ch_u16_to_string(remoteIP);
+		CH_CORE_INFO("[Script] Network.StartHolePunch(ip='{}', port={})", ip, remotePort);
+		net->StartHolePunch(ip, remotePort);
+	}
+
+	CH_SCRIPT_FUNC void Network_QueryStun(uint16_t localPort)
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net)
+		{
+			return;
+		}
+		CH_CORE_INFO("[Script] Network.QueryStun(localPort={})", localPort);
+		net->QueryStunPublicEndpoint(localPort);
+	}
+
+	CH_SCRIPT_FUNC uint32_t Network_GetPing()
+	{
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net || !net->IsClient())
+		{
+			return 0;
+		}
+		return net->GetPing();
 	}
 
 } // namespace Chained

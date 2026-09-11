@@ -18,6 +18,12 @@ namespace Chained
 		std::shared_ptr<Asset> Create() override;
 		bool Load(std::shared_ptr<Asset> asset, const std::string& resolvedPath,
 				  std::string* outError = nullptr) override;
+
+	private:
+		void EnsureBasisuInit();
+		void FlipImageVertically(void* pixels, int width, int height, int channels, size_t bytesPerChannel);
+		bool TryTranscodeKTX2(const void* data, size_t dataSize, std::shared_ptr<TextureAsset> texAsset,
+							  bool flipY = false);
 	};
 } // namespace Chained
 

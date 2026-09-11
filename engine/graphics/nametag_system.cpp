@@ -116,7 +116,7 @@ namespace Chained
 				return;
 			}
 
-			const auto& players = net->GetPlayerList();
+			const auto players = net->GetPlayerList();
 			uint64_t localID = net->GetLocalNetworkID();
 
 			auto view = registry.view<NetworkIdentityComponent, TransformComponent>();

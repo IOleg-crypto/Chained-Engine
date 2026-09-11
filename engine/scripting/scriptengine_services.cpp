@@ -2,6 +2,7 @@
 
 #include "engine/core/service_locator.h"
 #include "engine/project/project.h"
+#include "engine/common/platform_detection.h"
 #include "script_glue.h"
 #include "script_interop_pointers.h"
 #include "engine/scripting/scene_scripting_manager.h"
@@ -29,7 +30,7 @@ namespace Chained
 
 		std::filesystem::path GetCurrentBinaryDirectory()
 		{
-#ifdef _WIN32
+#if CH_PLATFORM_WINDOWS
 			wchar_t buffer[MAX_PATH];
 			GetModuleFileNameW(NULL, buffer, MAX_PATH);
 			return std::filesystem::path(buffer).parent_path();

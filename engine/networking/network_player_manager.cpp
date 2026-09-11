@@ -1,10 +1,10 @@
 #include "network_player_manager.h"
-#include <random>
 
 namespace Chained
 {
 	void NetworkPlayerManager::Reset()
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		std::string savedName = m_LocalPlayerName;
 		uint8_t savedSkin = m_LocalSkinIndex;
 
@@ -19,18 +19,21 @@ namespace Chained
 
 	void NetworkPlayerManager::SetLocalPlayerInfo(const char* name, uint8_t skinIndex)
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		m_LocalPlayerName = name ? name : "";
 		m_LocalSkinIndex = skinIndex;
 	}
 
 	uint64_t NetworkPlayerManager::GetNetworkIDForConnection(int clientIndex) const
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		auto it = m_ClientIndexToNetworkID.find(clientIndex);
 		return it != m_ClientIndexToNetworkID.end() ? it->second : 0;
 	}
 
 	void NetworkPlayerManager::OnClientConnected(int clientIndex)
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		if (m_ClientIndexToNetworkID.find(clientIndex) != m_ClientIndexToNetworkID.end())
 		{
 			return;
@@ -52,6 +55,7 @@ namespace Chained
 
 	void NetworkPlayerManager::OnClientDisconnected(int clientIndex)
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		auto idIt = m_ClientIndexToNetworkID.find(clientIndex);
 		if (idIt != m_ClientIndexToNetworkID.end())
 		{
@@ -73,11 +77,22 @@ namespace Chained
 
 	void NetworkPlayerManager::SetPlayerListFromMessage(const std::vector<PlayerNetInfo>& list)
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
+		if (list.empty())
+		{
+			CH_CORE_WARN("NetworkPlayerManager: Received empty player list.");
+		}
+		if (list.size() > 64)
+		{
+			CH_CORE_WARN("NetworkPlayerManager: Received player list with {} entries, truncating to 64.", list.size());
+		}
+
 		m_PlayerList = list;
 	}
 
 	void NetworkPlayerManager::UpdatePlayerInfo(uint64_t networkID, const char* name, uint8_t skinIndex)
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		for (auto& p : m_PlayerList)
 		{
 			if (p.NetworkID == networkID)
@@ -91,15 +106,9 @@ namespace Chained
 		}
 	}
 
-	uint64_t NetworkPlayerManager::GenerateClientId()
-	{
-		std::random_device rd;
-		std::mt19937_64 gen(rd());
-		return gen();
-	}
-
 	std::vector<int> NetworkPlayerManager::GetClients() const
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		std::vector<int> clients;
 		for (auto& [idx, netID] : m_ClientIndexToNetworkID)
 		{
@@ -111,6 +120,7 @@ namespace Chained
 	void NetworkPlayerManager::AddHostSelf(uint64_t hostNetworkID, const std::string& localPlayerName,
 										   uint8_t localSkinIndex)
 	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		m_LocalNetworkID = hostNetworkID;
 
 		PlayerNetInfo self;

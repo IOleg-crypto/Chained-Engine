@@ -15,143 +15,110 @@
 namespace Chained::AssetResolutionSystem
 {
 
-	static void ResolveSprite(entt::registry& reg, entt::entity e)
+	// Common resolution logic shared by Sprite, Shader, and Model resolvers.
+	// Checks Handle → UUID → Path in order, returning true when the handle is ready.
+	template <typename AssetT, typename HandleT, typename UUIDT, typename PathT>
+	static bool ResolveCommon(AssetManager* assets, HandleT& handle, UUIDT& uuid, PathT& path)
+	{
+		// 1. If path is provided, it is the primary source of truth
+		if (!path.empty())
+		{
+			// Check if existing handle is already valid for this exact path
+			if (handle != AssetHandle(0))
+			{
+				auto currentAsset = assets->Get<AssetT>(handle);
+				if (currentAsset && currentAsset->IsReady() && currentAsset->GetPath() == path)
+				{
+					return true;
+				}
+			}
+
+			// Load or retrieve by path
+			auto asset = assets->Get<AssetT>(path);
+			if (asset)
+			{
+				uuid = asset->GetID();
+				if (asset->IsReady())
+				{
+					handle = asset->GetID();
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// 2. Fallback to handle if path is empty
+		if (handle != AssetHandle(0))
+		{
+			auto currentAsset = assets->Get<AssetT>(handle);
+			if (currentAsset && currentAsset->IsReady())
+			{
+				path = currentAsset->GetPath();
+				return true;
+			}
+		}
+
+		// 3. Fallback to UUID if path and handle are empty
+		if (uuid != 0)
+		{
+			auto asset = assets->GetByUUID<AssetT>(uuid);
+			if (asset && asset->IsReady())
+			{
+				handle = asset->GetID();
+				path = asset->GetPath();
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	static void ResolveSprite(entt::registry& reg, entt::entity e, AssetManager* assets = nullptr)
 	{
 		auto& sprite = reg.get<SpriteComponent>(e);
-
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		if (!assets)
+		{
+			assets = ServiceLocator::TryGet<AssetManager>();
+		}
 		if (!assets)
 		{
 			return;
 		}
-
-		if (sprite.TextureHandle != AssetHandle(0))
-		{
-			auto currentAsset = assets->Get<TextureAsset>(sprite.TextureHandle);
-			if (currentAsset && currentAsset->IsReady())
-			{
-				return;
-			}
-		}
-
-		if (sprite.TextureUUID != 0)
-		{
-			auto asset = assets->GetByUUID<TextureAsset>(sprite.TextureUUID);
-			if (asset)
-			{
-				if (asset->IsReady())
-				{
-					sprite.TextureHandle = asset->GetID();
-					if (sprite.TexturePath.empty())
-					{
-						sprite.TexturePath = asset->GetPath();
-					}
-				}
-				return;
-			}
-		}
-
-		if (!sprite.TexturePath.empty())
-		{
-			auto asset = assets->Get<TextureAsset>(sprite.TexturePath);
-			if (asset)
-			{
-				sprite.TextureUUID = asset->GetID();
-				if (asset->IsReady())
-				{
-					sprite.TextureHandle = asset->GetID();
-				}
-			}
-		}
+		ResolveCommon<TextureAsset>(assets, sprite.TextureHandle, sprite.TextureUUID, sprite.TexturePath);
 	}
 
-	static void ResolveShader(entt::registry& reg, entt::entity e)
+	static void ResolveShader(entt::registry& reg, entt::entity e, AssetManager* assets = nullptr)
 	{
 		auto& shader = reg.get<ShaderComponent>(e);
-
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		if (!assets)
+		{
+			assets = ServiceLocator::TryGet<AssetManager>();
+		}
 		if (!assets)
 		{
 			return;
 		}
-
-		if (shader.ShaderHandle != AssetHandle(0))
-		{
-			auto currentAsset = assets->Get<ShaderAsset>(shader.ShaderHandle);
-			if (currentAsset && currentAsset->IsReady())
-			{
-				return;
-			}
-		}
-
-		if (shader.ShaderUUID != 0)
-		{
-			auto asset = assets->GetByUUID<ShaderAsset>(shader.ShaderUUID);
-			if (asset)
-			{
-				if (asset->IsReady())
-				{
-					shader.ShaderHandle = asset->GetID();
-					if (shader.ShaderPath.empty())
-					{
-						shader.ShaderPath = asset->GetPath();
-					}
-				}
-				return;
-			}
-		}
-
-		if (!shader.ShaderPath.empty())
-		{
-			auto asset = assets->Get<ShaderAsset>(shader.ShaderPath);
-			if (asset)
-			{
-				shader.ShaderUUID = asset->GetID();
-				if (asset->IsReady())
-				{
-					shader.ShaderHandle = asset->GetID();
-				}
-			}
-		}
+		ResolveCommon<ShaderAsset>(assets, shader.ShaderHandle, shader.ShaderUUID, shader.ShaderPath);
 	}
 
-	static void ResolveModel(entt::registry& reg, entt::entity e)
+	static void ResolveModel(entt::registry& reg, entt::entity e, AssetManager* assets = nullptr)
 	{
 		auto& model = reg.get<ModelComponent>(e);
-
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		if (!assets)
+		{
+			assets = ServiceLocator::TryGet<AssetManager>();
+		}
 		if (!assets)
 		{
 			return;
 		}
 
-		if (model.ModelHandle != AssetHandle(0))
+		if (ResolveCommon<ModelAsset>(assets, model.ModelHandle, model.ModelUUID, model.ModelPath))
 		{
-			auto currentAsset = assets->Get<ModelAsset>(model.ModelHandle);
-			if (currentAsset && currentAsset->IsReady())
-			{
-				return;
-			}
+			return;
 		}
 
-		if (model.ModelUUID != 0)
-		{
-			auto asset = assets->GetByUUID<ModelAsset>(model.ModelUUID);
-			if (asset)
-			{
-				if (asset->IsReady())
-				{
-					model.ModelHandle = asset->GetID();
-					if (model.ModelPath.empty())
-					{
-						model.ModelPath = asset->GetPath();
-					}
-				}
-				return;
-			}
-		}
-
-		// Inline ResolveModelPath logic (was previously in ComponentUtils::ResolveModelPath)
+		// Model-specific: explicitly clear handle when path has no ready asset
 		if (model.ModelPath.empty())
 		{
 			model.ModelHandle = AssetHandle(0);
@@ -159,50 +126,45 @@ namespace Chained::AssetResolutionSystem
 		}
 
 		auto asset = assets->Get<ModelAsset>(model.ModelPath);
-		if (asset && asset->GetState() == AssetState::Ready)
-		{
-			model.ModelHandle = asset->GetID();
-		}
-		else
-		{
-			model.ModelHandle = AssetHandle(0);
-		}
+		model.ModelHandle = (asset && asset->GetState() == AssetState::Ready) ? asset->GetID() : AssetHandle(0);
 	}
 
 	void RegisterObservers(entt::registry& reg)
 	{
-		reg.on_construct<SpriteComponent>().connect<&ResolveSprite>();
-		reg.on_update<SpriteComponent>().connect<&ResolveSprite>();
+		reg.on_construct<SpriteComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveSprite(r, e); }>();
+		reg.on_update<SpriteComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveSprite(r, e); }>();
 
-		reg.on_construct<ShaderComponent>().connect<&ResolveShader>();
-		reg.on_update<ShaderComponent>().connect<&ResolveShader>();
+		reg.on_construct<ShaderComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveShader(r, e); }>();
+		reg.on_update<ShaderComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveShader(r, e); }>();
 
-		reg.on_construct<ModelComponent>().connect<&ResolveModel>();
-		reg.on_update<ModelComponent>().connect<&ResolveModel>();
+		reg.on_construct<ModelComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveModel(r, e); }>();
+		reg.on_update<ModelComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveModel(r, e); }>();
 	}
 
 	void Update(entt::registry& reg)
 	{
 		CH_PROFILE_FUNCTION();
 
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+
 		reg.view<SpriteComponent>().each([&](auto entity, auto& sprite) {
 			if (sprite.TextureHandle == AssetHandle(0) && (sprite.TextureUUID != 0 || !sprite.TexturePath.empty()))
 			{
-				ResolveSprite(reg, entity);
+				ResolveSprite(reg, entity, assets);
 			}
 		});
 
 		reg.view<ShaderComponent>().each([&](auto entity, auto& shader) {
 			if (shader.ShaderHandle == AssetHandle(0) && (shader.ShaderUUID != 0 || !shader.ShaderPath.empty()))
 			{
-				ResolveShader(reg, entity);
+				ResolveShader(reg, entity, assets);
 			}
 		});
 
 		reg.view<ModelComponent>().each([&](auto entity, auto& model) {
 			if (model.ModelHandle == AssetHandle(0) && (model.ModelUUID != 0 || !model.ModelPath.empty()))
 			{
-				ResolveModel(reg, entity);
+				ResolveModel(reg, entity, assets);
 			}
 		});
 	}

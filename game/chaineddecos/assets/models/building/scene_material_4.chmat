@@ -15,4 +15,4 @@ Material:
   Roughness: 0.600000024
   Transparent: false
   Alpha: 1
-  AlbedoMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/building\textures/standardSurface6_baseColor.png
+  AlbedoMap: textures/building/standardSurface6_baseColor.png

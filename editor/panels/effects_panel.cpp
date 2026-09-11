@@ -39,7 +39,7 @@ namespace Chained
 			int currentDiag = (int)m_Context->GetSettings().DiagnosticMode;
 			if (ImGui::Combo("Diagnostic Mode", &currentDiag, diagnosticModes, 4))
 			{
-				m_Context->GetSettings().DiagnosticMode = (float)currentDiag;
+				m_Context->SetDiagnosticMode((float)currentDiag);
 				if (auto* renderer = ServiceLocator::TryGet<Renderer>())
 				{
 					renderer->SetDiagnosticMode((float)currentDiag);

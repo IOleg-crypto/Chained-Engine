@@ -34,6 +34,14 @@ namespace Chained
 
 	CH_SCRIPT_FUNC int Window_GetAntiAliasingSamples();
 
+	CH_SCRIPT_FUNC void Window_SetEnableShadows(uint8_t enabled);
+
+	CH_SCRIPT_FUNC uint8_t Window_GetEnableShadows();
+
+	CH_SCRIPT_FUNC void Window_SetShadowResolution(int resolution);
+
+	CH_SCRIPT_FUNC int Window_GetShadowResolution();
+
 	CH_SCRIPT_FUNC uint8_t Window_GetVSync();
 
 	CH_SCRIPT_FUNC uint8_t Window_GetFullscreen();
@@ -59,6 +67,9 @@ namespace Chained
 
 	// ── Physics ────────────────────────────────────────────────────────
 	CH_SCRIPT_FUNC float Physics_GetGravity();
+
+	// ── Clipboard ─────────────────────────────────────────────────────
+	CH_SCRIPT_FUNC void Clipboard_SetText(const Coral::UCChar* text);
 
 } // namespace Chained
 #endif

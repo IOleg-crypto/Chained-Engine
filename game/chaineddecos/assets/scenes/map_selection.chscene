@@ -25,6 +25,17 @@ Fog:
   Density: 0.00999999978
   Start: 10
   End: 100
+Grid:
+  Spacing: 1
+  SecondarySpacing: 10
+  Color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.400000006
+  FadeStart: 0
+  FadeEnd: 8000
+  PlaneSize: 15000
 DebugSettings:
   DiagnosticMode: 0
   DrawColliders: false
@@ -35,27 +46,266 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 6606072194051433189
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: title_map_selection
-    IDComponent:
-      {}
+  - Entity: 9074518260032286860
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [38, 44, 56, 255]
+        Pressed Color: [18, 20, 26, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 28]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.03999996
+        Pressed Scale: 0.959999979
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 20
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1.20000005
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Back
+      Interactable: true
+      Auto Size: false
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-300, -360]
-        OffsetMax: [300, -300]
+        OffsetMin: [-100, 270]
+        OffsetMax: [100, 325]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
       ZOrder: 0
       IsActive: true
       HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: back_button
+    IDComponent:
+      {}
+    SceneTransitionComponent:
+      TargetScenePath: scenes/game_mode_selection.chscene
+      Triggered: false
+  - Entity: 13093687309351032429
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [56, 178, 166, 255]
+        Pressed Color: [40, 130, 122, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.02999997
+        Pressed Scale: 0.970000029
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 22
+        Text Color: [240, 245, 250, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1.20000005
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Laboratory Alpha
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [100, 140]
+        OffsetMax: [500, 195]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 1
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_map_alpha
+    IDComponent:
+      {}
+    SceneTransitionComponent:
+      TargetScenePath: scenes/rpg_strategy_scene.chscene
+      Triggered: false
+  - Entity: 9413447467467368068
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [25, 28, 35, 255]
+        Pressed Color: [25, 28, 35, 255]
+        Rounding: 12
+        Border Size: 1
+        Border Color: [255, 255, 255, 30]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 0
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 18
+        Text Color: [235, 238, 242, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 0
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 9
+      Texture Path: map_previews/placeholder.jpg
+      Tint Color: [255, 255, 255, 255]
+      Border Color: [0, 0, 0, 0]
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [100, -180]
+        OffsetMax: [500, 120]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: preview_map_laboratory
+    IDComponent:
+      {}
+  - Entity: 6154524873741956892
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [56, 178, 166, 255]
+        Pressed Color: [40, 130, 122, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1.02999997
+        Pressed Scale: 0.970000029
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 22
+        Text Color: [240, 245, 250, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1.20000005
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 1
+      Label: Training Grounds
+      Interactable: true
+      Auto Size: false
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-500, 140]
+        OffsetMax: [-100, 195]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 1
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: btn_map_bravo
+    IDComponent:
+      {}
+    SceneTransitionComponent:
+      TargetScenePath: scenes/untitled100.chscene
+      Triggered: false
+  - Entity: 207028471267694746
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [25, 28, 35, 255]
+        Pressed Color: [25, 28, 35, 255]
+        Rounding: 12
+        Border Size: 1
+        Border Color: [255, 255, 255, 30]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 0
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 18
+        Text Color: [235, 238, 242, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 0
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 9
+      Texture Path: map_previews/placeholder.jpg
+      Tint Color: [255, 255, 255, 255]
+      Border Color: [0, 0, 0, 0]
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-500, -180]
+        OffsetMax: [-100, 120]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: preview_map_training
+    IDComponent:
+      {}
+  - Entity: 5400423739944034269
     WidgetComponent:
       Box Style:
         BG Color: [0, 0, 0, 0]
@@ -84,262 +334,23 @@ Entities:
       Widget Type: 3
       Text: Select Map
       Auto Size: false
-  - Entity: 9010000000000000001
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: preview_map_training
-    IDComponent:
-      {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-500, -180]
-        OffsetMax: [-100, 120]
+        OffsetMin: [-300, -360]
+        OffsetMax: [300, -300]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
       ZOrder: 0
       IsActive: true
       HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [25, 28, 35, 255]
-        Pressed Color: [25, 28, 35, 255]
-        Rounding: 12
-        Border Size: 1
-        Border Color: [255, 255, 255, 30]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 0
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.1
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 18
-        Text Color: [235, 238, 242, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 0
-        Line Height: 1.2
-        H Align: 1
-        V Align: 1
-      Widget Type: 9
-      Texture Path: map_previews/placeholder.jpg
-      Tint Color: [255, 255, 255, 255]
-      Border Color: [0, 0, 0, 0]
-  - Entity: 15983045709783596391
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: btn_map_bravo
+      Tag: title_map_selection
     IDComponent:
       {}
-    Scene TransitionComponent:
-      TargetScenePath: scenes/test_platform_scene.chscene
-      Triggered: false
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-500, 140]
-        OffsetMax: [-100, 195]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 1
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [56, 178, 166, 255]
-        Pressed Color: [40, 130, 122, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.03
-        Pressed Scale: 0.97
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 22
-        Text Color: [240, 245, 250, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.20000005
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Training Grounds
-      Interactable: true
-      Auto Size: false
-  - Entity: 9010000000000000002
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: preview_map_laboratory
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [100, -180]
-        OffsetMax: [500, 120]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [25, 28, 35, 255]
-        Pressed Color: [25, 28, 35, 255]
-        Rounding: 12
-        Border Size: 1
-        Border Color: [255, 255, 255, 30]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 0
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.1
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 18
-        Text Color: [235, 238, 242, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 0
-        Line Height: 1.2
-        H Align: 1
-        V Align: 1
-      Widget Type: 9
-      Texture Path: map_previews/placeholder.jpg
-      Tint Color: [255, 255, 255, 255]
-      Border Color: [0, 0, 0, 0]
-  - Entity: 13883782067647492855
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_map_alpha
-    IDComponent:
-      {}
-    Scene TransitionComponent:
-      TargetScenePath: scenes/rpg_strategy_scene.chscene
-      Triggered: false
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [100, 140]
-        OffsetMax: [500, 195]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 1
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [56, 178, 166, 255]
-        Pressed Color: [40, 130, 122, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.03
-        Pressed Scale: 0.97
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 22
-        Text Color: [240, 245, 250, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.20000005
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Laboratory Alpha
-      Interactable: true
-      Auto Size: false
-  - Entity: 2534969863497046244
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: back_button
-    IDComponent:
-      {}
-    Scene TransitionComponent:
-      TargetScenePath: scenes/game_mode_selection.chscene
-      Triggered: false
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-100, 270]
-        OffsetMax: [100, 325]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [38, 44, 56, 255]
-        Pressed Color: [18, 20, 26, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 28]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.04
-        Pressed Scale: 0.96
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 20
-        Text Color: [235, 240, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.20000005
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Back
-      Interactable: true
-      Auto Size: false

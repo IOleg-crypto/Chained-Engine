@@ -1,4 +1,5 @@
 #include "engine/assets/asset_manager.h"
+#include "engine/assets/asset_pack_store.h"
 #include "engine/common/thread_pool.h"
 #include "engine/core/profiler.h"
 #include "engine/core/service_locator.h"
@@ -14,18 +15,23 @@
 #include "engine/assets/loaders/shader_loader.h"
 #include "engine/assets/loaders/anim_graph_loader.h"
 
-#include "engine/pack/dictionary_pack_reader.h"
-#include "pack/reader.hpp"
-
 namespace Chained
 {
-	constexpr size_t kMaxAssetFinalizationsPerFrame = 32;
-	constexpr auto kMaxAssetFinalizeBudget = std::chrono::milliseconds(5);
+	constexpr size_t kMaxAssetFinalizationsPerFrame = 128;
+	constexpr auto kMaxAssetFinalizeBudget = std::chrono::milliseconds(12);
 
-	AssetManager::AssetManager() = default;
+	AssetManager::AssetManager()
+		: m_PackStore(std::make_unique<AssetPackStore>(m_PathResolver))
+	{
+	}
 
 	void AssetManager::Initialize()
 	{
+		if (!m_PackStore)
+		{
+			m_PackStore = std::make_unique<AssetPackStore>(m_PathResolver);
+		}
+
 		RegisterLoader(AssetType::Model, std::make_unique<ModelLoader>());
 		RegisterLoader(AssetType::Texture, std::make_unique<TextureLoader>());
 		RegisterLoader(AssetType::Shader, std::make_unique<ShaderLoader>());
@@ -53,11 +59,16 @@ namespace Chained
 		{
 			tp->WaitIdle();
 		}
+		FinalizePendingLoads();
+		if (m_PackStore)
+		{
+			m_PackStore->CloseAllPacks();
+		}
 	}
 
 	void AssetManager::Update(Timestep ts)
 	{
-		if (m_HotReloadInterval > 0.0f)
+		if (m_HotReloadInterval > 0.0f && !IsPacked())
 		{
 			m_HotReloadAccumulator += ts.GetSeconds();
 			if (m_HotReloadAccumulator >= m_HotReloadInterval)
@@ -68,96 +79,6 @@ namespace Chained
 		}
 
 		FinalizePendingLoads();
-	}
-
-	std::vector<uint8_t> AssetManager::TryPackFallback(const std::string& packKey) const
-	{
-		if (!m_PackOpen || (m_PackReaders.empty() && m_DictPackReaders.empty()))
-		{
-			return {};
-		}
-
-		if (packKey.rfind("assets/", 0) != 0 && packKey.rfind("resources/", 0) != 0)
-		{
-			std::string altAssets = "assets/" + packKey;
-			std::string altResources = "resources/" + packKey;
-
-			// Check standard pack readers
-			for (auto it = m_PackReaders.rbegin(); it != m_PackReaders.rend(); ++it)
-			{
-				auto& reader = *it;
-				uint64_t idx = 0;
-				if (reader->getItemIndex(altAssets.c_str(), idx))
-				{
-					std::vector<uint8_t> data;
-					reader->readItemData(idx, data);
-					return data;
-				}
-				if (reader->getItemIndex(altResources.c_str(), idx))
-				{
-					std::vector<uint8_t> data;
-					reader->readItemData(idx, data);
-					return data;
-				}
-			}
-
-			// Check dictionary pack readers
-			for (auto it = m_DictPackReaders.rbegin(); it != m_DictPackReaders.rend(); ++it)
-			{
-				auto& reader = *it;
-				uint64_t idx = 0;
-				if (reader->GetItemIndex(altAssets.c_str(), idx))
-				{
-					std::vector<uint8_t> data;
-					reader->ReadItemData(idx, data);
-					return data;
-				}
-				if (reader->GetItemIndex(altResources.c_str(), idx))
-				{
-					std::vector<uint8_t> data;
-					reader->ReadItemData(idx, data);
-					return data;
-				}
-			}
-		}
-		return {};
-	}
-
-	bool AssetManager::TryPackFallbackExists(const std::string& packKey) const
-	{
-		if (!m_PackOpen || (m_PackReaders.empty() && m_DictPackReaders.empty()))
-		{
-			return false;
-		}
-
-		if (packKey.rfind("assets/", 0) != 0 && packKey.rfind("resources/", 0) != 0)
-		{
-			std::string altAssets = "assets/" + packKey;
-			std::string altResources = "resources/" + packKey;
-
-			// Check standard pack readers
-			for (auto it = m_PackReaders.rbegin(); it != m_PackReaders.rend(); ++it)
-			{
-				auto& reader = *it;
-				uint64_t idx = 0;
-				if (reader->getItemIndex(altAssets.c_str(), idx) || reader->getItemIndex(altResources.c_str(), idx))
-				{
-					return true;
-				}
-			}
-
-			// Check dictionary pack readers
-			for (auto it = m_DictPackReaders.rbegin(); it != m_DictPackReaders.rend(); ++it)
-			{
-				auto& reader = *it;
-				uint64_t idx = 0;
-				if (reader->GetItemIndex(altAssets.c_str(), idx) || reader->GetItemIndex(altResources.c_str(), idx))
-				{
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 
 	std::vector<AssetManager::StaleAsset> AssetManager::CollectStaleAssets(int thresholdSeconds) const
@@ -179,7 +100,6 @@ namespace Chained
 			}
 		}
 
-		auto now = std::filesystem::file_time_type::clock::now();
 		for (const auto& [handle, asset] : snapshot)
 		{
 			AssetType type = asset->GetType();
@@ -189,7 +109,7 @@ namespace Chained
 			}
 
 			const std::string& path = asset->GetPath();
-			if (path.empty())
+			if (path.empty() || path.front() == '*')
 			{
 				continue;
 			}
@@ -201,9 +121,16 @@ namespace Chained
 				continue;
 			}
 
-			auto age = std::chrono::duration_cast<std::chrono::seconds>(now - fileTime).count();
-			if (age < thresholdSeconds)
+			auto it = m_AssetLastWriteTimes.find(handle);
+			if (it == m_AssetLastWriteTimes.end())
 			{
+				m_AssetLastWriteTimes[handle] = fileTime;
+				continue;
+			}
+
+			if (fileTime > it->second)
+			{
+				it->second = fileTime;
 				stale.push_back({handle, type, path});
 			}
 		}
@@ -227,11 +154,12 @@ namespace Chained
 
 	AssetManager::~AssetManager()
 	{
+		Shutdown();
 		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-		m_PackOpen = false;
 		m_AssetCache.clear();
 		m_PathResolver.ClearCache();
 		m_Loaders.clear();
+		m_PackStore.reset();
 	}
 
 	void AssetManager::RegisterLoader(AssetType type, std::unique_ptr<IAssetLoader> loader)
@@ -261,6 +189,34 @@ namespace Chained
 			asset->Fail(std::string("AssetManager: Load exception for '") + resolved + "' with unknown exception");
 		}
 		return false;
+	}
+
+	void AssetManager::StartAsyncLoad(const std::shared_ptr<Asset>& asset, IAssetLoader* loader,
+									  const std::string& resolved)
+	{
+		if (!loader->IsAsync())
+		{
+			if (ExecuteLoad(asset, loader, resolved))
+			{
+				asset->OnLoaded();
+				asset->SetState(AssetState::Ready);
+			}
+			return;
+		}
+
+		m_LoadingCount.fetch_add(1, std::memory_order_relaxed);
+
+		if (auto* tp = ServiceLocator::TryGet<ThreadPool>())
+		{
+			tp->QueueTask([this, asset, loader, resolved]() {
+				if (ExecuteLoad(asset, loader, resolved))
+				{
+					std::lock_guard<std::mutex> lock(m_PendingMutex);
+					m_PendingAssets.push_back(asset);
+				}
+				m_LoadingCount.fetch_sub(1, std::memory_order_relaxed);
+			});
+		}
 	}
 
 	std::shared_ptr<Asset> AssetManager::LoadAsset(const std::string& path, AssetType type)
@@ -302,7 +258,7 @@ namespace Chained
 			loader = loaderIt->second.get();
 
 			// Load or create .meta sidecar to get a stable UUID
-			auto meta = MetaUtils::LoadOrCreateMeta(resolved, type);
+			auto meta = LoadOrCreateMeta(resolved, type);
 			AssetHandle stableHandle = meta.uuid;
 			asset->SetID(stableHandle);
 			asset->SetPath(resolved);
@@ -312,27 +268,7 @@ namespace Chained
 			m_PathResolver.RegisterHandle(resolved, stableHandle);
 		}
 
-		if (!loader->IsAsync())
-		{
-			if (ExecuteLoad(asset, loader, resolved))
-			{
-				asset->OnLoaded();
-				asset->SetState(AssetState::Ready);
-			}
-		}
-		else
-		{
-			if (auto* tp = ServiceLocator::TryGet<ThreadPool>())
-			{
-				tp->QueueTask([this, asset, loader, resolved]() {
-					if (ExecuteLoad(asset, loader, resolved))
-					{
-						std::lock_guard<std::mutex> lock(m_PendingMutex);
-						m_PendingAssets.push_back(asset);
-					}
-				});
-			}
-		}
+		StartAsyncLoad(asset, loader, resolved);
 
 		return asset;
 	}
@@ -387,10 +323,12 @@ namespace Chained
 				}
 			} catch (const std::exception& e)
 			{
+				CH_CORE_ERROR("AssetManager: Finalization failed for '{}': {}", asset->GetPath(), e.what());
 				asset->Fail(std::string("AssetManager: Finalization failed for '") + asset->GetPath() +
 							"': " + e.what());
 			} catch (...)
 			{
+				CH_CORE_ERROR("AssetManager: Finalization failed for '{}' with unknown exception", asset->GetPath());
 				asset->Fail(std::string("AssetManager: Finalization failed for '") + asset->GetPath() +
 							"' with an unknown exception");
 			}
@@ -412,19 +350,7 @@ namespace Chained
 
 	size_t AssetManager::GetLoadingAssetCount() const
 	{
-		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-
-		size_t loadingCount = 0;
-		for (const auto& [handle, asset] : m_AssetCache)
-		{
-			(void)handle;
-			if (asset && asset->GetState() == AssetState::Loading)
-			{
-				++loadingCount;
-			}
-		}
-
-		return loadingCount;
+		return m_LoadingCount.load(std::memory_order_relaxed);
 	}
 
 	bool AssetManager::HasBackgroundWork() const
@@ -436,15 +362,7 @@ namespace Chained
 				return true;
 			}
 		}
-		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-		for (const auto& [handle, asset] : m_AssetCache)
-		{
-			if (asset && asset->GetState() == AssetState::Loading)
-			{
-				return true;
-			}
-		}
-		return false;
+		return m_LoadingCount.load(std::memory_order_relaxed) > 0;
 	}
 	void AssetManager::ReloadAsset(AssetHandle handle, AssetType type)
 	{
@@ -486,15 +404,53 @@ namespace Chained
 			// Update content hash in .meta after successful reload
 			if (std::filesystem::exists(resolved))
 			{
-				auto metaPath = MetaUtils::GetMetaPath(resolved);
+				auto metaPath = GetMetaPath(resolved);
 				if (std::filesystem::exists(metaPath))
 				{
-					auto meta = MetaUtils::ReadMeta(metaPath);
-					meta.contentHash = MetaUtils::ComputeFileHash(resolved);
-					MetaUtils::WriteMeta(metaPath, meta);
+					auto meta = ReadMeta(metaPath);
+					meta.contentHash = ComputeFileHash(resolved);
+					WriteMeta(metaPath, meta);
 				}
 			}
 		}
+	}
+
+	void AssetManager::RetryFailedAsset(AssetHandle handle, AssetType type)
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
+
+		auto it = m_AssetCache.find(handle);
+		if (it == m_AssetCache.end())
+		{
+			return;
+		}
+
+		auto& asset = it->second;
+		if (!asset || asset->GetState() != AssetState::Failed)
+		{
+			return;
+		}
+
+		auto loaderIt = m_Loaders.find(type);
+		if (loaderIt == m_Loaders.end())
+		{
+			return;
+		}
+
+		std::string path = asset->GetPath();
+		if (path.empty())
+		{
+			return;
+		}
+
+		std::string resolved = ResolvePath(path);
+		auto* loader = loaderIt->second.get();
+		asset->SetState(AssetState::Loading);
+		asset->ClearError();
+
+		CH_CORE_INFO("AssetManager: Retrying failed asset '{}'", path);
+
+		StartAsyncLoad(asset, loader, resolved);
 	}
 
 	void AssetManager::Invalidate(const std::string& path, bool deleteFromDisk)
@@ -677,161 +633,38 @@ namespace Chained
 	bool AssetManager::OpenPack(const std::filesystem::path& packPath)
 	{
 		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-
-		for (const auto& p : m_OpenedPackPaths)
-		{
-			if (p == packPath)
-			{
-				return true;
-			}
-		}
-
-		if (!std::filesystem::exists(packPath))
-		{
-			CH_CORE_WARN("AssetManager: Pack file not found: {}", packPath.string());
-			return false;
-		}
-
-		// Read header to detect dictionary packs
-		FILE* headerFile = fopen(packPath.string().c_str(), "rb");
-		if (!headerFile)
-		{
-			CH_CORE_ERROR("AssetManager: Failed to open pack '{}' for header check", packPath.string());
-			return false;
-		}
-
-		PackHeader packHeader;
-		bool hasDict = false;
-		if (fread(&packHeader, sizeof(PackHeader), 1, headerFile) == 1)
-		{
-			hasDict = packHeader._reserved != 0;
-		}
-		fclose(headerFile);
-
-		try
-		{
-			if (hasDict)
-			{
-				auto dictReader = std::make_unique<DictionaryPackReader>();
-				if (dictReader->Open(packPath))
-				{
-					CH_CORE_INFO("AssetManager: Opened dictionary pack '{}' ({} items)", packPath.string(),
-								 dictReader->GetItemCount());
-					m_OpenedPackPaths.push_back(packPath);
-					m_DictPackReaders.push_back(std::move(dictReader));
-					m_PackOpen = true;
-					return true;
-				}
-				CH_CORE_WARN("AssetManager: Failed to open as dictionary pack, trying standard pack");
-			}
-
-			auto reader = std::make_unique<pack::Reader>(packPath);
-			CH_CORE_INFO("AssetManager: Opened pack '{}' ({} items)", packPath.string(), reader->getItemCount());
-			m_OpenedPackPaths.push_back(packPath);
-			m_PackReaders.push_back(std::move(reader));
-			m_PackOpen = true;
-			return true;
-		} catch (const pack::Error& err)
-		{
-			CH_CORE_ERROR("AssetManager: Failed to open pack '{}': {}", packPath.string(), err.what());
-			return false;
-		}
+		return m_PackStore ? m_PackStore->OpenPack(packPath) : false;
 	}
 
 	size_t AssetManager::OpenAllPacksInDirectory(const std::filesystem::path& dir)
 	{
 		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-		std::error_code ec;
-		if (!std::filesystem::exists(dir, ec) || !std::filesystem::is_directory(dir, ec))
-		{
-			return 0;
-		}
-
-		std::vector<std::filesystem::path> packFiles;
-		for (const auto& entry : std::filesystem::directory_iterator(dir, ec))
-		{
-			if (entry.is_regular_file() && entry.path().extension() == ".pack")
-			{
-				packFiles.push_back(entry.path());
-			}
-		}
-
-		std::sort(packFiles.begin(), packFiles.end());
-
-		size_t openedCount = 0;
-		for (const auto& p : packFiles)
-		{
-			if (OpenPack(p))
-			{
-				++openedCount;
-			}
-		}
-
-		return openedCount;
+		return m_PackStore ? m_PackStore->OpenAllPacksInDirectory(dir) : 0;
 	}
 
 	void AssetManager::CloseAllPacks()
 	{
 		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-		m_PackReaders.clear();
-		m_DictPackReaders.clear();
-		m_OpenedPackPaths.clear();
-		m_PackOpen = false;
+		if (m_PackStore)
+		{
+			m_PackStore->CloseAllPacks();
+		}
+	}
+
+	size_t AssetManager::GetOpenPackCount() const
+	{
+		return m_PackStore ? m_PackStore->GetOpenPackCount() : 0;
+	}
+
+	bool AssetManager::IsPacked() const
+	{
+		return m_PackStore ? m_PackStore->IsPacked() : false;
 	}
 
 	std::vector<uint8_t> AssetManager::ReadAssetData(const std::string& assetPath)
 	{
-		{
-			std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-			if (m_PackOpen && (!m_PackReaders.empty() || !m_DictPackReaders.empty()))
-			{
-				std::string packKey = m_PathResolver.ResolvePackKey(assetPath);
-
-				// Check standard pack readers
-				for (auto it = m_PackReaders.rbegin(); it != m_PackReaders.rend(); ++it)
-				{
-					auto& reader = *it;
-					uint64_t idx = 0;
-					if (reader->getItemIndex(packKey.c_str(), idx))
-					{
-						std::vector<uint8_t> data;
-						reader->readItemData(idx, data);
-						return data;
-					}
-				}
-
-				// Check dictionary pack readers
-				for (auto it = m_DictPackReaders.rbegin(); it != m_DictPackReaders.rend(); ++it)
-				{
-					auto& reader = *it;
-					uint64_t idx = 0;
-					if (reader->GetItemIndex(packKey.c_str(), idx))
-					{
-						std::vector<uint8_t> data;
-						reader->ReadItemData(idx, data);
-						return data;
-					}
-				}
-
-				auto data = TryPackFallback(packKey);
-				if (!data.empty())
-				{
-					return data;
-				}
-			}
-		}
-
-		std::ifstream file(assetPath, std::ios::binary | std::ios::ate);
-		if (file.is_open())
-		{
-			auto size = file.tellg();
-			file.seekg(0);
-			std::vector<uint8_t> data(static_cast<size_t>(size));
-			file.read(reinterpret_cast<char*>(data.data()), size);
-			return data;
-		}
-
-		return {};
+		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
+		return m_PackStore->ReadAssetData(assetPath);
 	}
 
 	std::string AssetManager::ReadText(const std::string& path)
@@ -847,45 +680,7 @@ namespace Chained
 	bool AssetManager::FileExists(const std::string& path) const
 	{
 		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
-		if (m_PackOpen && (!m_PackReaders.empty() || !m_DictPackReaders.empty()))
-		{
-			std::string packKey = m_PathResolver.ResolvePackKey(path);
-
-			// Check standard pack readers
-			for (auto it = m_PackReaders.rbegin(); it != m_PackReaders.rend(); ++it)
-			{
-				auto& reader = *it;
-				uint64_t idx = 0;
-				if (reader->getItemIndex(packKey.c_str(), idx))
-				{
-					return true;
-				}
-			}
-
-			// Check dictionary pack readers
-			for (auto it = m_DictPackReaders.rbegin(); it != m_DictPackReaders.rend(); ++it)
-			{
-				auto& reader = *it;
-				uint64_t idx = 0;
-				if (reader->GetItemIndex(packKey.c_str(), idx))
-				{
-					return true;
-				}
-			}
-
-			if (TryPackFallbackExists(packKey))
-			{
-				return true;
-			}
-		}
-
-		std::error_code ec;
-		std::string resolved = ResolvePath(path);
-		if (!resolved.empty() && std::filesystem::exists(resolved, ec))
-		{
-			return true;
-		}
-		return std::filesystem::exists(path, ec);
+		return m_PackStore->FileExists(path);
 	}
 
 	bool AssetManager::HasAsset(const std::string& path) const
@@ -895,60 +690,13 @@ namespace Chained
 
 	void AssetManager::EnumeratePackedPaths(const std::function<void(std::string_view)>& callback) const
 	{
-		if (!m_PackOpen || (m_PackReaders.empty() && m_DictPackReaders.empty()))
-		{
-			return;
-		}
-		std::unordered_set<std::string_view> seen;
-
-		// Enumerate standard pack readers
-		for (const auto& reader : m_PackReaders)
-		{
-			const uint64_t count = reader->getItemCount();
-			for (uint64_t i = 0; i < count; ++i)
-			{
-				std::string_view itemPath = reader->getItemPath(i);
-				if (seen.insert(itemPath).second)
-				{
-					callback(itemPath);
-				}
-			}
-		}
-
-		// Enumerate dictionary pack readers
-		for (const auto& reader : m_DictPackReaders)
-		{
-			const uint64_t count = reader->GetItemCount();
-			for (uint64_t i = 0; i < count; ++i)
-			{
-				std::string itemPath = reader->GetItemPath(i);
-				// Skip dictionary item
-				if (itemPath == "__zstd_dictionary__")
-				{
-					continue;
-				}
-				if (seen.insert(itemPath).second)
-				{
-					callback(itemPath);
-				}
-			}
-		}
+		m_PackStore->EnumeratePackedPaths(callback);
 	}
 
 	std::vector<uint8_t> AssetManager::ReadProjectAsset(const std::filesystem::path& absolutePath)
 	{
-		if (!m_PackOpen || (m_PackReaders.empty() && m_DictPackReaders.empty()) ||
-			m_PathResolver.GetProjectDirectory().empty())
-		{
-			return {};
-		}
-		std::error_code ec;
-		auto rel = std::filesystem::relative(absolutePath, m_PathResolver.GetProjectDirectory(), ec);
-		if (ec || rel.empty())
-		{
-			return {};
-		}
-		return ReadAssetData(rel.generic_string());
+		std::lock_guard<std::recursive_mutex> lock(m_AssetLock);
+		return m_PackStore->ReadProjectAsset(absolutePath);
 	}
 
 } // namespace Chained

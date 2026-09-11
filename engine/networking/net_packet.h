@@ -10,12 +10,14 @@
 static_assert(std::endian::native == std::endian::little, "Network packets assume little-endian byte order. "
 														  "Add byte-swapping for big-endian platforms.");
 
+#include "network_types.h"
+
 namespace Chained
 {
-	static constexpr uint8_t kProtocolVersion = 1;
 
-	constexpr int kChannel_Reliable = 0;
-	constexpr int kChannel_Unreliable = 1;
+	// Legacy channel constants (deprecated: use ePacketChannel)
+	constexpr int kChannel_Reliable = ePacketChannel::SYSTEM;
+	constexpr int kChannel_Unreliable = ePacketChannel::SYNC;
 
 	enum MessageType : uint16_t
 	{
@@ -29,8 +31,38 @@ namespace Chained
 		MessageType_PlayerList,
 		MessageType_ChatMessage,
 		MessageType_SceneLoaded,
+		MessageType_Heartbeat,
 		MessageType_Count
 	};
+
+	inline ePacketChannel GetChannelForMessageType(MessageType type)
+	{
+		switch (type)
+		{
+		case MessageType_InputState:
+		case MessageType_WorldState:
+			return ePacketChannel::SYNC;
+
+		case MessageType_ChatMessage:
+			return ePacketChannel::EVENT;
+
+		case MessageType_EntitySpawn:
+		case MessageType_EntityDestroy:
+		case MessageType_SceneChange:
+		case MessageType_SceneLoaded:
+		case MessageType_PlayerAssign:
+		case MessageType_PlayerInfo:
+		case MessageType_PlayerList:
+		case MessageType_Heartbeat:
+		default:
+			return ePacketChannel::SYSTEM;
+		}
+	}
+
+	inline bool IsChannelReliable(ePacketChannel channel)
+	{
+		return channel != ePacketChannel::SYNC;
+	}
 
 	enum InputAction : uint8_t
 	{
@@ -459,12 +491,15 @@ namespace Chained
 
 	struct SceneLoadedMessage
 	{
+		char ScenePath[256] = {0};
+
 		void Encode(ByteWriter& w) const
 		{
+			w.WriteString(ScenePath, sizeof(ScenePath));
 		}
 		bool Decode(ByteReader& r)
 		{
-			return true;
+			return r.ReadString(ScenePath, sizeof(ScenePath));
 		}
 	};
 

@@ -69,6 +69,9 @@ namespace Chained
 		virtual void SetCursorMode(CursorMode mode) override;
 		virtual bool IsFocused() const override;
 
+		virtual void SetClipboardText(const std::string& text) override;
+		virtual std::string GetClipboardText() const override;
+
 		virtual void SetEventCallback(const EventCallbackFn& callback) override
 		{
 			m_EventCallback = callback;

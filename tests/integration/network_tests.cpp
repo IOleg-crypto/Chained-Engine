@@ -246,3 +246,66 @@ TEST(NetworkMessageTest, EntityDestroyAndPlayerAssignFields)
 	ASSERT_TRUE(dec2.Decode(r2));
 	EXPECT_EQ(dec2.NetworkID, 5u);
 }
+
+TEST(NetworkChannelTest, ChannelEnumValuesAndReliability)
+{
+	EXPECT_EQ(static_cast<int>(ePacketChannel::SYSTEM), 0);
+	EXPECT_EQ(static_cast<int>(ePacketChannel::SYNC), 1);
+	EXPECT_EQ(static_cast<int>(ePacketChannel::EVENT), 2);
+	EXPECT_EQ(static_cast<int>(ePacketChannel::SCRIPT), 3);
+	EXPECT_EQ(static_cast<int>(ePacketChannel::COUNT), 4);
+
+	EXPECT_TRUE(IsChannelReliable(ePacketChannel::SYSTEM));
+	EXPECT_FALSE(IsChannelReliable(ePacketChannel::SYNC));
+	EXPECT_TRUE(IsChannelReliable(ePacketChannel::EVENT));
+	EXPECT_TRUE(IsChannelReliable(ePacketChannel::SCRIPT));
+
+	EXPECT_EQ(GetChannelForMessageType(MessageType_WorldState), ePacketChannel::SYNC);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_InputState), ePacketChannel::SYNC);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_ChatMessage), ePacketChannel::EVENT);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_EntitySpawn), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_EntityDestroy), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_SceneLoaded), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_SceneChange), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_PlayerAssign), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_PlayerInfo), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_PlayerList), ePacketChannel::SYSTEM);
+	EXPECT_EQ(GetChannelForMessageType(MessageType_Heartbeat), ePacketChannel::SYSTEM);
+}
+
+#ifndef CH_CI
+TEST_F(NetworkLoopbackTest, VirtualDriverMultiChannelTransmission)
+{
+	m_Host.HostGame(m_Port, 4);
+	ASSERT_TRUE(m_Host.IsEnabled());
+
+	m_Client.ConnectTo("127.0.0.1", m_Port);
+	ASSERT_TRUE(m_Client.IsEnabled());
+	ASSERT_TRUE(PumpUntil([this] { return m_Host.GetClientCount() == 1; }, std::chrono::seconds(10)));
+
+	INetworkDriver* hostDriver = m_Host.GetSession().GetDriver();
+	INetworkDriver* clientDriver = m_Client.GetSession().GetDriver();
+	ASSERT_NE(hostDriver, nullptr);
+	ASSERT_NE(clientDriver, nullptr);
+
+	EXPECT_TRUE(hostDriver->IsConnected());
+	EXPECT_TRUE(clientDriver->IsConnected());
+	EXPECT_EQ(hostDriver->GetRole(), Role::Host);
+	EXPECT_EQ(clientDriver->GetRole(), Role::Client);
+
+	// Test sending on SCRIPT channel
+	bool scriptMsgReceived = false;
+	m_Host.SetPacketCallback([&scriptMsgReceived](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
+		if (type == MessageType_ChatMessage)
+		{
+			scriptMsgReceived = true;
+		}
+	});
+
+	const char testPayload[] = "ScriptRPCData";
+	m_Client.SendToServer(ePacketChannel::SCRIPT, MessageType_ChatMessage, testPayload, sizeof(testPayload), true);
+
+	const bool received = PumpUntil([&scriptMsgReceived] { return scriptMsgReceived; }, std::chrono::seconds(5));
+	EXPECT_TRUE(received) << "Host never received packet sent over SCRIPT channel";
+}
+#endif // CH_CI

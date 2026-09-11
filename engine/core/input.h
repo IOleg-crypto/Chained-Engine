@@ -44,7 +44,7 @@ namespace Chained::Core
 		static void OnMouseScroll(float xOffset, float yOffset);
 
 	private:
-		static Input* s_Instance;
+		static Input* GetInstance();
 
 		std::array<bool, 512> m_KeyStates{};
 		std::array<bool, 512> m_LastKeyStates{};

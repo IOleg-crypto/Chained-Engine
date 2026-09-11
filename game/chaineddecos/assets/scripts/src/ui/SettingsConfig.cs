@@ -56,6 +56,12 @@ namespace ChainedDecos.Scripts
             if (cfg.TryGetValue("AntiAliasingSamples", out string? aaStr) && int.TryParse(aaStr, out int aa))
                 AppWindow.SetAntiAliasingSamples(aa);
 
+            if (cfg.TryGetValue("EnableShadows", out string? shStr) && bool.TryParse(shStr, out bool sh))
+                AppWindow.SetEnableShadows(sh);
+
+            if (cfg.TryGetValue("ShadowResolution", out string? srStr) && int.TryParse(srStr, out int sr))
+                AppWindow.SetShadowResolution(sr);
+
             if (cfg.TryGetValue("Fullscreen", out string? fsStr) && bool.TryParse(fsStr, out bool fs))
                 AppWindow.SetFullscreen(fs);
 

@@ -1,10 +1,27 @@
 #include "dialogs.h"
+#include "engine/core/log.h"
 #include "portable-file-dialogs.h"
 
 namespace Chained
 {
 	namespace
 	{
+		void CheckLinuxDialogBackend()
+		{
+#if !defined(_WIN32) && !defined(__APPLE__)
+			static bool s_Checked = false;
+			if (!s_Checked)
+			{
+				s_Checked = true;
+				if (!pfd::settings::available())
+				{
+					CH_CORE_WARN("Dialogs: No graphical file dialog backend found (zenity, kdialog, or yad). "
+								 "Please install zenity: 'sudo apt install zenity'");
+				}
+			}
+#endif
+		}
+
 		// portable-file-dialogs expects each filter as a pair of
 		// [human-readable name, space-separated glob patterns], e.g. {"Textures", "*.png *.jpg"}.
 		// Our DialogFilter::Spec is authored as a bare, comma-separated extension list
@@ -69,6 +86,7 @@ namespace Chained
 
 	std::optional<std::filesystem::path> Dialogs::OpenFile(const std::vector<DialogFilter>& filters)
 	{
+		CheckLinuxDialogBackend();
 		pfd::open_file dialog("Open File", "", BuildPfdFilters(filters));
 		auto result = dialog.result();
 
@@ -82,6 +100,7 @@ namespace Chained
 
 	std::optional<std::filesystem::path> Dialogs::SaveFile(const std::vector<DialogFilter>& filters)
 	{
+		CheckLinuxDialogBackend();
 		pfd::save_file dialog("Save File", "", BuildPfdFilters(filters));
 		auto result = dialog.result();
 
@@ -95,6 +114,7 @@ namespace Chained
 
 	std::optional<std::filesystem::path> Dialogs::PickFolder()
 	{
+		CheckLinuxDialogBackend();
 		pfd::select_folder dialog("Select Folder");
 		auto result = dialog.result();
 

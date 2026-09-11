@@ -42,9 +42,14 @@ namespace Chained
 		if (project && !project->GetConfig().Render.EnableShadows)
 		{
 			m_HasShadows = false;
-			CH_INFO("Shadows disabled in project settings");
+			if (!m_DisabledWarningShown)
+			{
+				CH_INFO("Shadows disabled in project settings");
+				m_DisabledWarningShown = true;
+			}
 			return;
 		}
+		m_DisabledWarningShown = false;
 
 		const auto& lightingSettings = ctx.Renderer->GetEnvironment().Lighting;
 		glm::vec3 lightDir = glm::length(glm::vec3(lightingSettings.Direction)) > 0.0001f
@@ -125,11 +130,35 @@ namespace Chained
 		// Depth bias to prevent shadow acne (surface-shadow self-intersection)
 		GraphicsDevice::Get().SetPolygonOffset(true, 2.0f, 1.0f);
 
-		// Render all opaque items into the depth buffer using the depth shader.
-		for (const auto& item : ctx.Renderer->GetOpaqueQueue())
+		// Render all opaque items into the depth buffer using the depth shader (with GPU instancing).
+		const auto& opaqueQueue = ctx.Renderer->GetOpaqueQueue();
+		for (size_t i = 0; i < opaqueQueue.size();)
 		{
-			ctx.Renderer->DrawModel(item.Asset, item.Transform, item.BoneMatrices, item.Materials,
+			const auto& firstItem = opaqueQueue[i];
+
+			if (firstItem.Asset && firstItem.BoneMatrices.empty())
+			{
+				size_t j = i + 1;
+				std::vector<glm::mat4> transforms = {firstItem.Transform};
+				while (j < opaqueQueue.size() && opaqueQueue[j].Asset == firstItem.Asset &&
+					   opaqueQueue[j].BoneMatrices.empty() && opaqueQueue[j].Materials.empty())
+				{
+					transforms.push_back(opaqueQueue[j].Transform);
+					++j;
+				}
+
+				if (transforms.size() > 1)
+				{
+					ctx.Renderer->DrawModelInstanced(firstItem.Asset, transforms, {},
+													 m_DepthShaderAsset->GetShader().get(), RenderPassStage::Opaque);
+					i = j;
+					continue;
+				}
+			}
+
+			ctx.Renderer->DrawModel(firstItem.Asset, firstItem.Transform, firstItem.BoneMatrices, firstItem.Materials,
 									m_DepthShaderAsset->GetShader().get(), {}, RenderPassStage::Opaque);
+			++i;
 		}
 
 		GraphicsDevice::Get().SetPolygonOffset(false);

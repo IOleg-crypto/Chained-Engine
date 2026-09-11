@@ -13,12 +13,11 @@ namespace Chained
 		std::vector<uint64_t> children;
 	};
 
-	class HierarchySerializer
+	namespace HierarchySerializer
 	{
-	public:
-		static void Serialize(YAML::Emitter& out, Entity entity);
-		static void DeserializeTask(Entity entity, YAML::Node node, HierarchyTask& outTask);
-	};
+		void Serialize(YAML::Emitter& out, Entity entity);
+		void DeserializeTask(Entity entity, YAML::Node node, HierarchyTask& outTask);
+	} // namespace HierarchySerializer
 
 } // namespace Chained
 
