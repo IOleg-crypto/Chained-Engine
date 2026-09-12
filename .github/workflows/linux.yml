@@ -29,24 +29,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: recursive
           fetch-depth: 1
-
-      - name: Write submodule SHA manifest
-        run: git submodule status | tee submodule-shas.txt
-
-      - name: Cache submodules
-        uses: actions/cache@v4
-        with:
-          path: |
-            .git/modules
-            thirdparty
-          key: submodules-${{ runner.os }}-${{ hashFiles('submodule-shas.txt') }}
-          restore-keys: |
-            submodules-${{ runner.os }}-
-
-      - name: Init submodules
-        run: git submodule update --init --recursive --depth 1
 
       - name: Get CMake and Ninja
         uses: lukka/get-cmake@latest
