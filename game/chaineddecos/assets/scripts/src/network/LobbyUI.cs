@@ -188,10 +188,7 @@ namespace ChainedDecos.Scripts
                 string local = Network.GetListenAddress();
                 if (string.IsNullOrEmpty(local)) local = $"127.0.0.1:{LobbyManager.SelectedPort}";
                 string upnp = Network.IsUpnpAvailable ? "UPnP: OK" : "UPnP: Off";
-                string nat = Network.HasStunResult ? " | STUN: Ready" : (fetching ? "" : " | STUN: Direct");
-                uint roomCode = Network.GetRoomCode();
-                string room = roomCode > 0 ? $" | ROOM: {roomCode:D4}" : "";
-                text = $"LAN: {local} | WAN: {pub} | {players} | {upnp}{nat}{room}";
+                text = $"LAN: {local} | WAN: {pub} | {players} | {upnp}";
                 if (!fetching && text == m_LastDisplayedInfo) return;
             }
             else if (Network.IsClient)

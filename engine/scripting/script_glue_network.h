@@ -11,11 +11,8 @@ namespace Chained
 {
 
 	CH_SCRIPT_FUNC void Network_HostGame(uint16_t port, int maxClients);
-	CH_SCRIPT_FUNC uint32_t Network_HostRoom(uint16_t port, int maxClients);
 
 	CH_SCRIPT_FUNC void Network_ConnectTo(const Coral::UCChar* ip, uint16_t port);
-	CH_SCRIPT_FUNC void Network_ConnectRoom(uint32_t roomCode);
-	CH_SCRIPT_FUNC uint32_t Network_GetRoomCode();
 
 	CH_SCRIPT_FUNC void Network_Disconnect();
 

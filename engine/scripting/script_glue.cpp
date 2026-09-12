@@ -355,10 +355,7 @@ namespace Chained
 
 		// ── Network ─────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Network", "Network_HostGame_Ptr", (void*)&Network_HostGame);
-		assembly.AddInternalCall("Chained.Network", "Network_HostRoom_Ptr", (void*)&Network_HostRoom);
 		assembly.AddInternalCall("Chained.Network", "Network_ConnectTo_Ptr", (void*)&Network_ConnectTo);
-		assembly.AddInternalCall("Chained.Network", "Network_ConnectRoom_Ptr", (void*)&Network_ConnectRoom);
-		assembly.AddInternalCall("Chained.Network", "Network_GetRoomCode_Ptr", (void*)&Network_GetRoomCode);
 		assembly.AddInternalCall("Chained.Network", "Network_Disconnect_Ptr", (void*)&Network_Disconnect);
 		assembly.AddInternalCall("Chained.Network", "Network_IsHost_Ptr", (void*)&Network_IsHost);
 		assembly.AddInternalCall("Chained.Network", "Network_IsClient_Ptr", (void*)&Network_IsClient);

@@ -108,8 +108,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-824.079834, -422.903748]
-        OffsetMax: [-409.544312, -347.234833]
+        OffsetMin: [-250, -360]
+        OffsetMax: [250, -290]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -258,8 +258,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-694.28064, 272.122009]
-        OffsetMax: [-448.361908, 352.654694]
+        OffsetMin: [-100, 180]
+        OffsetMax: [100, 240]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]

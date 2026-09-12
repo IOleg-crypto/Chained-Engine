@@ -73,17 +73,6 @@ namespace Chained
 		net->HostGame(port, maxClients);
 	}
 
-	CH_SCRIPT_FUNC uint32_t Network_HostRoom(uint16_t port, int maxClients)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net)
-		{
-			return 0;
-		}
-		CH_CORE_INFO("[Script] Network.HostRoom(port={}, maxClients={})", port, maxClients);
-		return net->HostRoom(port, maxClients);
-	}
-
 	CH_SCRIPT_FUNC void Network_ConnectTo(const Coral::UCChar* ip, uint16_t port)
 	{
 		auto* net = ServiceLocator::TryGet<Network>();
@@ -94,23 +83,6 @@ namespace Chained
 		std::string ipStr = ch_u16_to_string(ip);
 		CH_CORE_INFO("[Script] Network.ConnectTo(ip='{}', port={})", ipStr, port);
 		net->ConnectTo(ipStr, port);
-	}
-
-	CH_SCRIPT_FUNC void Network_ConnectRoom(uint32_t roomCode)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net)
-		{
-			return;
-		}
-		CH_CORE_INFO("[Script] Network.ConnectRoom(code={})", roomCode);
-		net->ConnectRoom(roomCode);
-	}
-
-	CH_SCRIPT_FUNC uint32_t Network_GetRoomCode()
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		return net ? net->GetRoomCode() : 0;
 	}
 
 	CH_SCRIPT_FUNC void Network_Disconnect()

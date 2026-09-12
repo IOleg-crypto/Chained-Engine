@@ -59,8 +59,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-591.662598, -405.661011]
-        OffsetMax: [-491.662811, -365.66095]
+        OffsetMin: [-250, -320]
+        OffsetMax: [250, -260]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -111,8 +111,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-534.694824, -170.793793]
-        OffsetMax: [-237.836258, -130.793793]
+        OffsetMin: [-150, -170]
+        OffsetMax: [150, -110]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -164,8 +164,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-535.847168, -99.7385101]
-        OffsetMax: [-230.27803, -59.7384834]
+        OffsetMin: [-150, -80]
+        OffsetMax: [150, -20]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -217,8 +217,8 @@ Entities:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-703.046265, 458.698608]
-        OffsetMax: [-573.430542, 498.698669]
+        OffsetMin: [-150, 40]
+        OffsetMax: [150, 100]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]

@@ -80,10 +80,11 @@ namespace ChainedDecos.Scripts
                 }
             }
 
-            // if (playerTransform.Translation.Y < -50.0f || Input.IsKeyPressed(Key.F))
-            // {
-            //     Respawn(player, spawnEntities);
-            // }
+            // Respawn player if fallen into the void (below Y = -35) or manually with F
+            if (Input.IsKeyPressed(Key.F))
+            {
+                Respawn(player, spawnEntities);
+            }
         }
 
         private void Respawn(Entity player, ulong[] spawnEntities)

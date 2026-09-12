@@ -56,11 +56,6 @@ namespace Chained
         internal static unsafe delegate* unmanaged<char*, ushort, void> Network_StartHolePunch_Ptr;
         internal static unsafe delegate* unmanaged<ushort, void> Network_QueryStun_Ptr;
 
-        // Room Code Signaling
-        internal static unsafe delegate* unmanaged<ushort, int, uint> Network_HostRoom_Ptr;
-        internal static unsafe delegate* unmanaged<uint, void> Network_ConnectRoom_Ptr;
-        internal static unsafe delegate* unmanaged<uint> Network_GetRoomCode_Ptr;
-
         // Ping / RTT
         internal static unsafe delegate* unmanaged<uint> Network_GetPing_Ptr;
 
@@ -268,36 +263,6 @@ namespace Chained
         {
             if (Network_QueryStun_Ptr == null) return;
             Network_QueryStun_Ptr(localPort);
-        }
-
-        // ── Room Code (STUN Hole Punch) ───────────────────────────────────
-
-        /// <summary>
-        /// Hosts a game and registers with the signaling server.
-        /// Returns a 4-digit room code clients can use to connect without knowing your IP.
-        /// </summary>
-        public static unsafe uint HostRoom(ushort port = DefaultPort, int maxClients = 4)
-        {
-            if (Network_HostRoom_Ptr == null) { HostGame(port, maxClients); return 0; }
-            return Network_HostRoom_Ptr(port, maxClients);
-        }
-
-        /// <summary>
-        /// Connects to a room by its 4-digit code (e.g. 4821).
-        /// Automatically performs STUN + hole punch via the signaling server.
-        /// </summary>
-        public static unsafe void ConnectRoom(uint roomCode)
-        {
-            if (Network_ConnectRoom_Ptr == null) return;
-            Network_ConnectRoom_Ptr(roomCode);
-        }
-
-        /// <summary>
-        /// Returns the current room code (host-side only). Returns 0 if not in a room.
-        /// </summary>
-        public static unsafe uint GetRoomCode()
-        {
-            return Network_GetRoomCode_Ptr != null ? Network_GetRoomCode_Ptr() : 0;
         }
 
         /// <summary>Returns the round-trip time (RTT) in milliseconds to the server. Returns 0 if not connected.</summary>
