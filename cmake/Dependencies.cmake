@@ -58,6 +58,6 @@ foreach(_ext_target
     endif()
 endforeach()
 
-if(NOT TARGET libzstd_static AND NOT TARGET libzstd)
+if(NOT TARGET libzstd_static AND NOT TARGET libzstd AND EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/zstd/build/cmake/lib/CMakeLists.txt")
     add_subdirectory(thirdparty/zstd/build/cmake/lib)
 endif()
