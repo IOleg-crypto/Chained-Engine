@@ -27,9 +27,10 @@ namespace ChainedDecos.Scripts
         private const float PadY       = 16.0f;
 
         private List<ChatEntry> m_Messages   = new List<ChatEntry>();
-        private string          m_InputText  = "";
-        private bool            m_FocusInput = false;
-        private bool            m_JustOpened = false;
+        private string          m_InputText      = "";
+        private bool            m_FocusInput     = false;
+        private bool            m_JustOpened     = false;
+        private float           m_ToggleCooldown = 0.0f;
 
         public override void OnCreate()
         {
@@ -37,12 +38,18 @@ namespace ChainedDecos.Scripts
             IsOpen = false;
             IsChatOpen = false;
             m_JustOpened = false;
+            m_ToggleCooldown = 0.0f;
         }
 
         public override void OnUpdate(float deltaTime)
         {
             var netComp = Entity.GetComponent<NetworkIdentityComponent>();
             if (netComp != null && !netComp.IsOwner) return;
+
+            if (m_ToggleCooldown > 0.0f)
+            {
+                m_ToggleCooldown -= deltaTime;
+            }
 
             // Fetch pending network chat messages
             if (Network.IsConnected && Network.HasPendingChat)
@@ -61,13 +68,14 @@ namespace ChainedDecos.Scripts
             // Toggle chat open/close
             if (!IsOpen)
             {
-                if (Input.IsKeyPressed(Key.T) || Input.IsKeyPressed(Key.Enter))
+                if (m_ToggleCooldown <= 0.0f && (Input.IsKeyPressed(Key.T) || Input.IsKeyPressed(Key.Enter)))
                 {
-                    IsOpen       = true;
-                    IsChatOpen   = true;
-                    m_FocusInput = true;
-                    m_JustOpened = true;
-                    m_InputText  = "";
+                    IsOpen           = true;
+                    IsChatOpen       = true;
+                    m_FocusInput     = true;
+                    m_JustOpened     = true;
+                    m_InputText      = "";
+                    m_ToggleCooldown = 0.2f;
                     ConsumeEvent();
                 }
             }
@@ -75,12 +83,13 @@ namespace ChainedDecos.Scripts
             {
                 if (Input.IsKeyPressed(Key.Escape) || Input.IsKeyPressed(Key.Delete))
                 {
-                    IsOpen       = false;
-                    IsChatOpen   = false;
-                    m_JustOpened = false;
-                    m_InputText  = "";
+                    IsOpen           = false;
+                    IsChatOpen       = false;
+                    m_JustOpened     = false;
+                    m_InputText      = "";
+                    m_ToggleCooldown = 0.25f;
+                    ConsumeEvent();
                 }
-                ConsumeEvent();
             }
         }
 
@@ -131,9 +140,10 @@ namespace ChainedDecos.Scripts
                 if (submitted)
                 {
                     string toSend = m_InputText.Trim();
-                    m_InputText = "";
-                    IsOpen      = false;
-                    IsChatOpen  = false;
+                    m_InputText      = "";
+                    IsOpen           = false;
+                    IsChatOpen       = false;
+                    m_ToggleCooldown = 0.25f;
 
                     if (!string.IsNullOrWhiteSpace(toSend))
                     {

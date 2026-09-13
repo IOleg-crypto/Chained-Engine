@@ -21,8 +21,8 @@ namespace ChainedDecos.Scripts
             var netComp = Entity.GetComponent<NetworkIdentityComponent>();
             if (netComp != null && !netComp.IsOwner) return;
 
-            // Toggle pause on Escape
-            if (Input.IsKeyPressed(Key.Escape))
+            // Toggle pause on Escape — only when chat is NOT open
+            if (Input.IsKeyPressed(Key.Escape) && !InGameChat.IsChatOpen)
             {
                 IsPaused = !IsPaused;
                 ConsumeEvent();

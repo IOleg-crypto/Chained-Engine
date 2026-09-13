@@ -78,7 +78,15 @@ namespace Chained
 
 			if (!target)
 			{
-				target = scene->FindEntityByTag(camera.TargetEntityTag);
+				Entity tagged = scene->FindEntityByTag(camera.TargetEntityTag);
+				if (tagged)
+				{
+					const auto* netID = scene->GetRegistry().try_get<NetworkIdentityComponent>(tagged);
+					if (!netID || netID->IsOwner)
+					{
+						target = tagged;
+					}
+				}
 			}
 
 			glm::vec3 targetPos = camera.SmoothedPivot;
@@ -112,7 +120,7 @@ namespace Chained
 				float dt = Application::Get().GetFrameTime();
 				float lerpT = glm::clamp(dt * kPivotSmoothSpeed, 0.0f, 1.0f);
 
-				if (!camera.PivotInitialized || glm::distance2(camera.SmoothedPivot, rawPos) > 25.0f)
+				if (!camera.PivotInitialized || glm::distance2(camera.SmoothedPivot, rawPos) > 400.0f)
 				{
 					camera.SmoothedPivot = rawPos;
 					camera.PivotInitialized = true;

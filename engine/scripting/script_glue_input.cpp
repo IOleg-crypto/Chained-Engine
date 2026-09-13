@@ -16,14 +16,58 @@ namespace Chained
 	}
 	float Input_GetMouseWheelMove()
 	{
+		if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse)
+		{
+			return 0.0f;
+		}
 		return Core::Input::GetMouseWheelMove();
+	}
+	float Input_GetMouseWheelHMove()
+	{
+		if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse)
+		{
+			return 0.0f;
+		}
+		return Core::Input::GetMouseWheelHMove();
+	}
+	void Input_GetMouseScroll(float* outX, float* outY)
+	{
+		if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse)
+		{
+			if (outX)
+			{
+				*outX = 0.0f;
+			}
+			if (outY)
+			{
+				*outY = 0.0f;
+			}
+			return;
+		}
+		glm::vec2 scroll = Core::Input::GetMouseScroll();
+		if (outX)
+		{
+			*outX = scroll.x;
+		}
+		if (outY)
+		{
+			*outY = scroll.y;
+		}
 	}
 	int Input_IsMouseButtonPressed(int button)
 	{
+		if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse)
+		{
+			return 0;
+		}
 		return Core::Input::IsMouseButtonPressed(static_cast<MouseCode>(button)) ? 1 : 0;
 	}
 	int Input_IsMouseButtonDown(int button)
 	{
+		if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse)
+		{
+			return 0;
+		}
 		return Core::Input::IsMouseButtonDown(static_cast<MouseCode>(button)) ? 1 : 0;
 	}
 	int Input_IsKeyReleased(int keyCode)

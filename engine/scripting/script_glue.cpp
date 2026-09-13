@@ -296,6 +296,8 @@ namespace Chained
 		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonDown_Ptr", (void*)&Input_IsMouseButtonDown);
 		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonPressed_Ptr", (void*)&Input_IsMouseButtonPressed);
 		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelMove_Ptr", (void*)&Input_GetMouseWheelMove);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelHMove_Ptr", (void*)&Input_GetMouseWheelHMove);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseScroll_Ptr", (void*)&Input_GetMouseScroll);
 		assembly.AddInternalCall("Chained.Input", "Input_GetMouseDelta_Ptr", (void*)&Input_GetMouseDelta);
 
 		// ── Log ───────────────────────────────────────────────────────────

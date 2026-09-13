@@ -37,6 +37,8 @@ namespace Chained::Core
 		static glm::vec2 GetMousePosition();
 		static glm::vec2 GetMouseDelta();
 		static float GetMouseWheelMove();
+		static float GetMouseWheelHMove();
+		static glm::vec2 GetMouseScroll();
 
 		static void OnKey(KeyCode key, bool pressed);
 		static void OnMouseButton(MouseCode button, bool pressed);
@@ -55,6 +57,8 @@ namespace Chained::Core
 		glm::vec2 m_LastMousePosition{0.0f, 0.0f};
 		float m_MouseWheelAccumulator = 0.0f;
 		float m_CurrentMouseWheelDelta = 0.0f;
+		float m_MouseWheelHAccumulator = 0.0f;
+		float m_CurrentMouseWheelHDelta = 0.0f;
 		bool m_FirstMouseUpdate = true;
 	};
 } // namespace Chained::Core

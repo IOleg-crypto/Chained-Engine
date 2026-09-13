@@ -17,6 +17,7 @@
 #include "engine/core/input.h"
 #include "engine/core/key_codes.h"
 
+#include <imgui.h>
 #include <glm/gtc/quaternion.hpp>
 #include <cstring>
 #include <unordered_set>
@@ -616,21 +617,36 @@ namespace Chained
 
 		float rawX = 0.0f;
 		float rawZ = 0.0f;
-		if (Core::Input::IsKeyDown(KeyCode::W))
+		uint8_t flags = 0;
+
+		const bool captureKeyboard = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
+		if (!captureKeyboard)
 		{
-			rawZ += 1.0f;
-		}
-		if (Core::Input::IsKeyDown(KeyCode::S))
-		{
-			rawZ -= 1.0f;
-		}
-		if (Core::Input::IsKeyDown(KeyCode::A))
-		{
-			rawX -= 1.0f;
-		}
-		if (Core::Input::IsKeyDown(KeyCode::D))
-		{
-			rawX += 1.0f;
+			if (Core::Input::IsKeyDown(KeyCode::W))
+			{
+				rawZ += 1.0f;
+			}
+			if (Core::Input::IsKeyDown(KeyCode::S))
+			{
+				rawZ -= 1.0f;
+			}
+			if (Core::Input::IsKeyDown(KeyCode::A))
+			{
+				rawX -= 1.0f;
+			}
+			if (Core::Input::IsKeyDown(KeyCode::D))
+			{
+				rawX += 1.0f;
+			}
+
+			if (Core::Input::IsKeyPressed(KeyCode::Space))
+			{
+				flags |= InputAction_Jump;
+			}
+			if (Core::Input::IsKeyDown(KeyCode::LeftShift))
+			{
+				flags |= InputAction_Sprint;
+			}
 		}
 
 		float moveX = rawX;
@@ -674,16 +690,6 @@ namespace Chained
 
 		msg.MoveX = moveX;
 		msg.MoveZ = moveZ;
-
-		uint8_t flags = 0;
-		if (Core::Input::IsKeyPressed(KeyCode::Space))
-		{
-			flags |= InputAction_Jump;
-		}
-		if (Core::Input::IsKeyDown(KeyCode::LeftShift))
-		{
-			flags |= InputAction_Sprint;
-		}
 		msg.ActionFlags = flags;
 
 		glm::vec2 mouseDelta = Core::Input::GetMouseDelta();

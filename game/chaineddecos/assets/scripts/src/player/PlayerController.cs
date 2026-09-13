@@ -43,11 +43,9 @@ namespace ChainedDecos.Scripts
 
         public override void OnUpdate(float deltaTime)
         {
-            if (GameHUD.IsPaused || InGameChat.IsChatOpen)
-            {
-                StopHorizontalMovement();
-                return;
-            }
+            _rb        ??= Entity.GetComponent<RigidBodyComponent>();
+            _transform ??= Entity.GetComponent<TransformComponent>();
+            _anim      ??= Entity.GetComponent<AnimationComponent>();
 
             if (m_WasConnected && !Network.IsConnected)
             {
@@ -64,10 +62,6 @@ namespace ChainedDecos.Scripts
                 m_WasConnected = true;
                 m_DisconnectGraceFrames = 0;
             }
-
-            _rb        ??= Entity.GetComponent<RigidBodyComponent>();
-            _transform ??= Entity.GetComponent<TransformComponent>();
-            _anim      ??= Entity.GetComponent<AnimationComponent>();
 
             if (!Network.IsConnected && SessionState.SavedPlayerPosition.HasValue && _transform != null)
             {
@@ -123,6 +117,15 @@ namespace ChainedDecos.Scripts
                 return;
             }
 
+            // If paused or chatting, stop horizontal movement, apply gravity/kinematic physics, and set idle anim
+            if (GameHUD.IsPaused || InGameChat.IsChatOpen)
+            {
+                StopHorizontalMovement();
+                HandleVerticalMovement(deltaTime, allowJump: false);
+                if (_anim != null) UpdateAnimation(Vector3.Zero);
+                return;
+            }
+
             // ── Local input (owner or offline) ──
             float speed = MovementSpeed;
             if (Input.IsKeyDown(Key.LeftShift)) speed *= 2.0f;
@@ -145,7 +148,7 @@ namespace ChainedDecos.Scripts
                 StopHorizontalMovement();
             }
 
-            HandleVerticalMovement(deltaTime);
+            HandleVerticalMovement(deltaTime, allowJump: true);
 
             // Animation
             if (_anim != null) UpdateAnimation(movementDir);
@@ -206,7 +209,7 @@ namespace ChainedDecos.Scripts
             _transform.Rotation = new Vector3(0, yaw, 0);
         }
 
-        private void HandleVerticalMovement(float deltaTime)
+        private void HandleVerticalMovement(float deltaTime, bool allowJump)
         {
             if (_rb == null || _transform == null) return;
 
@@ -223,7 +226,7 @@ namespace ChainedDecos.Scripts
             }
 
             // Update Jump Buffer: if player pressed Space, buffer it for JumpBufferDuration
-            if (Input.IsKeyPressed(Key.Space))
+            if (allowJump && Input.IsKeyPressed(Key.Space))
             {
                 m_JumpBufferTimer = JumpBufferDuration;
             }
