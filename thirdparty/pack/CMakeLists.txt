@@ -71,9 +71,17 @@ endif()
 
 configure_file(cmake/defines.h.in include/pack/defines.h)
 configure_file(cmake/defines.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/pack/defines.h")
-set(PACK_SOURCES source/common.c source/reader.c source/writer.c)
-	
-set(PACK_LINK_LIBRARIES mpio-static libzstd_static lz4_static)
+set(PACK_LINK_LIBRARIES "")
+if(TARGET mpio-static)
+	list(APPEND PACK_LINK_LIBRARIES mpio-static)
+endif()
+if(TARGET libzstd_static)
+	list(APPEND PACK_LINK_LIBRARIES libzstd_static)
+endif()
+if(TARGET lz4_static)
+	list(APPEND PACK_LINK_LIBRARIES lz4_static)
+endif()
+
 set(PACK_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include 
 	${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/wrappers/cpp)
 
