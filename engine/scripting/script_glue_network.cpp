@@ -267,7 +267,8 @@ namespace Chained
 			json += "{\"id\":" + std::to_string(players[i].NetworkID);
 			json += ",\"name\":\"" + EscapeJson(players[i].Name) + "\"";
 			json += ",\"skin\":" + std::to_string((int)players[i].SkinIndex);
-			json += ",\"isHost\":" + std::to_string((int)players[i].IsHost) + "}";
+			json += ",\"isHost\":" + std::to_string((int)players[i].IsHost);
+			json += ",\"ping\":" + std::to_string(players[i].Ping) + "}";
 		}
 		json += "]";
 

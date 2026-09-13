@@ -77,6 +77,14 @@ namespace Chained
 		state.IsGrounded = (msg->IsGrounded != 0);
 		state.ActionFlags = msg->ActionFlags;
 
+		// Preserve render smoothing state so visual position is never hard-reset.
+		if (it != m_PendingStates.end())
+		{
+			state.RenderPosition = it->second.RenderPosition;
+			state.RenderRotation = it->second.RenderRotation;
+			state.RenderInitialized = it->second.RenderInitialized;
+		}
+
 		m_PendingStates[state.NetworkID] = state;
 	}
 
@@ -271,7 +279,7 @@ namespace Chained
 			glm::vec3 spawnPos = FindSpawnPosition(scene->GetRegistry());
 			if (msg->NetworkID > 1)
 			{
-				spawnPos.x += static_cast<float>(msg->NetworkID - 1) * 1.5f;
+				spawnPos.x += static_cast<float>(msg->NetworkID - 1) * 4.0f;
 			}
 			TransformSystem::SetTranslation(transform, spawnPos);
 		}
@@ -477,7 +485,7 @@ namespace Chained
 			info.Name = msg->Entries[i].Name;
 			info.SkinIndex = msg->Entries[i].SkinIndex;
 			info.IsHost = msg->Entries[i].IsHost;
-			info.Ping = 0;
+			info.Ping = msg->Entries[i].Ping;
 
 			playerList.push_back(info);
 		}
@@ -739,50 +747,73 @@ namespace Chained
 
 			if (netID.IsOwner)
 			{
-				// Owned entity — physics runs locally, network only snap-corrects.
+				// Owned entity — local physics is authoritative.
+				// We do NOT snap-correct position from the server: on high-latency
+				// links (e.g. Radmin VPN, ~500ms RTT) the server's position is
+				// hundreds of milliseconds stale. Comparing it to the current local
+				// position always produces a large error that exceeds
+				// kMaxCorrectionDistance, causing the character to teleport back
+				// every time a WorldState packet arrives.
+				//
+				// The server state is still useful for IsGrounded (consumed by
+				// animation) but we intentionally ignore Position/Velocity for the
+				// owned avatar so local physics runs uninterrupted.
 				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
 				{
 					rb->IsNetworkDriven = false;
+					// Sync IsGrounded from server so animations stay correct.
+					rb->IsGrounded = target.IsGrounded;
 				}
-
-				float dist = glm::length(TransformSystem::GetTranslation(transform) - target.TargetPosition);
-
-				if (dist > NetworkSystem::kMaxCorrectionDistance)
-				{
-					TransformSystem::SetTranslation(transform, target.TargetPosition);
-					TransformSystem::SetRotationQuat(transform, SafeNormalizeQuat(target.TargetRotation));
-
-					if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
-					{
-						rb->Velocity = target.TargetVelocity;
-					}
-					changed = true;
-				}
+				// No position/rotation correction — local physics drives the avatar.
 			}
 			else
 			{
-				// Remote entity — fully driven by network interpolation.
+				// Remote entity — driven by network interpolation + dead reckoning.
+				// TargetPosition/TargetVelocity are the latest authoritative server values
+				// and get overwritten every time a new WorldState packet arrives.
+				// RenderPosition is the smoothly-moving visual position that never hard-resets,
+				// so packet arrivals don't cause visible pops/teleports.
 				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
 				{
 					rb->IsNetworkDriven = true;
 				}
 
-				glm::vec3 currentPos = TransformSystem::GetTranslation(transform);
-				float dist = glm::length(currentPos - target.TargetPosition);
-				if (dist > NetworkSystem::kMaxCorrectionDistance)
+				// First packet for this entity: snap render position immediately (no lerp).
+				if (!target.RenderInitialized)
 				{
-					TransformSystem::SetTranslation(transform, target.TargetPosition);
+					target.RenderPosition = target.TargetPosition;
+					target.RenderRotation = SafeNormalizeQuat(target.TargetRotation);
+					target.RenderInitialized = true;
+				}
+
+				// Dead reckoning: advance the authoritative position by current velocity.
+				// This is our *goal* for this frame — where we expect the entity to be.
+				// We do NOT write back to TargetPosition so the next real packet always
+				// resets correctly without fighting accumulated drift.
+				glm::vec3 goalPos = target.TargetPosition + target.TargetVelocity * dt;
+
+				// Smoothly move RenderPosition toward goalPos.
+				// InterpSpeed = 10 gives ~86% catch-up over 200ms — enough to stay close
+				// without making every 64Hz packet visible as a stutter on 500ms RTT links.
+				constexpr float RemoteInterpSpeed = 10.0f;
+				float rt = glm::clamp(1.0f - std::exp(-RemoteInterpSpeed * dt), 0.0f, 1.0f);
+
+				float snapDist = glm::length(target.RenderPosition - goalPos);
+				if (snapDist > NetworkSystem::kMaxCorrectionDistance)
+				{
+					// Very large gap (e.g. respawn, scene change) — snap immediately.
+					target.RenderPosition = target.TargetPosition;
+					target.RenderRotation = SafeNormalizeQuat(target.TargetRotation);
 				}
 				else
 				{
-					TransformSystem::SetTranslation(transform, glm::mix(currentPos, target.TargetPosition, t));
+					target.RenderPosition = glm::mix(target.RenderPosition, goalPos, rt);
+					target.RenderRotation = glm::slerp(SafeNormalizeQuat(target.RenderRotation),
+													   SafeNormalizeQuat(target.TargetRotation), rt);
 				}
 
-				// Use the local RotationQuat for slerp (not WorldTransform which may be stale).
-				glm::quat currentQuat = SafeNormalizeQuat(transform.RotationQuat);
-				glm::quat targetQuat = SafeNormalizeQuat(target.TargetRotation);
-				glm::quat blended = glm::slerp(currentQuat, targetQuat, t);
-				TransformSystem::SetRotationQuat(transform, blended);
+				TransformSystem::SetTranslation(transform, target.RenderPosition);
+				TransformSystem::SetRotationQuat(transform, target.RenderRotation);
 
 				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
 				{
@@ -873,7 +904,7 @@ namespace Chained
 		}
 
 		++m_HostTick;
-		CH_CORE_TRACE("Network: Broadcasting WorldState for {} entities (tick={}).", states.size(), m_HostTick);
+		// CH_CORE_TRACE("Network: Broadcasting WorldState for {} entities (tick={}).", states.size(), m_HostTick);
 
 		for (auto& s : states)
 		{
@@ -1155,7 +1186,7 @@ namespace Chained
 			{
 				auto& transform = avatar.GetComponent<TransformComponent>();
 				glm::vec3 spawnPos = FindSpawnPosition(scene->GetRegistry());
-				spawnPos.x += static_cast<float>(networkID - 1) * 1.5f;
+				spawnPos.x += static_cast<float>(networkID - 1) * 4.0f;
 				TransformSystem::SetTranslation(transform, spawnPos);
 			}
 

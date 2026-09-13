@@ -1,6 +1,8 @@
 #include "network_transport.h"
 #include "network_session.h"
+#include "network_service.h"
 #include "net_packet.h"
+#include "engine/core/service_locator.h"
 #include <cstring>
 
 namespace Chained
@@ -162,17 +164,42 @@ namespace Chained
 		{
 			return;
 		}
-		uint8_t count = static_cast<uint8_t>(std::min(playerList.size(), size_t(64)));
-		BroadcastPacket(ePacketChannel::SYSTEM, MessageType_PlayerList, true, [&playerList, count](ByteWriter& bw) {
+
+		auto* net = ServiceLocator::TryGet<Network>();
+		if (!net)
+		{
+			return;
+		}
+
+		std::vector<PlayerNetInfo> listWithPing = playerList;
+		for (auto& p : listWithPing)
+		{
+			if (p.IsHost)
+			{
+				p.Ping = 0;
+			}
+			else
+			{
+				int clientIdx = net->GetClientIndexForNetworkID(p.NetworkID);
+				if (clientIdx != -1)
+				{
+					p.Ping = m_Session->GetPeerRtt(clientIdx);
+				}
+			}
+		}
+
+		uint8_t count = static_cast<uint8_t>(std::min(listWithPing.size(), size_t(64)));
+		BroadcastPacket(ePacketChannel::SYSTEM, MessageType_PlayerList, true, [listWithPing, count](ByteWriter& bw) {
 			PlayerListMessage msg;
 			msg.Count = count;
 			for (int i = 0; i < count && i < 64; ++i)
 			{
-				msg.Entries[i].NetworkID = playerList[i].NetworkID;
-				std::strncpy(msg.Entries[i].Name, playerList[i].Name.c_str(), sizeof(msg.Entries[i].Name) - 1);
+				msg.Entries[i].NetworkID = listWithPing[i].NetworkID;
+				std::strncpy(msg.Entries[i].Name, listWithPing[i].Name.c_str(), sizeof(msg.Entries[i].Name) - 1);
 				msg.Entries[i].Name[sizeof(msg.Entries[i].Name) - 1] = '\0';
-				msg.Entries[i].SkinIndex = playerList[i].SkinIndex;
-				msg.Entries[i].IsHost = playerList[i].IsHost;
+				msg.Entries[i].SkinIndex = listWithPing[i].SkinIndex;
+				msg.Entries[i].IsHost = listWithPing[i].IsHost;
+				msg.Entries[i].Ping = listWithPing[i].Ping;
 			}
 			msg.Encode(bw);
 		});

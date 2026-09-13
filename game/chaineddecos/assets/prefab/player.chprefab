@@ -5,6 +5,7 @@ Entities:
     ManagedScriptComponent:
       Scripts:
         - ClassName: chaineddecos.scripts.gamehud
+        - ClassName: chaineddecos.scripts.scoreboardhud
         - ClassName: chaineddecos.scripts.ingamechat
         - ClassName: chaineddecos.scripts.debuginfoscript
         - ClassName: chaineddecos.scripts.playercontroller

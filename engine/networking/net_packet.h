@@ -432,6 +432,7 @@ namespace Chained
 		char Name[32] = {};
 		uint8_t SkinIndex = 0;
 		uint8_t IsHost = 0;
+		uint32_t Ping = 0;
 	};
 
 	struct PlayerListMessage
@@ -448,6 +449,7 @@ namespace Chained
 				w.WriteString(Entries[i].Name, sizeof(Entries[i].Name));
 				w.WriteU8(Entries[i].SkinIndex);
 				w.WriteU8(Entries[i].IsHost);
+				w.WriteU32(Entries[i].Ping);
 			}
 		}
 
@@ -460,7 +462,7 @@ namespace Chained
 			for (int i = 0; i < Count && i < 64; ++i)
 			{
 				if (!r.ReadU64(Entries[i].NetworkID) || !r.ReadString(Entries[i].Name, sizeof(Entries[i].Name)) ||
-					!r.ReadU8(Entries[i].SkinIndex) || !r.ReadU8(Entries[i].IsHost))
+					!r.ReadU8(Entries[i].SkinIndex) || !r.ReadU8(Entries[i].IsHost) || !r.ReadU32(Entries[i].Ping))
 				{
 					return false;
 				}

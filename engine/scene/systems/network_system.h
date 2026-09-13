@@ -25,9 +25,12 @@ namespace Chained
 	{
 		uint64_t NetworkID = 0;
 		uint32_t LastTick = 0;
-		glm::vec3 TargetPosition = {0, 0, 0};
-		glm::quat TargetRotation = {1, 0, 0, 0};
+		glm::vec3 TargetPosition = {0, 0, 0};	 // Authoritative server position
+		glm::quat TargetRotation = {1, 0, 0, 0}; // Authoritative server rotation
 		glm::vec3 TargetVelocity = {0, 0, 0};
+		glm::vec3 RenderPosition = {0, 0, 0};	 // Smoothly-interpolated render pos (never hard-reset)
+		glm::quat RenderRotation = {1, 0, 0, 0}; // Smoothly-interpolated render rot
+		bool RenderInitialized = false;			 // First packet: snap render pos to server pos
 		bool IsGrounded = false;
 		uint8_t ActionFlags = 0;
 	};

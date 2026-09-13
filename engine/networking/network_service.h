@@ -162,6 +162,10 @@ namespace Chained
 		{
 			return m_PlayerManager.GetNetworkIDForConnection(clientIndex);
 		}
+		int GetClientIndexForNetworkID(uint64_t networkID) const
+		{
+			return m_PlayerManager.GetClientIndexForNetworkID(networkID);
+		}
 
 		std::vector<PlayerNetInfo> GetPlayerList() const
 		{
