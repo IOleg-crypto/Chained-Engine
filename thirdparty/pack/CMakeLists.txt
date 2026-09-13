@@ -82,6 +82,8 @@ if(TARGET lz4_static)
 	list(APPEND PACK_LINK_LIBRARIES lz4_static)
 endif()
 
+set(PACK_SOURCES source/common.c source/reader.c source/writer.c)
+
 set(PACK_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include 
 	${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/wrappers/cpp)
 

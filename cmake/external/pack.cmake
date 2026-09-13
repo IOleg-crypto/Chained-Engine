@@ -2,10 +2,16 @@
 if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/pack/CMakeLists.txt")
     set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF)
+    set(PACK_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(PACK_BUILD_UTILITIES OFF CACHE BOOL "" FORCE)
     set(PACK_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
     add_subdirectory("${CMAKE_SOURCE_DIR}/thirdparty/pack"
         "${CMAKE_BINARY_DIR}/vendor/pack" EXCLUDE_FROM_ALL)
+
+    if(TARGET libzstd_static AND NOT TARGET zstd::libzstd_static)
+        add_library(zstd::libzstd_static ALIAS libzstd_static)
+    endif()
 
     # GCC 14+ treats -Wincompatible-pointer-types as error.
     # mpio/source/os.c passes char** to _spawvp() which expects const char* const*.
