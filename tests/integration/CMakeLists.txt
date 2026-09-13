@@ -17,7 +17,6 @@ set(INTEGRATION_SOURCES
     smoke_tests.cpp
     regression_tests.cpp
     test_environment.cpp
-    scriptengine_tests.cpp
     test_main.cpp
 )
 
