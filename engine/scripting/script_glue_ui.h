@@ -63,6 +63,11 @@ namespace Chained
 	CH_SCRIPT_FUNC uint8_t UI_Button(const Coral::UCChar* label);
 	CH_SCRIPT_FUNC void UI_BeginWindow(const Coral::UCChar* title, float x, float y, float w, float h, float bgAlpha);
 	CH_SCRIPT_FUNC void UI_EndWindow();
+	CH_SCRIPT_FUNC void UI_BeginChild(const Coral::UCChar* strId, float w, float h, uint8_t border);
+	CH_SCRIPT_FUNC void UI_EndChild();
+	CH_SCRIPT_FUNC void UI_Separator();
+	CH_SCRIPT_FUNC void UI_SameLine(float offsetFromStartX, float spacing);
+	CH_SCRIPT_FUNC void UI_SetNextItemWidth(float itemWidth);
 	CH_SCRIPT_FUNC uint8_t UI_InputText(const Coral::UCChar* label, Coral::UCChar* buffer, int maxLen);
 	CH_SCRIPT_FUNC void UI_SetKeyboardFocusHere();
 	CH_SCRIPT_FUNC void UI_SetScrollHereY(float centerYRatio);

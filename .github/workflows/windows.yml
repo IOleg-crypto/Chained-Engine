@@ -48,6 +48,9 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Update submodules recursively
+        run: git submodule update --init --recursive
+
       - name: Setup MSYS2
         if: "contains(matrix.preset, 'clang') || contains(matrix.preset, 'gcc')"
         uses: msys2/setup-msys2@v2

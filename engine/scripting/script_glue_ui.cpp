@@ -553,6 +553,10 @@ namespace Chained
 
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
 								 ImGuiWindowFlags_NoSavedSettings;
+		if (bgAlpha <= 0.0f)
+		{
+			flags |= ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav;
+		}
 		ImGui::Begin(strTitle.c_str(), nullptr, flags);
 	}
 
@@ -561,6 +565,48 @@ namespace Chained
 		if (ImGui::GetCurrentContext())
 		{
 			ImGui::End();
+		}
+	}
+
+	void UI_BeginChild(const Coral::UCChar* strId, float w, float h, uint8_t border)
+	{
+		if (ImGui::GetCurrentContext() == nullptr || !strId)
+		{
+			return;
+		}
+		std::string id = ch_u16_to_string(strId);
+		ImGui::BeginChild(id.c_str(), ImVec2(w, h), border != 0);
+	}
+
+	void UI_EndChild()
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::EndChild();
+		}
+	}
+
+	void UI_Separator()
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::Separator();
+		}
+	}
+
+	void UI_SameLine(float offsetFromStartX, float spacing)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::SameLine(offsetFromStartX, spacing);
+		}
+	}
+
+	void UI_SetNextItemWidth(float itemWidth)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::SetNextItemWidth(itemWidth);
 		}
 	}
 

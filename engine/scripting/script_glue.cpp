@@ -284,6 +284,11 @@ namespace Chained
 		assembly.AddInternalCall("Chained.UI", "UI_Button_Ptr", (void*)&UI_Button);
 		assembly.AddInternalCall("Chained.UI", "UI_BeginWindow_Ptr", (void*)&UI_BeginWindow);
 		assembly.AddInternalCall("Chained.UI", "UI_EndWindow_Ptr", (void*)&UI_EndWindow);
+		assembly.AddInternalCall("Chained.UI", "UI_BeginChild_Ptr", (void*)&UI_BeginChild);
+		assembly.AddInternalCall("Chained.UI", "UI_EndChild_Ptr", (void*)&UI_EndChild);
+		assembly.AddInternalCall("Chained.UI", "UI_Separator_Ptr", (void*)&UI_Separator);
+		assembly.AddInternalCall("Chained.UI", "UI_SameLine_Ptr", (void*)&UI_SameLine);
+		assembly.AddInternalCall("Chained.UI", "UI_SetNextItemWidth_Ptr", (void*)&UI_SetNextItemWidth);
 		assembly.AddInternalCall("Chained.UI", "UI_InputText_Ptr", (void*)&UI_InputText);
 		assembly.AddInternalCall("Chained.UI", "UI_SetKeyboardFocusHere_Ptr", (void*)&UI_SetKeyboardFocusHere);
 		assembly.AddInternalCall("Chained.UI", "UI_SetScrollHereY_Ptr", (void*)&UI_SetScrollHereY);

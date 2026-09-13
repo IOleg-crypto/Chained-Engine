@@ -32,6 +32,9 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Update submodules recursively
+        run: git submodule update --init --recursive
+
       - name: Get CMake and Ninja
         uses: lukka/get-cmake@latest
 
@@ -100,15 +103,18 @@ jobs:
       - name: Configure
         run: |
           set -euo pipefail
+          BUILD_DIR="build/${{ matrix.toolchain.preset }}"
+          mkdir -p "$BUILD_DIR"
+
           SANITIZERS_FLAG="OFF"
           if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
             SANITIZERS_FLAG="ON"
           fi
 
-          mkdir -p "build/${{ matrix.toolchain.preset }}"
           PYTHON_EXE=$(python3 -c "import sys; print(sys.executable)")
-          
+
           cmake --preset ${{ matrix.toolchain.preset }} \
+            -B "$BUILD_DIR" \
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install" \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
@@ -119,12 +125,12 @@ jobs:
             -DENABLE_SANITIZERS=$SANITIZERS_FLAG \
             -DENABLE_LTO=OFF \
             -DENABLE_PCH=OFF \
-            2>&1 | tee "build/${{ matrix.toolchain.preset }}/configure.log"
+            2>&1 | tee "$BUILD_DIR/configure.log"
 
       - name: Build
         run: |
           set -euo pipefail
-          cmake --build "build/${{ matrix.toolchain.preset }}" --config ${{ matrix.build_type }} \
+          cmake --build "build/${{ matrix.toolchain.preset }}" --config ${{ matrix.build_type }} --parallel \
             2>&1 | tee "build/${{ matrix.toolchain.preset }}/build_${{ matrix.build_type }}.log"
 
       - name: Test

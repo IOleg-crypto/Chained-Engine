@@ -5,13 +5,13 @@ namespace ChainedDecos.Scripts
 {
 public class CameraController : Script
 {
-    public float LookSensitivity = 0.5f;
+    public float LookSensitivity = 0.2f;
     public float Distance = 10.0f;
-    public float Pitch = 45.0f;
+    public float Pitch = 35.0f;
     public float Yaw = 0.0f;
     public string TargetTag = "Player";
 
-    public float TouchpadSensitivity = 1.8f;
+    public float TouchpadSensitivity = 2.0f;
     public float KeyboardRotateSpeed = 90.0f; // degrees per second
 
     private ulong _localPlayerId = 0;
@@ -92,43 +92,30 @@ public class CameraController : Script
 
         if (canProcessInput)
         {
-            // ── 1. Mouse & Touchpad Click-Drag Orbit ──
-            // Right-click, Middle-click, or Left-click drag (standard on laptops/touchpads)
-            bool isMouseDragging = Input.IsMouseButtonDown(MouseButton.Right)
-                                || Input.IsMouseButtonDown(MouseButton.Middle)
-                                || Input.IsMouseButtonDown(MouseButton.Left)
-                                || Input.IsKeyDown(Key.LeftAlt);
-
-            if (isMouseDragging)
+            // ── 1. Mouse & Touchpad Orbit ──
+            // Hold Right Mouse Button OR Left Mouse Button OR Middle Mouse Button to rotate camera view
+            if (Input.IsMouseButtonDown(MouseButton.Right) || Input.IsMouseButtonDown(MouseButton.Left) || Input.IsMouseButtonDown(MouseButton.Middle))
             {
                 Vector3 mouseDelta = Input.MouseDelta;
                 yaw -= mouseDelta.X * LookSensitivity;
                 pitch -= mouseDelta.Y * LookSensitivity;
             }
 
-            // ── 2. Touchpad Two-Finger Pan / Gesture ──
+            // ── 2. Touchpad Two-Finger Horizontal Swipe (Pan/Orbit) ──
             float scrollH = Input.GetMouseWheelHMove();
             if (MathF.Abs(scrollH) > 0.001f)
             {
                 yaw -= scrollH * TouchpadSensitivity;
             }
 
-            // ── 3. Touchpad / Mouse Wheel Zoom ──
+            // ── 3. Mouse Wheel / Touchpad Vertical Zoom ──
             float wheel = Input.GetMouseWheelMove();
             if (MathF.Abs(wheel) > 0.001f)
             {
-                // If holding Shift / Alt on trackpad, treat vertical scroll as pitch adjustment
-                if (Input.IsKeyDown(Key.LeftShift) || Input.IsKeyDown(Key.LeftAlt))
-                {
-                    pitch -= wheel * TouchpadSensitivity * 2.0f;
-                }
-                else
-                {
-                    distance -= wheel * 2.0f;
-                }
+                distance -= wheel * 1.5f;
             }
 
-            // ── 4. Laptop Keyboard Camera Controls (Arrow keys & Zoom keys) ──
+            // ── 4. Keyboard Controls (Arrow keys & Zoom) ──
             float keyYaw = 0.0f;
             if (Input.IsKeyDown(Key.Left))  keyYaw += 1.0f;
             if (Input.IsKeyDown(Key.Right)) keyYaw -= 1.0f;
@@ -140,23 +127,23 @@ public class CameraController : Script
             if (keyYaw != 0.0f || keyPitch != 0.0f)
             {
                 yaw += keyYaw * KeyboardRotateSpeed * deltaTime;
-                pitch += keyPitch * KeyboardRotateSpeed * deltaTime;
+                pitch += keyPitch * (KeyboardRotateSpeed * 0.7f) * deltaTime;
             }
 
             // Keyboard zoom (PageUp / PageDown)
             if (Input.IsKeyDown(Key.PageUp))
             {
-                distance -= 8.0f * deltaTime;
+                distance -= 10.0f * deltaTime;
             }
             if (Input.IsKeyDown(Key.PageDown))
             {
-                distance += 8.0f * deltaTime;
+                distance += 10.0f * deltaTime;
             }
         }
 
         // Always clamp pitch & distance every frame to keep camera in a sane 3rd person view
-        pitch = Mathf.Clamp(pitch, -10.0f, 85.0f);
-        distance = Mathf.Clamp(distance, 2.0f, 30.0f);
+        pitch = Mathf.Clamp(pitch, -20.0f, 80.0f);
+        distance = Mathf.Clamp(distance, 2.0f, 25.0f);
 
         camera.SetOrbit(yaw, pitch, distance);
     }
