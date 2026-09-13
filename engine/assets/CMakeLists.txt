@@ -66,6 +66,7 @@ add_library(engine_assets STATIC
 target_include_directories(engine_assets PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}/vendor/pack/include
     ${CMAKE_SOURCE_DIR}/thirdparty/pack/include
     ${CMAKE_SOURCE_DIR}/thirdparty/pack/wrappers/cpp
 )

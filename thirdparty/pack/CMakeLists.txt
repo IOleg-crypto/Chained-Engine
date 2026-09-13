@@ -64,6 +64,7 @@ else()
 endif()
 
 configure_file(cmake/defines.h.in include/pack/defines.h)
+configure_file(cmake/defines.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/pack/defines.h")
 set(PACK_SOURCES source/common.c source/reader.c source/writer.c)
 	
 set(PACK_LINK_LIBRARIES mpio-static libzstd_static lz4_static)

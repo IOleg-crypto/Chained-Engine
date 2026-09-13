@@ -1,7 +1,5 @@
 # pack dependency
-if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/pack/CMakeLists.txt" AND
-   EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/pack/libraries/zstd/build/cmake/CMakeLists.txt" AND
-   EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/pack/libraries/lz4/build/cmake/CMakeLists.txt")
+if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/pack/CMakeLists.txt")
     set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF)
     set(PACK_BUILD_TESTS OFF CACHE BOOL "" FORCE)
