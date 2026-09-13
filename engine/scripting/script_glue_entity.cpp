@@ -43,15 +43,16 @@ namespace Chained
 				if (metadata.GetAll)
 				{
 					auto ids = metadata.GetAll(scene);
-					int count = (int)std::min(ids.size(), (size_t)bufSize);
-					if (outBuf)
+					int totalCount = static_cast<int>(ids.size());
+					if (outBuf && bufSize > 0)
 					{
-						for (int i = 0; i < count; ++i)
+						int toCopy = std::min(totalCount, bufSize);
+						for (int i = 0; i < toCopy; ++i)
 						{
 							outBuf[i] = ids[i];
 						}
 					}
-					return count;
+					return totalCount;
 				}
 				return 0;
 			}

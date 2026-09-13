@@ -83,15 +83,15 @@ namespace Chained
 		const auto& cachedGlyphs = ftAtlas->GetCachedGlyphs();
 		for (const auto& [codepoint, glyph] : cachedGlyphs)
 		{
-			FontChar c;
-			c.x0 = glyph.s0;
-			c.y0 = glyph.t0;
-			c.x1 = glyph.s1;
-			c.y1 = glyph.t1;
-			c.xoff = static_cast<float>(glyph.offsetX);
-			c.yoff = static_cast<float>(glyph.offsetY);
-			c.xadvance = glyph.advanceX;
-			font.chars[codepoint] = c;
+			FontChar symbol;
+			symbol.x0 = glyph.s0;
+			symbol.y0 = glyph.t0;
+			symbol.x1 = glyph.s1;
+			symbol.y1 = glyph.t1;
+			symbol.xoff = static_cast<float>(glyph.offsetX);
+			symbol.yoff = static_cast<float>(glyph.offsetY);
+			symbol.xadvance = glyph.advanceX;
+			font.chars[codepoint] = symbol;
 		}
 
 		font.freeTypeAtlas = ftAtlas;

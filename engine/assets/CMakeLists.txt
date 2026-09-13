@@ -53,8 +53,6 @@ set(ASSET_MAIN
     asset_pack_store.cpp
     asset_path_resolver.cpp
     asset_path_resolver.h
-    asset_pack_store.cpp
-    asset_pack_store.h
     model_data.h
 )
 
@@ -68,6 +66,8 @@ add_library(engine_assets STATIC
 target_include_directories(engine_assets PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/thirdparty/pack/include
+    ${CMAKE_SOURCE_DIR}/thirdparty/pack/wrappers/cpp
 )
 
 target_link_libraries(engine_assets PUBLIC

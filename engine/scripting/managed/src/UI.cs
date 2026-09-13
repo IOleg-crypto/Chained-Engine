@@ -93,14 +93,14 @@ namespace Chained
         }
 
         /// <summary>Returns the game viewport display size in pixels.</summary>
-        public static unsafe System.Numerics.Vector2 GetDisplaySize()
+        public static unsafe Vector2 GetDisplaySize()
         {
             float w = 1280.0f, h = 720.0f;
             if (UI_GetDisplaySize_Ptr != null)
             {
                 UI_GetDisplaySize_Ptr(&w, &h);
             }
-            return new System.Numerics.Vector2(w, h);
+            return new Vector2(w, h);
         }
     }
 }

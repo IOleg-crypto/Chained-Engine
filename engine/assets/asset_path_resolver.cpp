@@ -1,5 +1,6 @@
 #include "engine/assets/asset_path_resolver.h"
 #include "engine/common/platform_detection.h"
+#include "engine/core/log.h"
 
 #include <algorithm>
 #include <cctype>
@@ -442,6 +443,61 @@ namespace Chained
 		std::lock_guard<std::mutex> lock(m_PathMutex);
 		m_PathCache.clear();
 		m_PathToHandle.clear();
+	}
+
+	void AssetPathResolver::SetAssetDirectory(const std::filesystem::path& path)
+	{
+		std::error_code ec;
+		if (!path.empty() && !std::filesystem::exists(path, ec))
+		{
+			CH_CORE_WARN("AssetPathResolver: Asset directory does not exist: {}", path.string());
+			return;
+		}
+		m_AssetDirectory = path;
+	}
+
+	void AssetPathResolver::SetProjectDirectory(const std::filesystem::path& path)
+	{
+		std::error_code ec;
+		if (!path.empty() && !std::filesystem::exists(path, ec))
+		{
+			CH_CORE_WARN("AssetPathResolver: Project directory does not exist: {}", path.string());
+			return;
+		}
+		m_ProjectDirectory = path;
+	}
+
+	void AssetPathResolver::SetEngineRoot(const std::filesystem::path& path)
+	{
+		std::error_code ec;
+		if (!path.empty() && !std::filesystem::exists(path, ec))
+		{
+			CH_CORE_WARN("AssetPathResolver: Engine root directory does not exist: {}", path.string());
+			return;
+		}
+		m_EngineRoot = path;
+	}
+
+	void AssetPathResolver::SetSourceResourcesDir(const std::filesystem::path& path)
+	{
+		std::error_code ec;
+		if (!path.empty() && !std::filesystem::exists(path, ec))
+		{
+			CH_CORE_WARN("AssetPathResolver: Source resources directory does not exist: {}", path.string());
+			return;
+		}
+		m_SourceResourcesDir = path;
+	}
+
+	void AssetPathResolver::SetSourceAssetsDir(const std::filesystem::path& path)
+	{
+		std::error_code ec;
+		if (!path.empty() && !std::filesystem::exists(path, ec))
+		{
+			CH_CORE_WARN("AssetPathResolver: Source assets directory does not exist: {}", path.string());
+			return;
+		}
+		m_SourceAssetsDir = path;
 	}
 
 } // namespace Chained

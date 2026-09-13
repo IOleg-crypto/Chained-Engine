@@ -17,6 +17,7 @@ set(INTEGRATION_SOURCES
     smoke_tests.cpp
     regression_tests.cpp
     test_environment.cpp
+    scriptengine_tests.cpp
     test_main.cpp
 )
 
@@ -36,6 +37,7 @@ target_link_libraries(engine_tests_integration PRIVATE
     engine_external_imgui
     engine_external_entt
     engine_reflection
+    
     gtest
     gtest_main
 )

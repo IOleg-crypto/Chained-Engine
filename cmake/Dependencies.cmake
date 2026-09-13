@@ -36,6 +36,7 @@ include(portable-file-dialogs)
 include(reflect-cpp)
 include(miniupnpc)
 include(basis_universal)
+include(pack)
 
 # Disable unity builds for third-party libraries to avoid symbol redefinitions
 # (e.g., zstd cover.h has no include guard, causing redefinition under unity build)

@@ -24,6 +24,26 @@ namespace Chained
 			  b(b),
 			  a(a)
 		{
+			if (r < 0 || g < 0 || b < 0 || a < 0)
+			{
+				CH_CORE_WARN("Color values should be in the range [0, 255]. Negative values will be clamped to 255.");
+				if (r < 0)
+				{
+					r = 255;
+				}
+				if (g < 0)
+				{
+					g = 255;
+				}
+				if (b < 0)
+				{
+					b = 255;
+				}
+				if (a < 0)
+				{
+					a = 255;
+				}
+			}
 		}
 
 		static Color White()

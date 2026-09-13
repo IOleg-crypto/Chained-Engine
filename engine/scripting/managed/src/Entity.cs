@@ -86,15 +86,25 @@ public class Entity
     {
         if (Entity_FindAllWithComponent_Ptr == null) return Array.Empty<ulong>();
         string name = typeof(T).Name;
+        fixed (char* ptr = name)
         {
-            fixed (char* ptr = name)
+            ulong* buf = stackalloc ulong[512];
+            int totalCount = Entity_FindAllWithComponent_Ptr(ptr, buf, 512);
+            if (totalCount <= 0) return Array.Empty<ulong>();
+
+            if (totalCount <= 512)
             {
-                ulong* buf = stackalloc ulong[512];
-                int count = Entity_FindAllWithComponent_Ptr(ptr, buf, 512);
-                ulong[] result = new ulong[count];
-                for (int i = 0; i < count; i++) result[i] = buf[i];
+                ulong[] result = new ulong[totalCount];
+                for (int i = 0; i < totalCount; i++) result[i] = buf[i];
                 return result;
             }
+
+            ulong[] dynamicResult = new ulong[totalCount];
+            fixed (ulong* dynPtr = dynamicResult)
+            {
+                Entity_FindAllWithComponent_Ptr(ptr, dynPtr, totalCount);
+            }
+            return dynamicResult;
         }
     }
 

@@ -142,7 +142,10 @@ namespace Chained
         public static void SetFieldInt(ulong entityId, string className, string fieldName, int value) => InternalSetField(entityId, className, fieldName, value);
         public static void SetFieldBool(ulong entityId, string className, string fieldName, bool value) => InternalSetField(entityId, className, fieldName, value);
         public static void SetFieldString(ulong entityId, string className, string fieldName, string value) => InternalSetField(entityId, className, fieldName, value);
-        // Using objects for math types as they might require custom marshaling depending on how Coral works.
+        public static void SetFieldVector2(ulong entityId, string className, string fieldName, float x, float y) => InternalSetField(entityId, className, fieldName, new Vector2(x, y));
+        public static void SetFieldVector3(ulong entityId, string className, string fieldName, float x, float y, float z) => InternalSetField(entityId, className, fieldName, new Vector3(x, y, z));
+        public static void SetFieldVector4(ulong entityId, string className, string fieldName, float x, float y, float z, float w) => InternalSetField(entityId, className, fieldName, new Vector4(x, y, z, w));
+        public static void SetFieldEntity(ulong entityId, string className, string fieldName, ulong targetEntityId) => InternalSetField(entityId, className, fieldName, new Entity(targetEntityId));
 
 
         [UnmanagedCallersOnly]
