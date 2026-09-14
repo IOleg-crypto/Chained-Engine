@@ -33,7 +33,7 @@ namespace Chained
 			out << YAML::EndMap;
 			m_SerializedData = out.c_str();
 
-			if (EditorLayer::Get().GetSelectedEntity() == m_Entity)
+			if (EditorLayer::HasInstance() && EditorLayer::Get().GetSelectedEntity() == m_Entity)
 			{
 				EditorLayer::Get().SetSelectedEntity({});
 			}

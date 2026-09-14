@@ -33,6 +33,11 @@ namespace Chained
 			return *s_Instance;
 		}
 
+		static bool HasInstance()
+		{
+			return s_Instance != nullptr;
+		}
+
 		EditorLayer();
 		virtual ~EditorLayer();
 

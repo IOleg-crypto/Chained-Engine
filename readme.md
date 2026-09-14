@@ -255,7 +255,6 @@ Each game has a YAML metadata file defining its entry scene, physics, rendering,
 | cereal | Binary serialization |
 | reflect-cpp | Runtime reflection |
 | ENet | UDP networking |
-| libsodium | Encryption (xchacha20poly1305) |
 | miniupnpc | UPnP port forwarding |
 
 Always init submodules before building:
