@@ -101,10 +101,19 @@ protected:
 		m_AssetManager = std::make_shared<AssetManager>();
 
 		auto currentPath = std::filesystem::current_path();
+		auto assetDir = currentPath / "test_assets_unit";
+
+		// Create the directory before SetAssetDirectory — the resolver validates existence.
+		std::error_code ec;
+		std::filesystem::create_directories(assetDir, ec);
+		if (ec)
+		{
+			FAIL() << "Cannot create test asset directory: " << assetDir << " — " << ec.message();
+		}
+
 		m_AssetManager->SetProjectDirectory(currentPath);
-		m_AssetManager->SetAssetDirectory(currentPath / "test_assets_unit");
+		m_AssetManager->SetAssetDirectory(assetDir);
 		m_AssetManager->SetEngineRoot(currentPath);
-		std::filesystem::create_directories(m_AssetManager->GetAssetDirectory());
 	}
 
 	void TearDown() override
@@ -114,6 +123,9 @@ protected:
 			m_AssetManager->Shutdown();
 		}
 		m_AssetManager.reset();
+
+		std::error_code ec;
+		std::filesystem::remove_all(std::filesystem::current_path() / "test_assets_unit", ec);
 	}
 
 	std::shared_ptr<AssetManager> m_AssetManager;

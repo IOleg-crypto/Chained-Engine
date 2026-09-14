@@ -13,11 +13,7 @@ public:
 			  Chained::ApplicationSpecification spec;
 			  spec.Name = "Engine Tests";
 			  spec.Headless = true;
-			  spec.EnableScripting = false; // No live test needs CoreCLR (scriptengine_tests.cpp is
-											// currently disabled). Tests that exercise scripting must
-											// boot the host themselves via ScriptEngine::SetEnabled +
-											// Initialize in their own fixture, so the .NET runtime is
-											// not paid for (and cannot crash) in unrelated tests.
+			  spec.EnableScripting = true;
 			  return spec;
 		  }())
 	{
