@@ -131,6 +131,22 @@ namespace Chained
 				{
 					settings.Skybox.Contrast = skyboxNode["Contrast"].as<float>();
 				}
+				if (skyboxNode["FlipUV_Y"])
+				{
+					settings.Skybox.FlipUV_Y = skyboxNode["FlipUV_Y"].as<bool>();
+				}
+				else if (skyboxNode["FlipUV"])
+				{
+					settings.Skybox.FlipUV_Y = skyboxNode["FlipUV"].as<bool>();
+				}
+				if (skyboxNode["FlipUV_X"])
+				{
+					settings.Skybox.FlipUV_X = skyboxNode["FlipUV_X"].as<bool>();
+				}
+				if (skyboxNode["Rotation"])
+				{
+					settings.Skybox.Rotation = skyboxNode["Rotation"].as<float>();
+				}
 			}
 
 			auto fogNode = envNode["Fog"];

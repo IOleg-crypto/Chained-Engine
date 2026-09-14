@@ -145,6 +145,11 @@ namespace Chained
 		shader->SetFloat("roughness", material.Roughness);
 		shader->SetVec4("colEmissive", material.EmissiveColor);
 		shader->SetFloat("emissiveIntensity", material.EmissiveIntensity);
+
+		shader->SetInt("u_FlipUV_Y", material.FlipUV_Y ? 1 : 0);
+		shader->SetInt("u_FlipUV_X", material.FlipUV_X ? 1 : 0);
+		shader->SetVec2("u_UVScale", material.UVScale);
+		shader->SetVec2("u_UVOffset", material.UVOffset);
 	}
 
 } // namespace Chained

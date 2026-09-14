@@ -14,7 +14,6 @@
 #include "engine/graphics/pipeline/material_manager.h"
 #include "engine/scene/components.h"
 #include "engine/scene/entity.h"
-#include "engine/graphics/nametag_system.h"
 #include "engine/core/platform.h"
 
 #include "engine/graphics/pipeline/passes/composite_pass.h"
@@ -28,6 +27,13 @@ namespace Chained
 	static glm::vec4 ColorToVec4(const Color& c)
 	{
 		return {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
+	}
+
+	static SceneRenderer::NametagRenderFn s_NametagRenderer = nullptr;
+
+	void SceneRenderer::SetNametagRenderer(NametagRenderFn fn)
+	{
+		s_NametagRenderer = fn;
 	}
 
 	SceneRenderer::SceneRenderer()
@@ -151,9 +157,15 @@ namespace Chained
 		// Collect entities
 		m_Collector.Collect(registry, frustum, camera.Position);
 
-		// Sort opaque queue front-to-back for early-Z rejection and group by shader/model
+		// Sort opaque queue: instancable items first, then group by asset+materials for batching, then front-to-back
 		auto& opaqueQueue = m_Collector.GetOpaqueQueue();
 		std::sort(opaqueQueue.begin(), opaqueQueue.end(), [](const auto& a, const auto& b) {
+			bool aInstancable = a.BoneMatrices.empty() && !a.ShaderOverride && a.CustomUniforms.empty();
+			bool bInstancable = b.BoneMatrices.empty() && !b.ShaderOverride && b.CustomUniforms.empty();
+			if (aInstancable != bInstancable)
+			{
+				return aInstancable > bInstancable;
+			}
 			if (a.ShaderOverride != b.ShaderOverride)
 			{
 				return a.ShaderOverride < b.ShaderOverride;
@@ -161,6 +173,18 @@ namespace Chained
 			if (a.Asset != b.Asset)
 			{
 				return a.Asset < b.Asset;
+			}
+			// Group items with identical material overrides together so geometry_pass can batch them
+			if (a.Materials.size() != b.Materials.size())
+			{
+				return a.Materials.size() < b.Materials.size();
+			}
+			for (size_t k = 0; k < a.Materials.size(); ++k)
+			{
+				if (a.Materials[k] != b.Materials[k])
+				{
+					return a.Materials[k].AlbedoPath < b.Materials[k].AlbedoPath;
+				}
 			}
 			return a.Distance < b.Distance;
 		});
@@ -196,7 +220,10 @@ namespace Chained
 			dbg->RenderDebug(registry, settings, camera, options, *renderer);
 		}
 
-		NametagSystem::DrawNametags(registry, camera);
+		if (s_NametagRenderer)
+		{
+			s_NametagRenderer(registry, camera);
+		}
 
 		renderer->EndScene();
 

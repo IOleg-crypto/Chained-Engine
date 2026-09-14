@@ -93,6 +93,51 @@ namespace Chained
 			entity.GetComponent<AnimationComponent>().BlendDuration = blendDuration;
 		}
 	}
+	float AnimationComponent_GetSpeed(uint64_t entityID)
+	{
+		Entity entity = GetEntity(entityID);
+		return entity && entity.HasComponent<AnimationComponent>() ? entity.GetComponent<AnimationComponent>().Speed
+																   : 1.0f;
+	}
+	void AnimationComponent_SetSpeed(uint64_t entityID, float speed)
+	{
+		Entity entity = GetEntity(entityID);
+		if (entity && entity.HasComponent<AnimationComponent>())
+		{
+			entity.GetComponent<AnimationComponent>().Speed = speed;
+		}
+	}
+	void AnimationComponent_PlayClip(uint64_t entityID, int index, uint8_t isLooping, float speed)
+	{
+		Entity entity = GetEntity(entityID);
+		if (entity && entity.HasComponent<AnimationComponent>())
+		{
+			auto& anim = entity.GetComponent<AnimationComponent>();
+			anim.CurrentAnimationIndex = index;
+			anim.IsLooping = isLooping != 0;
+			anim.DefaultIsLooping = anim.IsLooping;
+			if (speed > 0.0f)
+			{
+				anim.Speed = speed;
+			}
+			anim.CurrentFrame = anim.StartFrame >= 0 ? anim.StartFrame : 0;
+			anim.FrameTimeCounter = 0.0f;
+			anim.IsPlaying = true;
+			anim.IsFinished = false;
+			anim.Blending = false;
+		}
+	}
+	void AnimationComponent_Stop(uint64_t entityID)
+	{
+		Entity entity = GetEntity(entityID);
+		if (entity && entity.HasComponent<AnimationComponent>())
+		{
+			auto& anim = entity.GetComponent<AnimationComponent>();
+			anim.IsPlaying = false;
+			anim.CurrentFrame = anim.StartFrame >= 0 ? anim.StartFrame : 0;
+			anim.FrameTimeCounter = 0.0f;
+		}
+	}
 	void AnimationComponent_CrossFade(uint64_t entityID, int targetIndex, float blendDuration)
 	{
 		Entity entity = GetEntity(entityID);

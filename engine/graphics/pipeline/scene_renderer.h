@@ -32,6 +32,9 @@ namespace Chained
 		void RenderScene(entt::registry& registry, const SceneSettings& settings, const Camera3D& camera,
 						 const SceneRenderOptions& options);
 
+		using NametagRenderFn = void (*)(entt::registry&, const Camera3D&);
+		static void SetNametagRenderer(NametagRenderFn fn);
+
 		// Architectural Helper: Retrieves the primary camera from scene entities.
 		static std::optional<Camera3D> GetActiveCamera(entt::registry& registry);
 		static Entity GetPrimaryCameraEntity(entt::registry& registry, entt::registry* registryPtr);

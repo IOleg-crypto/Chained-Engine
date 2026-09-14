@@ -87,12 +87,7 @@ namespace Chained
 		unsigned int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace |
 							 aiProcess_JoinIdenticalVertices | aiProcess_LimitBoneWeights |
 							 aiProcess_ImproveCacheLocality | aiProcess_OptimizeMeshes |
-							 aiProcess_RemoveRedundantMaterials | aiProcess_FindInvalidData;
-
-		if (ext != ".gltf" && ext != ".glb")
-		{
-			flags |= aiProcess_FlipUVs;
-		}
+							 aiProcess_RemoveRedundantMaterials | aiProcess_FindInvalidData | aiProcess_FlipUVs;
 
 		const aiScene* scene = nullptr;
 

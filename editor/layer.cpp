@@ -635,13 +635,6 @@ namespace Chained
 				return true;
 			}
 		}
-
-		if (keyCode == KeyCode::F5)
-		{
-			m_ProjectManager->LaunchStandalone(m_SceneManager->GetActiveScene());
-			return true;
-		}
-
 		return false;
 	}
 

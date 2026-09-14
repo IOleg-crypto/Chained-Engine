@@ -131,6 +131,18 @@ namespace Chained
 			ImGui::Unindent();
 		}
 
+		if (DrawSectionHeader(ICON_FA_SLIDERS, ICON_FA_SLIDERS " UV / Mapping"))
+		{
+			ImGui::Indent();
+			EditorGUI::BeginPropertyGrid();
+			EditorGUI::Property("Flip UV (Y)", mat.FlipUV_Y);
+			EditorGUI::Property("Flip UV (X)", mat.FlipUV_X);
+			EditorGUI::Property("UV Scale", mat.UVScale);
+			EditorGUI::Property("UV Offset", mat.UVOffset);
+			EditorGUI::EndPropertyGrid();
+			ImGui::Unindent();
+		}
+
 		if (DrawSectionHeader(ICON_FA_GEARS, ICON_FA_GEARS " Settings"))
 		{
 			ImGui::Indent();

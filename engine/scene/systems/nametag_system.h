@@ -8,8 +8,10 @@ namespace Chained
 {
 	namespace NametagSystem
 	{
+		void Init();
 		void DrawNametags(entt::registry& registry, const Camera3D& camera);
 		void Shutdown();
 	} // namespace NametagSystem
 } // namespace Chained
-#endif
+
+#endif // CH_NAMETAG_SYSTEM_H

@@ -9,6 +9,9 @@ uniform int u_IsHDR;
 uniform float u_Exposure;
 uniform float u_Brightness;
 uniform float u_Contrast;
+uniform int u_VFlipped;
+uniform int u_HFlipped;
+uniform float u_Rotation;
 
 #include "../include/fog_skybox.glsl"
 
@@ -17,6 +20,14 @@ layout(location = 0) out vec4 finalColor;
 void main()
 {
     vec3 direction = normalize(v_Position);
+    if (u_Rotation != 0.0)
+    {
+        float s = sin(u_Rotation);
+        float c = cos(u_Rotation);
+        direction = vec3(c * direction.x + s * direction.z, direction.y, -s * direction.x + c * direction.z);
+    }
+    if (u_VFlipped == 1) direction.y = -direction.y;
+    if (u_HFlipped == 1) direction.x = -direction.x;
     
     // Sample the environment cubemap
     vec3 color = texture(u_Cubemap, direction).rgb;

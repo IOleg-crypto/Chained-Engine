@@ -459,6 +459,7 @@ namespace Chained
 		auto project = Project::GetActive();
 		if (!project)
 		{
+			CH_CORE_ERROR("SaveProject: No active project to save!");
 			return;
 		}
 
@@ -572,124 +573,17 @@ namespace Chained
 
 	void EditorProjectManager::RestoreLastProjectPath(const std::string& path)
 	{
+		if (!std::filesystem::exists(path))
+		{
+			CH_CORE_WARN("RestoreLastProjectPath: Path does not exist: {}", path);
+			return;
+		}
 		m_LastProjectPath = path;
 	}
 
 	std::string EditorProjectManager::ConsumePendingProjectPath()
 	{
 		return std::exchange(m_PendingOpenedProjectPath, {});
-	}
-
-	void EditorProjectManager::LaunchStandalone(std::shared_ptr<Scene> editorScene)
-	{
-		CH_PROFILE_FUNCTION();
-		auto project = Project::GetActive();
-		if (!project)
-		{
-			CH_CORE_ERROR("LaunchStandalone: No active project to launch!");
-			return;
-		}
-
-		auto& config = project->GetConfig();
-		std::string sceneArgument;
-
-		if (editorScene)
-		{
-			std::filesystem::path scenePath = editorScene->GetSettings().ScenePath;
-			if (scenePath.empty())
-			{
-				scenePath = config.ActiveScenePath;
-			}
-
-			if (!scenePath.empty())
-			{
-				if (!editorScene->GetSettings().ScenePath.empty())
-				{
-					SceneSerializer serializer(editorScene.get());
-					if (!serializer.Serialize(editorScene->GetSettings().ScenePath))
-					{
-						CH_CORE_ERROR("LaunchStandalone: Failed to save current editor scene before launching.");
-						return;
-					}
-				}
-
-				if (scenePath.is_relative())
-				{
-					scenePath = project->GetAssetPath(scenePath);
-				}
-
-				scenePath = std::filesystem::absolute(scenePath);
-				project->SetActiveScenePath(project->GetRelativePath(scenePath));
-				sceneArgument = std::format(" --scene \"{}\"", scenePath.string());
-			}
-		}
-
-		std::string configStr = (config.BuildConfig == Configuration::Release) ? "Release" : "Debug";
-		std::string runtimePath = FindRuntimeExecutable(config.Name, configStr).string();
-
-		std::filesystem::path projectFile = project->GetConfig().ProjectDirectory / (project->GetName() + ".chproject");
-		std::string arguments = std::format("\"{}\"", std::filesystem::absolute(projectFile).string());
-
-		if (!sceneArgument.empty())
-		{
-			arguments += sceneArgument;
-		}
-
-		if (runtimePath.empty() || !std::filesystem::exists(runtimePath))
-		{
-			CH_CORE_WARN("LaunchStandalone: Runtime binary not found at '{}'. Searching heuristic...", runtimePath);
-			runtimePath = FindRuntimeExecutable(config.Name, configStr).string();
-
-			if (runtimePath.empty() || !std::filesystem::exists(runtimePath))
-			{
-				CH_CORE_ERROR(
-					"LaunchStandalone: Runtime executable not found! Searched for '{}.exe' and 'ChainedRuntime.exe'.",
-					config.Name);
-				return;
-			}
-		}
-
-		if (!std::filesystem::exists(projectFile))
-		{
-			CH_CORE_ERROR("LaunchStandalone: Project file not found: {}",
-						  std::filesystem::absolute(projectFile).string());
-			return;
-		}
-
-#if CH_PLATFORM_WINDOWS
-		std::string normalizedRuntime = runtimePath;
-		std::replace(normalizedRuntime.begin(), normalizedRuntime.end(), '/', '\\');
-
-		std::string normalizedArgs = arguments;
-		std::replace(normalizedArgs.begin(), normalizedArgs.end(), '/', '\\');
-
-		CH_CORE_INFO("LaunchStandalone: Executing via ShellExecute: {} {}", normalizedRuntime, normalizedArgs);
-
-		// Provide the executable's directory as the working directory so it doesn't inherit the editor's CWD
-		std::string exeDir = std::filesystem::path(normalizedRuntime).parent_path().string();
-
-		std::wstring wExeDir(exeDir.begin(), exeDir.end());
-		HINSTANCE result =
-			ShellExecuteW(NULL, L"open", std::wstring(normalizedRuntime.begin(), normalizedRuntime.end()).c_str(),
-						  std::wstring(normalizedArgs.begin(), normalizedArgs.end()).c_str(), wExeDir.c_str(), SW_SHOW);
-		if ((uintptr_t)result <= 32)
-		{
-			DWORD err = GetLastError();
-			CH_CORE_ERROR("LaunchStandalone: ShellExecute failed with code {} (Win32 error: {})", (uintptr_t)result,
-						  err);
-		}
-#else
-		pid_t pid = fork();
-		if (pid == 0)
-		{
-			execl(runtimePath.c_str(), runtimePath.c_str(), arguments.c_str(), nullptr);
-			_exit(127);
-		}
-		else if (pid < 0)
-		{
-			CH_CORE_ERROR("LaunchStandalone: fork() failed");
-		}
-#endif
 	}
 
 } // namespace Chained

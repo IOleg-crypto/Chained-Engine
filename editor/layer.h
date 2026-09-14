@@ -107,10 +107,22 @@ namespace Chained
 		}
 		void OnViewportResized(const ImVec2& size)
 		{
-			m_ViewportSize = size;
+			if (size.x > 0 && size.y > 0)
+			{
+				m_ViewportSize = size;
+			}
+			else
+			{
+				CH_CORE_WARN("EditorLayer: Ignoring invalid viewport resize to ({}, {})", size.x, size.y);
+			}
 		}
 		void SetLastScenePath(const std::string& path)
 		{
+			if (!path.empty())
+			{
+				CH_CORE_INFO("EditorLayer: Not setting last scene path to '{}'", path);
+				return;
+			}
 			m_Config.LastScenePath = path;
 		}
 

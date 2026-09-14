@@ -118,6 +118,11 @@ namespace Chained
 		// Returns 0 if the texture is not found or path is not an embedded texture marker.
 		uint32_t GetEmbeddedTextureID(const std::string& path) const;
 
+		// Merges MeshInstances with the same materialIndex into a single GPU mesh.
+		// Only runs for static models (no animations). Reduces draw calls from N-nodes
+		// to M-unique-materials per model.
+		void MergeStaticMeshesByMaterial();
+
 	private:
 		Model m_Model;
 		std::vector<MeshData> m_Meshes;

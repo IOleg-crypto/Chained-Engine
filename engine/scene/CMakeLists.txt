@@ -72,6 +72,8 @@ set(SCENE_SYSTEMS
     systems/network_system.cpp
     systems/camera_auto_select_system.h
     systems/camera_auto_select_system.cpp
+    systems/nametag_system.h
+    systems/nametag_system.cpp
 )
 
 # ── 1. Core library (No UI / Graphics dependencies) ───────────────────────────

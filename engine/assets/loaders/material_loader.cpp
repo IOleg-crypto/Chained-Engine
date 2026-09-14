@@ -1,5 +1,6 @@
 #include "engine/assets/loaders/material_loader.h"
 #include "engine/assets/types/material_asset.h"
+#include "engine/assets/types/texture_asset.h"
 #include "engine/assets/loaders/yaml_helpers.h"
 #include "engine/assets/asset_manager.h"
 
@@ -87,6 +88,26 @@ namespace Chained
 			{
 				m.Alpha = mat["Alpha"].as<float>();
 			}
+			if (mat["FlipUV_Y"])
+			{
+				m.FlipUV_Y = mat["FlipUV_Y"].as<bool>();
+			}
+			else if (mat["FlipUV"])
+			{
+				m.FlipUV_Y = mat["FlipUV"].as<bool>();
+			}
+			if (mat["FlipUV_X"])
+			{
+				m.FlipUV_X = mat["FlipUV_X"].as<bool>();
+			}
+			if (mat["UVScale"])
+			{
+				m.UVScale = Vec2FromYAML(mat["UVScale"], {1.0f, 1.0f});
+			}
+			if (mat["UVOffset"])
+			{
+				m.UVOffset = Vec2FromYAML(mat["UVOffset"], {0.0f, 0.0f});
+			}
 			if (mat["AlbedoMap"])
 			{
 				m.AlbedoPath = mat["AlbedoMap"].as<std::string>();
@@ -106,6 +127,27 @@ namespace Chained
 			if (mat["OcclusionMap"])
 			{
 				m.OcclusionPath = mat["OcclusionMap"].as<std::string>();
+			}
+
+			if (auto* am = ServiceLocator::TryGet<AssetManager>())
+			{
+				auto loadTex = [&](const std::string& path, std::shared_ptr<Texture>& outTex) {
+					if (path.empty() || path.front() == '*')
+					{
+						return;
+					}
+					auto texAsset = am->Get<TextureAsset>(path);
+					if (texAsset && texAsset->IsReady() && texAsset->GetTexture())
+					{
+						outTex = texAsset->GetTexture();
+					}
+				};
+
+				loadTex(m.AlbedoPath, m.AlbedoMap);
+				loadTex(m.NormalPath, m.NormalMap);
+				loadTex(m.MetallicRoughnessPath, m.MetallicRoughnessMap);
+				loadTex(m.EmissivePath, m.EmissiveMap);
+				loadTex(m.OcclusionPath, m.OcclusionMap);
 			}
 		} catch (const YAML::Exception& e)
 		{

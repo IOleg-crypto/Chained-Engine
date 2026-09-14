@@ -78,8 +78,6 @@ set(GRAPHICS_MAIN
     text_renderer.cpp
     freetype_gl_atlas.h
     freetype_gl_atlas.cpp
-    nametag_system.h
-    nametag_system.cpp
 )
 
 add_library(engine_graphics STATIC

@@ -6,6 +6,8 @@
 #include "engine/core/service_locator.h"
 #include "engine/project/project.h"
 #include <cstring>
+#include <unordered_map>
+#include <glm/gtc/matrix_inverse.hpp>
 
 namespace Chained
 {
@@ -385,6 +387,16 @@ namespace Chained
 		m_NodeNames = std::move(m_PendingData.nodeNames);
 		m_NodeParents = std::move(m_PendingData.nodeParents);
 
+		// --- Static submesh merging by material ---
+		// For models with no skeletal animation, merge all MeshInstances that share the
+		// same materialIndex into a single GPU mesh. This collapses N-node models (e.g. a
+		// rail with 26 Blender objects all sharing one material) into M draw calls where
+		// M == number of unique materials. Skinned meshes are left untouched.
+		if (m_Animations.empty())
+		{
+			MergeStaticMeshesByMaterial();
+		}
+
 		m_PendingData = PendingModelData();
 		SetState(AssetState::Ready);
 	}
@@ -408,6 +420,257 @@ namespace Chained
 			return 0;
 		}
 		return 0;
+	}
+
+	void ModelAsset::MergeStaticMeshesByMaterial()
+	{
+		// Build a map: materialIndex → list of (meshIndex, localTransform) from m_Instances
+		// Skip any instance whose source mesh has skinning data.
+		std::unordered_map<int, std::vector<size_t>> byMaterial; // materialIndex → instance indices
+		for (size_t i = 0; i < m_Instances.size(); ++i)
+		{
+			int mi = m_Instances[i].meshIndex;
+			if (mi < 0 || mi >= (int)m_Meshes.size())
+			{
+				continue;
+			}
+			// Leave skinned meshes untouched
+			if (!m_Meshes[mi].joints.empty())
+			{
+				continue;
+			}
+			int matIdx = m_Meshes[mi].materialIndex;
+			byMaterial[matIdx].push_back(i);
+		}
+
+		if (byMaterial.empty())
+		{
+			return;
+		}
+
+		// Collect instances we could NOT merge (skinned)
+		std::vector<MeshInstance> survivingInstances;
+		std::unordered_map<size_t, bool> mergedSet;
+		for (const auto& [matIdx, instIndices] : byMaterial)
+		{
+			for (size_t idx : instIndices)
+			{
+				mergedSet[idx] = true;
+			}
+		}
+		for (size_t i = 0; i < m_Instances.size(); ++i)
+		{
+			if (mergedSet.find(i) == mergedSet.end())
+			{
+				survivingInstances.push_back(m_Instances[i]);
+			}
+		}
+
+		// For each material group, merge all source meshes into one
+		for (const auto& [matIdx, instIndices] : byMaterial)
+		{
+			if (instIndices.size() == 1)
+			{
+				// Only one instance for this material — keep as-is, no merge needed
+				survivingInstances.push_back(m_Instances[instIndices[0]]);
+				continue;
+			}
+
+			// Accumulate merged vertex/index buffers (positions already in local space)
+			std::vector<float> mergedVerts, mergedTexcoords, mergedNormals, mergedTangents;
+			std::vector<uint32_t> mergedIndices;
+			uint32_t vertexBase = 0;
+
+			bool hasTexcoords = false, hasNormals = false, hasTangents = false;
+			// Pre-check what attributes exist across source meshes
+			for (size_t idx : instIndices)
+			{
+				int mi = m_Instances[idx].meshIndex;
+				if (!m_Meshes[mi].texcoords.empty())
+				{
+					hasTexcoords = true;
+				}
+				if (!m_Meshes[mi].normals.empty())
+				{
+					hasNormals = true;
+				}
+				if (!m_Meshes[mi].tangents.empty())
+				{
+					hasTangents = true;
+				}
+			}
+
+			for (size_t idx : instIndices)
+			{
+				int mi = m_Instances[idx].meshIndex;
+				const MeshData& src = m_Meshes[mi];
+				const glm::mat4& T = m_Instances[idx].localTransform;
+				glm::mat4 normalMat = glm::transpose(glm::inverse(T));
+
+				uint32_t srcVertCount = (uint32_t)src.vertices.size() / 3;
+
+				// Transform positions
+				for (uint32_t v = 0; v < srcVertCount; ++v)
+				{
+					glm::vec4 pos(src.vertices[v * 3], src.vertices[v * 3 + 1], src.vertices[v * 3 + 2], 1.0f);
+					glm::vec4 tpos = T * pos;
+					mergedVerts.push_back(tpos.x);
+					mergedVerts.push_back(tpos.y);
+					mergedVerts.push_back(tpos.z);
+				}
+
+				// Transform normals
+				if (hasNormals)
+				{
+					for (uint32_t v = 0; v < srcVertCount; ++v)
+					{
+						if (v * 3 + 2 < src.normals.size())
+						{
+							glm::vec4 n(src.normals[v * 3], src.normals[v * 3 + 1], src.normals[v * 3 + 2], 0.0f);
+							glm::vec4 tn = normalMat * n;
+							mergedNormals.push_back(tn.x);
+							mergedNormals.push_back(tn.y);
+							mergedNormals.push_back(tn.z);
+						}
+						else
+						{
+							mergedNormals.push_back(0.f);
+							mergedNormals.push_back(1.f);
+							mergedNormals.push_back(0.f);
+						}
+					}
+				}
+
+				// Transform tangents
+				if (hasTangents)
+				{
+					for (uint32_t v = 0; v < srcVertCount; ++v)
+					{
+						if (v * 3 + 2 < src.tangents.size())
+						{
+							glm::vec4 t(src.tangents[v * 3], src.tangents[v * 3 + 1], src.tangents[v * 3 + 2], 0.0f);
+							glm::vec4 tt = T * t;
+							mergedTangents.push_back(tt.x);
+							mergedTangents.push_back(tt.y);
+							mergedTangents.push_back(tt.z);
+						}
+						else
+						{
+							mergedTangents.push_back(1.f);
+							mergedTangents.push_back(0.f);
+							mergedTangents.push_back(0.f);
+						}
+					}
+				}
+
+				// Copy UVs as-is (not affected by world transform)
+				if (hasTexcoords)
+				{
+					for (uint32_t v = 0; v < srcVertCount; ++v)
+					{
+						if (v * 2 + 1 < src.texcoords.size())
+						{
+							mergedTexcoords.push_back(src.texcoords[v * 2]);
+							mergedTexcoords.push_back(src.texcoords[v * 2 + 1]);
+						}
+						else
+						{
+							mergedTexcoords.push_back(0.f);
+							mergedTexcoords.push_back(0.f);
+						}
+					}
+				}
+
+				// Remap indices
+				for (uint32_t index : src.indices)
+				{
+					mergedIndices.push_back(vertexBase + index);
+				}
+				vertexBase += srcVertCount;
+			}
+
+			if (mergedVerts.empty() || mergedIndices.empty())
+			{
+				continue;
+			}
+
+			// Build a new GPU Mesh from merged data
+			Mesh mergedMesh;
+			mergedMesh.VertexCount = vertexBase;
+			mergedMesh.TriangleCount = (uint32_t)mergedIndices.size() / 3;
+			mergedMesh.MaterialIndex = matIdx;
+			mergedMesh.HasSkinning = false;
+
+			mergedMesh.VAO = VertexArray::Create();
+			if (mergedMesh.VAO)
+			{
+				auto vboPos = VertexBuffer::Create(mergedVerts.data(), (uint32_t)mergedVerts.size() * sizeof(float));
+				vboPos->SetLayout({{VertexAttributeType::Float3, "a_Position"}});
+				mergedMesh.VAO->AddVertexBuffer(vboPos);
+
+				if (hasTexcoords && !mergedTexcoords.empty())
+				{
+					auto vboTex =
+						VertexBuffer::Create(mergedTexcoords.data(), (uint32_t)mergedTexcoords.size() * sizeof(float));
+					vboTex->SetLayout({{VertexAttributeType::Float2, "a_TexCoord"}});
+					mergedMesh.VAO->AddVertexBuffer(vboTex);
+				}
+				if (hasNormals && !mergedNormals.empty())
+				{
+					auto vboNorm =
+						VertexBuffer::Create(mergedNormals.data(), (uint32_t)mergedNormals.size() * sizeof(float));
+					vboNorm->SetLayout({{VertexAttributeType::Float3, "a_Normal"}});
+					mergedMesh.VAO->AddVertexBuffer(vboNorm);
+				}
+				if (hasTangents && !mergedTangents.empty())
+				{
+					auto vboTan =
+						VertexBuffer::Create(mergedTangents.data(), (uint32_t)mergedTangents.size() * sizeof(float));
+					vboTan->SetLayout({{VertexAttributeType::Float3, "a_Tangent"}});
+					mergedMesh.VAO->AddVertexBuffer(vboTan);
+				}
+
+				auto ibo = IndexBuffer::Create(mergedIndices.data(), (uint32_t)mergedIndices.size());
+				mergedMesh.VAO->SetIndexBuffer(ibo);
+			}
+
+			// Compute merged bounding box
+			mergedMesh.MinBounds = {FLT_MAX, FLT_MAX, FLT_MAX};
+			mergedMesh.MaxBounds = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+			for (size_t v = 0; v < mergedVerts.size(); v += 3)
+			{
+				glm::vec3 p = {mergedVerts[v], mergedVerts[v + 1], mergedVerts[v + 2]};
+				mergedMesh.MinBounds = glm::min(mergedMesh.MinBounds, p);
+				mergedMesh.MaxBounds = glm::max(mergedMesh.MaxBounds, p);
+			}
+
+			// Append merged GPU mesh to m_Model.Meshes.
+			// Also append a merged CPU MeshData to m_Meshes so the physics system
+			// (which indexes rawMeshes[inst.meshIndex]) finds the correct triangles.
+			int newMeshIndex = (int)m_Model.Meshes.size(); // same index in both arrays
+			m_Model.Meshes.push_back(std::move(mergedMesh));
+
+			{
+				MeshData mergedCpu;
+				mergedCpu.materialIndex = matIdx;
+				mergedCpu.vertices = mergedVerts;
+				mergedCpu.texcoords = mergedTexcoords;
+				mergedCpu.normals = mergedNormals;
+				mergedCpu.tangents = mergedTangents;
+				mergedCpu.indices = mergedIndices;
+				m_Meshes.push_back(std::move(mergedCpu));
+			}
+
+			MeshInstance inst;
+			inst.meshIndex = newMeshIndex;
+			inst.localTransform = glm::mat4(1.0f); // transforms already baked in
+			survivingInstances.push_back(inst);
+		}
+
+		CH_CORE_TRACE("[ModelAsset] MergeStaticMeshesByMaterial '{}': {} instances → {} merged instances", GetPath(),
+					  m_Instances.size(), survivingInstances.size());
+
+		m_Instances = std::move(survivingInstances);
 	}
 
 	void ModelAsset::Unload()

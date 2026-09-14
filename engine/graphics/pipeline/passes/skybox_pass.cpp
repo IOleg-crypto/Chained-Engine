@@ -52,7 +52,8 @@ namespace Chained
 						if (auto* r = ServiceLocator::TryGet<Renderer>())
 						{
 							r->DrawSkybox(texId, 2, false, skySettings.Exposure, skySettings.Brightness,
-										  skySettings.Contrast, ctx.Camera, false);
+										  skySettings.Contrast, ctx.Camera, skySettings.FlipUV_Y, skySettings.FlipUV_X,
+										  skySettings.Rotation);
 						}
 					}
 				}
@@ -70,11 +71,11 @@ namespace Chained
 					int skyboxMode = std::clamp(skySettings.Mode, 0, 2);
 					uint32_t texId = textureAsset->GetTexture()->GetNativeHandle();
 
-					// Logic mapped directly from old SceneRenderer implementation
 					if (auto* r = ServiceLocator::TryGet<Renderer>())
 					{
 						r->DrawSkybox(texId, skyboxMode, textureAsset->IsHDR(), skySettings.Exposure,
-									  skySettings.Brightness, skySettings.Contrast, ctx.Camera, true);
+									  skySettings.Brightness, skySettings.Contrast, ctx.Camera, skySettings.FlipUV_Y,
+									  skySettings.FlipUV_X, skySettings.Rotation);
 					}
 				}
 			}

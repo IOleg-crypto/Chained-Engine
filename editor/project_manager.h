@@ -19,8 +19,8 @@ namespace Chained
 		void OpenProject();
 		void OpenProject(const std::filesystem::path& path);
 		void SaveProject();
-		void LaunchStandalone(std::shared_ptr<Scene> editorScene);
 
+	public:
 		bool OnProjectOpened(ProjectOpenedEvent& e);
 
 		// Runs the deferred part of project opening (font atlas rebuild, scene load).

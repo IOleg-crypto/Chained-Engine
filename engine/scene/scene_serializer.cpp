@@ -79,6 +79,9 @@ namespace Chained
 			out << YAML::Key << "Exposure" << YAML::Value << envSettings.Skybox.Exposure;
 			out << YAML::Key << "Brightness" << YAML::Value << envSettings.Skybox.Brightness;
 			out << YAML::Key << "Contrast" << YAML::Value << envSettings.Skybox.Contrast;
+			out << YAML::Key << "FlipUV_Y" << YAML::Value << envSettings.Skybox.FlipUV_Y;
+			out << YAML::Key << "FlipUV_X" << YAML::Value << envSettings.Skybox.FlipUV_X;
+			out << YAML::Key << "Rotation" << YAML::Value << envSettings.Skybox.Rotation;
 			out << YAML::EndMap;
 
 			out << YAML::Key << "Fog" << YAML::Value << YAML::BeginMap;
@@ -266,6 +269,9 @@ namespace Chained
 				envSettings.Skybox.Exposure = ReadYamlValue(skybox, "Exposure", envSettings.Skybox.Exposure);
 				envSettings.Skybox.Brightness = ReadYamlValue(skybox, "Brightness", envSettings.Skybox.Brightness);
 				envSettings.Skybox.Contrast = ReadYamlValue(skybox, "Contrast", envSettings.Skybox.Contrast);
+				envSettings.Skybox.FlipUV_Y = ReadYamlValue(skybox, "FlipUV_Y", envSettings.Skybox.FlipUV_Y);
+				envSettings.Skybox.FlipUV_X = ReadYamlValue(skybox, "FlipUV_X", envSettings.Skybox.FlipUV_X);
+				envSettings.Skybox.Rotation = ReadYamlValue(skybox, "Rotation", envSettings.Skybox.Rotation);
 			}
 
 			if (auto fog = sceneRoot["Fog"])

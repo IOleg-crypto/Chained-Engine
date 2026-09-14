@@ -850,13 +850,180 @@ namespace Chained
 				UIProperties ui;
 				Properties props(ui);
 
+				auto* am = ServiceLocator::TryGet<AssetManager>();
+				std::shared_ptr<ModelAsset> modelAsset = nullptr;
+				if (am && entity.HasComponent<ModelComponent>())
+				{
+					const auto& mc = entity.GetComponent<ModelComponent>();
+					if (!mc.ModelPath.empty())
+					{
+						modelAsset = am->Get<ModelAsset>(mc.ModelPath);
+						if (!modelAsset)
+						{
+							auto handle = am->ResolveToHandle(mc.ModelPath);
+							if (handle != AssetHandle(0))
+							{
+								modelAsset = am->Get<ModelAsset>(handle);
+							}
+						}
+					}
+				}
+
+				// --- Mode Indicator ---
+				bool isGraphDriven = comp.IsGraphDriven();
+				if (isGraphDriven)
+				{
+					ImGui::TextColored(ImVec4(0.3f, 0.8f, 0.9f, 1.0f), "Mode: Animation Graph");
+				}
+				else
+				{
+					ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Mode: Direct Clip (Standalone)");
+				}
+				ImGui::Spacing();
+
+				// --- Standalone Clip Properties ---
+				if (modelAsset && modelAsset->GetAnimationCount() > 0)
+				{
+					const auto& rawAnims = modelAsset->GetAnimations();
+					int animCount = static_cast<int>(rawAnims.size());
+
+					if (comp.CurrentAnimationIndex < 0 || comp.CurrentAnimationIndex >= animCount)
+					{
+						comp.CurrentAnimationIndex = 0;
+					}
+
+					std::string previewName = rawAnims[comp.CurrentAnimationIndex].name;
+					if (previewName.empty())
+					{
+						previewName = "Clip " + std::to_string(comp.CurrentAnimationIndex);
+					}
+					previewName +=
+						" (" + std::to_string(rawAnims[comp.CurrentAnimationIndex].frameCount) + " frames, " +
+						std::to_string(static_cast<int>(rawAnims[comp.CurrentAnimationIndex].frameRate)) + " fps)";
+
+					if (ImGui::BeginCombo("Animation Clip", previewName.c_str()))
+					{
+						for (int i = 0; i < animCount; ++i)
+						{
+							bool isSelected = (comp.CurrentAnimationIndex == i);
+							std::string clipLabel =
+								rawAnims[i].name.empty() ? ("Clip " + std::to_string(i)) : rawAnims[i].name;
+							clipLabel += " (" + std::to_string(rawAnims[i].frameCount) + " f, " +
+										 std::to_string(static_cast<int>(rawAnims[i].frameRate)) + " fps)";
+
+							if (ImGui::Selectable(clipLabel.c_str(), isSelected))
+							{
+								comp.CurrentAnimationIndex = i;
+								comp.CurrentFrame = 0;
+								comp.FrameTimeCounter = 0.0f;
+								comp.IsFinished = false;
+								changed = true;
+							}
+							if (isSelected)
+							{
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+						ImGui::EndCombo();
+					}
+				}
+				else
+				{
+					if (ui.Property("Animation Index", comp.CurrentAnimationIndex))
+					{
+						comp.CurrentFrame = 0;
+						comp.FrameTimeCounter = 0.0f;
+						comp.IsFinished = false;
+						changed = true;
+					}
+				}
+
+				if (ui.Property("Speed", comp.Speed, PropertyMeta(0.0f, 10.0f, 0.05f)))
+				{
+					changed = true;
+				}
+
+				if (ui.Property("Loop", comp.IsLooping))
+				{
+					comp.DefaultIsLooping = comp.IsLooping;
+					changed = true;
+				}
+
+				if (ui.Property("Play On Start", comp.PlayOnStart))
+				{
+					changed = true;
+				}
+
+				// Frame range
+				int startFrame = comp.StartFrame;
+				if (ui.Property("Start Frame", startFrame))
+				{
+					comp.StartFrame = startFrame;
+					changed = true;
+				}
+				int endFrame = comp.EndFrame;
+				if (ui.Property("End Frame", endFrame))
+				{
+					comp.EndFrame = endFrame;
+					changed = true;
+				}
+
+				if (ImGui::Button("Full Frame Range"))
+				{
+					comp.StartFrame = 0;
+					comp.EndFrame = -1;
+					changed = true;
+				}
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Reset frame range to entire animation clip");
+				}
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::TextDisabled("Preview & Playback");
+
+				// Play / Pause / Stop controls
+				if (ImGui::Button(comp.IsPlaying ? " Pause " : " Play "))
+				{
+					comp.IsPlaying = !comp.IsPlaying;
+				}
+				ImGui::SameLine();
+				if (ImGui::Button(" Stop "))
+				{
+					comp.IsPlaying = false;
+					comp.CurrentFrame = comp.StartFrame >= 0 ? comp.StartFrame : 0;
+					comp.FrameTimeCounter = 0.0f;
+				}
+
+				// Scrubber
+				int totalFrames = 100;
+				if (modelAsset && comp.CurrentAnimationIndex >= 0 &&
+					comp.CurrentAnimationIndex < modelAsset->GetAnimationCount())
+				{
+					totalFrames = modelAsset->GetAnimations()[comp.CurrentAnimationIndex].frameCount;
+				}
+				int maxF = (totalFrames > 0) ? (totalFrames - 1) : 100;
+				int curF = comp.CurrentFrame;
+				if (ImGui::SliderInt("Frame", &curF, 0, maxF))
+				{
+					comp.CurrentFrame = curF;
+					comp.FrameTimeCounter = 0.0f;
+				}
+
+				ImGui::TextDisabled("Time: %.2fs / %.2fs  (Frame %d / %d)", comp.CurrentTime, comp.Duration,
+									comp.CurrentFrame, totalFrames);
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Text("Animation Graph (Optional)");
+
 				if (ui.File("Graph Path", comp.GraphPath, ".chag"))
 				{
 					comp.GraphAssetHandle = AssetHandle(0);
 					changed = true;
 				}
 
-				auto* am = ServiceLocator::TryGet<AssetManager>();
 				if (ImGui::Button("New Graph"))
 				{
 					std::string baseName = "anim_graph";
@@ -937,17 +1104,24 @@ namespace Chained
 					ImGui::SetTooltip("Duplicate the current animation graph");
 				}
 
-				if (ui.Property("Blend Duration", comp.BlendDuration, PropertyMeta(0.0f, 10.0f, 0.01f)))
+				if (!comp.GraphPath.empty())
 				{
-					changed = true;
-				}
-				if (ui.Property("Default Loop", comp.DefaultIsLooping))
-				{
-					changed = true;
-				}
-				if (ui.Property("Play On Start", comp.PlayOnStart))
-				{
-					changed = true;
+					ImGui::SameLine();
+					if (ImGui::Button("Clear Graph"))
+					{
+						comp.GraphPath.clear();
+						comp.GraphAssetHandle = AssetHandle(0);
+						changed = true;
+					}
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::SetTooltip("Detach the animation graph and return to direct clip mode");
+					}
+
+					if (ui.Property("Blend Duration", comp.BlendDuration, PropertyMeta(0.0f, 10.0f, 0.01f)))
+					{
+						changed = true;
+					}
 				}
 
 				return changed;
