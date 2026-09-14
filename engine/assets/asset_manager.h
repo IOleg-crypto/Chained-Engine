@@ -25,10 +25,13 @@ namespace Chained
 	public:
 		AssetManager();
 		~AssetManager();
+
+	public:
 		virtual void Initialize();
 		virtual void Shutdown();
 		void Update(Timestep ts);
 
+	public:
 		void RegisterLoader(AssetType type, std::unique_ptr<IAssetLoader> loader);
 
 		void Unload(AssetHandle handle);
@@ -37,25 +40,51 @@ namespace Chained
 
 		void SetAssetDirectory(const std::filesystem::path& path)
 		{
+			if (path.empty())
+			{
+				CH_CORE_WARN("AssetManager: SetAssetDirectory called with empty path");
+				return;
+			}
 			m_PathResolver.SetAssetDirectory(path);
 		}
 		void SetProjectDirectory(const std::filesystem::path& path)
 		{
+			if (path.empty())
+			{
+				CH_CORE_WARN("AssetManager: SetProjectDirectory called with empty path");
+				return;
+			}
 			m_PathResolver.SetProjectDirectory(path);
 		}
 		void SetEngineRoot(const std::filesystem::path& path)
 		{
+			if (path.empty())
+			{
+				CH_CORE_WARN("AssetManager: SetEngineRoot called with empty path");
+				return;
+			}
 			m_PathResolver.SetEngineRoot(path);
 		}
 		void SetSourceResourcesDir(const std::filesystem::path& path)
 		{
+			if (path.empty())
+			{
+				CH_CORE_WARN("AssetManager: SetSourceResourcesDir called with empty path");
+				return;
+			}
 			m_PathResolver.SetSourceResourcesDir(path);
 		}
 		void SetSourceAssetsDir(const std::filesystem::path& path)
 		{
+			if (path.empty())
+			{
+				CH_CORE_WARN("AssetManager: SetSourceAssetsDir called with empty path");
+				return;
+			}
 			m_PathResolver.SetSourceAssetsDir(path);
 		}
 
+	public:
 		// Pack I/O — delegated to AssetPackStore
 		bool OpenPack(const std::filesystem::path& packPath);
 		size_t OpenAllPacksInDirectory(const std::filesystem::path& dir);
@@ -124,6 +153,11 @@ namespace Chained
 
 		void SetHotReloadInterval(float seconds)
 		{
+			if (seconds < 0.0f)
+			{
+				CH_CORE_WARN("AssetManager: SetHotReloadInterval called with negative value");
+				return;
+			}
 			m_HotReloadInterval = seconds;
 		}
 		float GetHotReloadInterval() const
@@ -133,6 +167,11 @@ namespace Chained
 
 		template <typename T> void Reload(const std::string& path)
 		{
+			if (path.empty())
+			{
+				CH_CORE_WARN("AssetManager: Reload called with empty path");
+				return;
+			}
 			AssetHandle handle = ResolveToHandle(path);
 			ReloadAsset(handle, T::GetStaticType());
 		}
@@ -158,7 +197,7 @@ namespace Chained
 
 		void ReloadAsset(AssetHandle handle, AssetType type);
 		void CheckAssetHotReload();
-		std::vector<StaleAsset> CollectStaleAssets(int thresholdSeconds) const;
+		std::vector<StaleAsset> CollectStaleAssets() const;
 		bool ExecuteLoad(const std::shared_ptr<Asset>& asset, IAssetLoader* loader, const std::string& resolved);
 		void StartAsyncLoad(const std::shared_ptr<Asset>& asset, IAssetLoader* loader, const std::string& resolved);
 

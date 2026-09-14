@@ -81,7 +81,7 @@ namespace Chained
 		FinalizePendingLoads();
 	}
 
-	std::vector<AssetManager::StaleAsset> AssetManager::CollectStaleAssets(int thresholdSeconds) const
+	std::vector<AssetManager::StaleAsset> AssetManager::CollectStaleAssets() const
 	{
 		CH_PROFILE_FUNCTION();
 		std::vector<StaleAsset> stale;
@@ -140,7 +140,7 @@ namespace Chained
 
 	void AssetManager::CheckAssetHotReload()
 	{
-		auto stale = CollectStaleAssets(10);
+		auto stale = CollectStaleAssets();
 		for (const auto& [handle, type, path] : stale)
 		{
 			CH_CORE_INFO("AssetManager: Hot-reloading recently modified {} '{}'",
@@ -604,7 +604,7 @@ namespace Chained
 
 	std::vector<std::string> AssetManager::GetStaleAssets() const
 	{
-		auto stale = CollectStaleAssets(30);
+		auto stale = CollectStaleAssets();
 		std::vector<std::string> paths;
 		paths.reserve(stale.size());
 		for (auto& s : stale)
@@ -616,7 +616,7 @@ namespace Chained
 
 	size_t AssetManager::ReloadAllStale()
 	{
-		auto stale = CollectStaleAssets(30);
+		auto stale = CollectStaleAssets();
 		for (const auto& [handle, type, path] : stale)
 		{
 			ReloadAsset(handle, type);

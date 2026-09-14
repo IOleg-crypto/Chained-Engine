@@ -43,7 +43,7 @@ include(basis_universal)
 # Coral.Native is specifically excluded because MSVC's unity PCH in C++20 mode
 # deletes operator<<(wchar_t*) which is used internally by Coral's cerr logging.
 foreach(_ext_target
-    libzstd_static yaml-cpp engine_external_basisu_transcoder engine_external_basisu_encoder
+    libzstd_static lz4_static pack-static mpio-static yaml-cpp engine_external_basisu_transcoder engine_external_basisu_encoder
     glm entt cereal stb spdlog miniaudio
     imgui imguizmo
     glfw glad
