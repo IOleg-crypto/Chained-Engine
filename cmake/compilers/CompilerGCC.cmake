@@ -37,8 +37,8 @@ else()
     message(STATUS "GCC: lld not found, falling back to default linker (heavy Debug links may exhaust memory)")
 endif()
 
-# Suppress overly strict C++23 template body checks for third-party headers (GLM)
-add_compile_options(-Wno-template-body)
+# Note: -Wno-template-body is Clang-only; GCC does not need it (GCC-13+ ignores
+# out-of-line template body errors by default in the contexts that trip Clang).
 
 # Dead Code Elimination linkage and binary stripping.
 # Enabled in all configs now that -ffunction-sections/-fdata-sections are global:

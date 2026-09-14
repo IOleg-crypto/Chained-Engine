@@ -48,6 +48,10 @@ namespace Chained
 
 		std::string ToLowerCopy(std::string value)
 		{
+			if (value.empty())
+			{
+				return "";
+			}
 			std::transform(value.begin(), value.end(), value.begin(),
 						   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 			return value;
@@ -194,6 +198,11 @@ namespace Chained
 	ScriptHost& GetScriptHost()
 	{
 		auto* scriptEngine = ServiceLocator::TryGet<ScriptEngine>();
+		if (!scriptEngine)
+		{
+			CH_CORE_ERROR("ScriptEngine module is not registered in ServiceLocator!");
+			throw std::runtime_error("ScriptEngine module is not registered in ServiceLocator!");
+		}
 		CH_ASSERT(scriptEngine && "ScriptEngine module is not registered in ServiceLocator!");
 		return scriptEngine->GetHost();
 	}
@@ -201,6 +210,11 @@ namespace Chained
 	ScriptRegistry& GetScriptRegistry()
 	{
 		auto* scriptEngine = ServiceLocator::TryGet<ScriptEngine>();
+		if (!scriptEngine)
+		{
+			CH_CORE_ERROR("ScriptEngine module is not registered in ServiceLocator!");
+			throw std::runtime_error("ScriptEngine module is not registered in ServiceLocator!");
+		}
 		CH_ASSERT(scriptEngine && "ScriptEngine module is not registered in ServiceLocator!");
 		return scriptEngine->GetRegistry();
 	}
@@ -339,6 +353,12 @@ namespace Chained
 	{
 		Coral::ManagedAssembly* loadedCore = nullptr;
 		Coral::ManagedAssembly* loadedApp = nullptr;
+
+		if (appAssemblyPath.empty())
+		{
+			CH_CORE_ERROR("ScriptEngine: LoadAssembliesTransactional called with empty appAssemblyPath.");
+			return false;
+		}
 
 		auto rollback = [&]() {
 			ClearLoadedAssemblyState();

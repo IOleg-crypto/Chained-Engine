@@ -220,31 +220,49 @@ namespace Chained
 			m_InFlightMeshBakes.insert(desc.CacheKey);
 		}
 
+		bool queued = false;
 		if (auto* tp = ServiceLocator::TryGet<ThreadPool>())
 		{
-			tp->QueueTask([this, desc]() {
-				// Check if world is still alive before building
-				{
-					std::lock_guard lock(m_CacheMutex);
-					if (m_IsShuttingDown)
+			try
+			{
+				tp->QueueTask([this, desc]() {
+					// Check if world is still alive before building
 					{
+						std::lock_guard lock(m_CacheMutex);
+						if (m_IsShuttingDown)
+						{
+							m_InFlightMeshBakes.erase(desc.CacheKey);
+							m_BakeCondition.notify_all();
+							return;
+						}
+					}
+
+					PrebuildShape(desc);
+
+					{
+						std::lock_guard lock(m_CacheMutex);
 						m_InFlightMeshBakes.erase(desc.CacheKey);
 						m_BakeCondition.notify_all();
-						return;
 					}
-				}
+				});
+				queued = true;
+			} catch (const std::exception&)
+			{
+				// ThreadPool is shutting down — fall through to synchronous path
+			}
+		}
 
-				PrebuildShape(desc);
-
+		if (!queued)
+		{
+			{
+				std::lock_guard lock(m_CacheMutex);
+				if (m_IsShuttingDown)
 				{
-					std::lock_guard lock(m_CacheMutex);
 					m_InFlightMeshBakes.erase(desc.CacheKey);
 					m_BakeCondition.notify_all();
+					return;
 				}
-			});
-		}
-		else
-		{
+			}
 			PrebuildShape(desc);
 			std::lock_guard lock(m_CacheMutex);
 			m_InFlightMeshBakes.erase(desc.CacheKey);

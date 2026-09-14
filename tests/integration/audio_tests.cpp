@@ -29,3 +29,15 @@ TEST(AudioTest, LoadAudio)
 	loader.Load(audio, "resources/audio/default.wav");
 	EXPECT_EQ(audio->GetType(), AssetType::Audio);
 }
+TEST(AudioTest, IsPlaying)
+{
+	Audio audio;
+
+	// Play a sound with an invalid handle
+	audio.Play(AssetHandle(0));
+	EXPECT_FALSE(audio.IsPlaying(AssetHandle(0)));
+
+	// Play a sound with a valid handle (assuming 1 is a valid handle)
+	audio.Play(AssetHandle(1));
+	EXPECT_FALSE(audio.IsPlaying(AssetHandle(1))); // Should be false since we didn't actually load a sound
+}

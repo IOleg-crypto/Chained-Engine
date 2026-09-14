@@ -15,6 +15,12 @@ namespace ChainedDecos.Scripts
         public int JumpAnim = 2;
         public float CrossFadeTime = 8.5f;
 
+        // ── Parkour Feel: Coyote Time & Jump Buffer ──
+        private float m_CoyoteTimer = 0.0f;
+        private const float CoyoteTimeDuration = 0.15f; // Can jump 150ms after leaving ledge
+        private float m_JumpBufferTimer = 0.0f;
+        private const float JumpBufferDuration = 0.15f; // Remembers jump press 150ms before landing
+
         private bool m_WasConnected = false;
         private int m_DisconnectGraceFrames = 0;
         private const int DisconnectGraceLimit = 15;
@@ -37,11 +43,9 @@ namespace ChainedDecos.Scripts
 
         public override void OnUpdate(float deltaTime)
         {
-            if (GameHUD.IsPaused || InGameChat.IsChatOpen)
-            {
-                StopHorizontalMovement();
-                return;
-            }
+            _rb        ??= Entity.GetComponent<RigidBodyComponent>();
+            _transform ??= Entity.GetComponent<TransformComponent>();
+            _anim      ??= Entity.GetComponent<AnimationComponent>();
 
             if (m_WasConnected && !Network.IsConnected)
             {
@@ -58,10 +62,6 @@ namespace ChainedDecos.Scripts
                 m_WasConnected = true;
                 m_DisconnectGraceFrames = 0;
             }
-
-            _rb        ??= Entity.GetComponent<RigidBodyComponent>();
-            _transform ??= Entity.GetComponent<TransformComponent>();
-            _anim      ??= Entity.GetComponent<AnimationComponent>();
 
             if (!Network.IsConnected && SessionState.SavedPlayerPosition.HasValue && _transform != null)
             {
@@ -117,6 +117,15 @@ namespace ChainedDecos.Scripts
                 return;
             }
 
+            // If paused or chatting, stop horizontal movement, apply gravity/kinematic physics, and set idle anim
+            if (GameHUD.IsPaused || InGameChat.IsChatOpen)
+            {
+                StopHorizontalMovement();
+                HandleVerticalMovement(deltaTime, allowJump: false);
+                if (_anim != null) UpdateAnimation(Vector3.Zero);
+                return;
+            }
+
             // ── Local input (owner or offline) ──
             float speed = MovementSpeed;
             if (Input.IsKeyDown(Key.LeftShift)) speed *= 2.0f;
@@ -139,7 +148,7 @@ namespace ChainedDecos.Scripts
                 StopHorizontalMovement();
             }
 
-            HandleVerticalMovement(deltaTime);
+            HandleVerticalMovement(deltaTime, allowJump: true);
 
             // Animation
             if (_anim != null) UpdateAnimation(movementDir);
@@ -200,21 +209,46 @@ namespace ChainedDecos.Scripts
             _transform.Rotation = new Vector3(0, yaw, 0);
         }
 
-        private void HandleVerticalMovement(float deltaTime)
+        private void HandleVerticalMovement(float deltaTime, bool allowJump)
         {
             if (_rb == null || _transform == null) return;
 
-            if (Input.IsKeyPressed(Key.Space) && _rb.IsGrounded)
+            bool isGrounded = _rb.IsGrounded;
+
+            // Update Coyote Timer: while on ground, timer is refreshed
+            if (isGrounded)
+            {
+                m_CoyoteTimer = CoyoteTimeDuration;
+            }
+            else
+            {
+                m_CoyoteTimer -= deltaTime;
+            }
+
+            // Update Jump Buffer: if player pressed Space, buffer it for JumpBufferDuration
+            if (allowJump && Input.IsKeyPressed(Key.Space))
+            {
+                m_JumpBufferTimer = JumpBufferDuration;
+            }
+            else
+            {
+                m_JumpBufferTimer -= deltaTime;
+            }
+
+            // Execute jump if we have a buffered jump AND valid ground/coyote window
+            if (m_JumpBufferTimer > 0.0f && m_CoyoteTimer > 0.0f)
             {
                 _rb.Velocity = new Vector3(_rb.Velocity.X, JumpForce, _rb.Velocity.Z);
+                m_JumpBufferTimer = 0.0f;
+                m_CoyoteTimer = 0.0f;
             }
 
             if (_rb.IsKinematic)
             {
                 const float terminalVelocity = -50.0f;
-                if (!_rb.IsGrounded) _rb.Velocity = new Vector3(_rb.Velocity.X, _rb.Velocity.Y - Gravity * deltaTime, _rb.Velocity.Z);
+                if (!isGrounded) _rb.Velocity = new Vector3(_rb.Velocity.X, _rb.Velocity.Y - Gravity * deltaTime, _rb.Velocity.Z);
                 if (_rb.Velocity.Y < terminalVelocity) _rb.Velocity = new Vector3(_rb.Velocity.X, terminalVelocity, _rb.Velocity.Z);
-                if (_rb.IsGrounded && _rb.Velocity.Y < 0) _rb.Velocity = new Vector3(_rb.Velocity.X, 0, _rb.Velocity.Z);
+                if (isGrounded && _rb.Velocity.Y < 0) _rb.Velocity = new Vector3(_rb.Velocity.X, 0, _rb.Velocity.Z);
                 _transform.Translation += _rb.Velocity * deltaTime;
             }
         }

@@ -11,6 +11,11 @@ namespace Chained
         internal static unsafe delegate* unmanaged<char*, byte> UI_Button_Ptr;
         internal static unsafe delegate* unmanaged<char*, float, float, float, float, float, void> UI_BeginWindow_Ptr;
         internal static unsafe delegate* unmanaged<void> UI_EndWindow_Ptr;
+        internal static unsafe delegate* unmanaged<char*, float, float, byte, void> UI_BeginChild_Ptr;
+        internal static unsafe delegate* unmanaged<void> UI_EndChild_Ptr;
+        internal static unsafe delegate* unmanaged<void> UI_Separator_Ptr;
+        internal static unsafe delegate* unmanaged<float, float, void> UI_SameLine_Ptr;
+        internal static unsafe delegate* unmanaged<float, void> UI_SetNextItemWidth_Ptr;
         internal static unsafe delegate* unmanaged<char*, char*, int, byte> UI_InputText_Ptr;
         internal static unsafe delegate* unmanaged<void> UI_SetKeyboardFocusHere_Ptr;
         internal static unsafe delegate* unmanaged<float, void> UI_SetScrollHereY_Ptr;
@@ -50,6 +55,41 @@ namespace Chained
         {
             if (UI_EndWindow_Ptr == null) return;
             UI_EndWindow_Ptr();
+        }
+
+        /// <summary>Begins a scrollable child region.</summary>
+        public static unsafe void BeginChild(string strId, float width = 0.0f, float height = 0.0f, bool border = false)
+        {
+            if (strId == null || UI_BeginChild_Ptr == null) return;
+            fixed (char* ptr = strId) UI_BeginChild_Ptr(ptr, width, height, (byte)(border ? 1 : 0));
+        }
+
+        /// <summary>Ends the current scrollable child region.</summary>
+        public static unsafe void EndChild()
+        {
+            if (UI_EndChild_Ptr == null) return;
+            UI_EndChild_Ptr();
+        }
+
+        /// <summary>Draws a horizontal separator line.</summary>
+        public static unsafe void Separator()
+        {
+            if (UI_Separator_Ptr == null) return;
+            UI_Separator_Ptr();
+        }
+
+        /// <summary>Positions the next widget on the same line.</summary>
+        public static unsafe void SameLine(float offsetFromStartX = 0.0f, float spacing = -1.0f)
+        {
+            if (UI_SameLine_Ptr == null) return;
+            UI_SameLine_Ptr(offsetFromStartX, spacing);
+        }
+
+        /// <summary>Sets the width of the next widget.</summary>
+        public static unsafe void SetNextItemWidth(float itemWidth)
+        {
+            if (UI_SetNextItemWidth_Ptr == null) return;
+            UI_SetNextItemWidth_Ptr(itemWidth);
         }
 
         /// <summary>
@@ -93,14 +133,14 @@ namespace Chained
         }
 
         /// <summary>Returns the game viewport display size in pixels.</summary>
-        public static unsafe System.Numerics.Vector2 GetDisplaySize()
+        public static unsafe Vector2 GetDisplaySize()
         {
             float w = 1280.0f, h = 720.0f;
             if (UI_GetDisplaySize_Ptr != null)
             {
                 UI_GetDisplaySize_Ptr(&w, &h);
             }
-            return new System.Numerics.Vector2(w, h);
+            return new Vector2(w, h);
         }
     }
 }

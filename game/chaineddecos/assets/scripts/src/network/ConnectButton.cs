@@ -33,13 +33,6 @@ namespace ChainedDecos.Scripts
         {
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
 
-            // ── Auto-hide Port field when IP looks like a room code ──────
-            string ipText = ReadText(IpInputTag, DefaultIp);
-            bool looksLikeRoomCode = ipText.Length >= 4 && ipText.Length <= 6
-                && System.Linq.Enumerable.All(ipText, char.IsDigit);
-            SetVisible(PortInputTag, !looksLikeRoomCode);
-            SetVisible("label_port", !looksLikeRoomCode);
-
             // ── Poll connection state ─────────────────────────────────────
             if (m_IsConnecting)
             {
@@ -82,31 +75,6 @@ namespace ChainedDecos.Scripts
             // ── Read inputs ───────────────────────────────────────────────
             string ip   = ReadText(IpInputTag, DefaultIp);
             ushort port = DefaultPort;
-
-            // Detect 4-6 digit room code (e.g. "4821")
-            uint parsedRoomCode = 0;
-            bool isRoomCode = ip.Length >= 4 && ip.Length <= 6 && uint.TryParse(ip, out parsedRoomCode);
-
-            if (isRoomCode)
-            {
-                // Room code path: no port needed, signaling server handles it
-                string nick = ReadText(NickInputTag, "");
-                if (!string.IsNullOrWhiteSpace(nick))
-                    PlayerSettings.Nickname = nick.Trim();
-
-                ShowError("");
-                Network.SetLocalPlayerInfo(PlayerSettings.Nickname, (byte)LobbyManager.SelectedSkinIndex);
-
-                Log.Info($"[ConnectButton] Connecting via room code {parsedRoomCode}");
-                Network.ConnectRoom(parsedRoomCode);
-
-                m_PendingIp   = $"ROOM:{parsedRoomCode}";
-                m_PendingPort = 0;
-                m_IsConnecting = true;
-                m_ConnectTimer = 0f;
-                if (btn != null) btn.Label = "Connecting...";
-                return;
-            }
 
             // If the user entered/pasted "IP:PORT" (e.g. "178.150.20.10:54321"), prioritize it
             if (ip.Contains(":"))

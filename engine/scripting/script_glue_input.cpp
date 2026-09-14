@@ -18,6 +18,22 @@ namespace Chained
 	{
 		return Core::Input::GetMouseWheelMove();
 	}
+	float Input_GetMouseWheelHMove()
+	{
+		return Core::Input::GetMouseWheelHMove();
+	}
+	void Input_GetMouseScroll(float* outX, float* outY)
+	{
+		glm::vec2 scroll = Core::Input::GetMouseScroll();
+		if (outX)
+		{
+			*outX = scroll.x;
+		}
+		if (outY)
+		{
+			*outY = scroll.y;
+		}
+	}
 	int Input_IsMouseButtonPressed(int button)
 	{
 		return Core::Input::IsMouseButtonPressed(static_cast<MouseCode>(button)) ? 1 : 0;

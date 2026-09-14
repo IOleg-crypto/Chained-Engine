@@ -13,7 +13,8 @@ include(entt)
 include(miniaudio)
 include(cereal)
 include(stb)
-# zstd is provided by pack — no separate include needed.
+include(zstd)
+include(pack)
 include(spdlog)
 include(jolt)
 include(freetype)
@@ -31,7 +32,6 @@ include(assimp)
 
 include(coral)
 include(external_gtest)
-include(pack)
 include(portable-file-dialogs)
 # enet + sodium are the networking transport (added via engine/CMakeLists.txt)
 include(reflect-cpp)
@@ -43,7 +43,7 @@ include(basis_universal)
 # Coral.Native is specifically excluded because MSVC's unity PCH in C++20 mode
 # deletes operator<<(wchar_t*) which is used internally by Coral's cerr logging.
 foreach(_ext_target
-    libzstd_static yaml-cpp engine_external_basisu_transcoder engine_external_basisu_encoder
+    libzstd_static lz4_static pack-static mpio-static yaml-cpp engine_external_basisu_transcoder engine_external_basisu_encoder
     glm entt cereal stb spdlog miniaudio
     imgui imguizmo
     glfw glad
@@ -57,7 +57,3 @@ foreach(_ext_target
         set_target_properties(${_ext_target} PROPERTIES UNITY_BUILD OFF)
     endif()
 endforeach()
-
-if(NOT TARGET libzstd_static AND NOT TARGET libzstd)
-    add_subdirectory(thirdparty/zstd/build/cmake/lib)
-endif()

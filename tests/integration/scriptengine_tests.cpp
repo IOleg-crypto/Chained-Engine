@@ -15,8 +15,24 @@ namespace
 	std::vector<std::filesystem::path> GetReloadAssemblyCandidates()
 	{
 		std::vector<std::filesystem::path> candidates;
-		candidates.emplace_back(std::filesystem::current_path() / "ChainedDecos.Scripts.dll");
-		candidates.emplace_back(std::filesystem::current_path() / "Chained.Managed.dll");
+		auto cwd = std::filesystem::current_path();
+
+		const char* engineRoot = std::getenv("ENGINE_ROOT");
+		if (engineRoot && *engineRoot)
+		{
+			std::filesystem::path root(engineRoot);
+			candidates.emplace_back(root / "game" / "chaineddecos" / "assets" / "bin" / "ChainedDecos.Scripts.dll");
+			candidates.emplace_back(root / "game" / "chaineddecos" / "assets" / "bin" / "Chained.Managed.dll");
+		}
+
+		candidates.emplace_back(cwd / "game" / "chaineddecos" / "assets" / "bin" / "ChainedDecos.Scripts.dll");
+		candidates.emplace_back(cwd / "game" / "chaineddecos" / "assets" / "bin" / "Chained.Managed.dll");
+		candidates.emplace_back(cwd / "scripts" / "ChainedDecos" / "ChainedDecos.Scripts.dll");
+		candidates.emplace_back(cwd / "assets" / "bin" / "ChainedDecos.Scripts.dll");
+		candidates.emplace_back(cwd / "ChainedDecos.Scripts.dll");
+		candidates.emplace_back(cwd / "scripts" / "ChainedDecos" / "Chained.Managed.dll");
+		candidates.emplace_back(cwd / "assets" / "bin" / "Chained.Managed.dll");
+		candidates.emplace_back(cwd / "Chained.Managed.dll");
 
 		std::vector<std::filesystem::path> existing;
 		for (const auto& candidate : candidates)
@@ -38,9 +54,16 @@ protected:
 	{
 		if (!ServiceLocator::Has<ScriptEngine>())
 		{
-			GTEST_SKIP() << "Skipping ScriptEngine tests: ScriptEngine not registered in ServiceLocator.";
+			ServiceLocator::Provide<ScriptEngine>([] { return std::make_unique<ScriptEngine>(true); });
 		}
-		if (!ServiceLocator::Get<ScriptEngine>()->IsHostInitialized())
+		auto* scriptEngine = ServiceLocator::Get<ScriptEngine>();
+		if (scriptEngine && !scriptEngine->IsHostInitialized())
+		{
+			scriptEngine->SetEnabled(true);
+			scriptEngine->Initialize();
+		}
+
+		if (!scriptEngine || !scriptEngine->IsHostInitialized())
 		{
 			GTEST_SKIP() << "Skipping ScriptEngine tests: CoreCLR host initialization failed in this environment.";
 		}

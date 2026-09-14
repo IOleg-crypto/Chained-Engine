@@ -100,12 +100,23 @@ namespace Chained
 
 	bool ScriptEngine::RequestAssemblyReload(const std::string& assemblyPath, const char* requestSource)
 	{
+		if (assemblyPath.empty() || !std::filesystem::exists(assemblyPath))
+		{
+			CH_CORE_WARN("ScriptEngine: Assembly reload request failed - file does not exist: '{}'", assemblyPath);
+			return false;
+		}
+
 		CH_CORE_INFO("ScriptEngine: Assembly reload requested by {}", requestSource);
 		return ReloadAssembly(assemblyPath);
 	}
 
 	Coral::Type* ScriptEngine::GetScriptClass(const std::string& name)
 	{
+		if (name.empty())
+		{
+			CH_CORE_WARN("ScriptEngine: GetScriptClass called with empty name.");
+			return nullptr;
+		}
 		return m_Registry.GetScriptClass(name);
 	}
 

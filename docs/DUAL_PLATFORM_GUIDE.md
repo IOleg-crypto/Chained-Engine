@@ -1,4 +1,4 @@
-﻿# Dual-Platform Development Guide (Windows + WSL2)
+# Dual-Platform Development Guide (Windows + WSL2)
 
 A comprehensive guide for building, running, and developing ChainedEngine across **Windows** and **Linux (WSL2)** simultaneously using a single shared repository on your Windows drive (e.g. `D:\gitnext\Chained Decos`).
 
@@ -103,6 +103,16 @@ sudo ln -sf ~/.dotnet/dotnet /usr/local/bin/dotnet 2>/dev/null || true
 if [ -d "$HOME/.dotnet" ] && [ ! -d "/usr/share/dotnet" ]; then
   sudo ln -sf "$HOME/.dotnet" /usr/share/dotnet
 fi
+
+# Configure ALSA to route to WSLg PulseAudio (fixes "cannot find card 0" and silence)
+sudo bash -c 'cat << "EOF" > /etc/asound.conf
+pcm.!default {
+    type pulse
+}
+ctl.!default {
+    type pulse
+}
+EOF'
 ```
 
 ---
@@ -220,3 +230,15 @@ This tests:
   `rm -rf engine/scripting/managed/obj engine/scripting/managed/*/obj`
 - **Mouse camera jumping / spinning in WSLg:**
   In WSLg (XWayland), pointer grabbing (`GLFW_CURSOR_DISABLED`) causes synthetic mouse warping events. ChainedEngine disables raw cursor locking on Linux (`#if !CH_PLATFORM_LINUX`) and clamps delta motion to ensure smooth mouse look.
+- **No sound / ALSA `cannot find card '0'` / `Unknown PCM default` in WSL2:**
+  WSL2 does not have physical ALSA hardware devices. Install `libasound2-plugins` and configure ALSA to route through WSLg's PulseAudio server:
+  ```bash
+  sudo bash -c 'cat << "EOF" > /etc/asound.conf
+  pcm.!default {
+      type pulse
+  }
+  ctl.!default {
+      type pulse
+  }
+  EOF'
+  ```

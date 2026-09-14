@@ -284,6 +284,11 @@ namespace Chained
 		assembly.AddInternalCall("Chained.UI", "UI_Button_Ptr", (void*)&UI_Button);
 		assembly.AddInternalCall("Chained.UI", "UI_BeginWindow_Ptr", (void*)&UI_BeginWindow);
 		assembly.AddInternalCall("Chained.UI", "UI_EndWindow_Ptr", (void*)&UI_EndWindow);
+		assembly.AddInternalCall("Chained.UI", "UI_BeginChild_Ptr", (void*)&UI_BeginChild);
+		assembly.AddInternalCall("Chained.UI", "UI_EndChild_Ptr", (void*)&UI_EndChild);
+		assembly.AddInternalCall("Chained.UI", "UI_Separator_Ptr", (void*)&UI_Separator);
+		assembly.AddInternalCall("Chained.UI", "UI_SameLine_Ptr", (void*)&UI_SameLine);
+		assembly.AddInternalCall("Chained.UI", "UI_SetNextItemWidth_Ptr", (void*)&UI_SetNextItemWidth);
 		assembly.AddInternalCall("Chained.UI", "UI_InputText_Ptr", (void*)&UI_InputText);
 		assembly.AddInternalCall("Chained.UI", "UI_SetKeyboardFocusHere_Ptr", (void*)&UI_SetKeyboardFocusHere);
 		assembly.AddInternalCall("Chained.UI", "UI_SetScrollHereY_Ptr", (void*)&UI_SetScrollHereY);
@@ -296,6 +301,8 @@ namespace Chained
 		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonDown_Ptr", (void*)&Input_IsMouseButtonDown);
 		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonPressed_Ptr", (void*)&Input_IsMouseButtonPressed);
 		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelMove_Ptr", (void*)&Input_GetMouseWheelMove);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelHMove_Ptr", (void*)&Input_GetMouseWheelHMove);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseScroll_Ptr", (void*)&Input_GetMouseScroll);
 		assembly.AddInternalCall("Chained.Input", "Input_GetMouseDelta_Ptr", (void*)&Input_GetMouseDelta);
 
 		// ── Log ───────────────────────────────────────────────────────────
@@ -355,10 +362,7 @@ namespace Chained
 
 		// ── Network ─────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Network", "Network_HostGame_Ptr", (void*)&Network_HostGame);
-		assembly.AddInternalCall("Chained.Network", "Network_HostRoom_Ptr", (void*)&Network_HostRoom);
 		assembly.AddInternalCall("Chained.Network", "Network_ConnectTo_Ptr", (void*)&Network_ConnectTo);
-		assembly.AddInternalCall("Chained.Network", "Network_ConnectRoom_Ptr", (void*)&Network_ConnectRoom);
-		assembly.AddInternalCall("Chained.Network", "Network_GetRoomCode_Ptr", (void*)&Network_GetRoomCode);
 		assembly.AddInternalCall("Chained.Network", "Network_Disconnect_Ptr", (void*)&Network_Disconnect);
 		assembly.AddInternalCall("Chained.Network", "Network_IsHost_Ptr", (void*)&Network_IsHost);
 		assembly.AddInternalCall("Chained.Network", "Network_IsClient_Ptr", (void*)&Network_IsClient);

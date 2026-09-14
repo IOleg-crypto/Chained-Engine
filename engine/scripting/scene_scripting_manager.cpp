@@ -106,7 +106,7 @@ namespace Chained
 			auto& msc = registry.get<Chained::ManagedScriptComponent>(entity);
 			for (auto& script : msc.Scripts)
 			{
-				script.IsInstantiated = false;
+				script.ResetRuntimeState();
 			}
 		}
 
@@ -144,7 +144,7 @@ namespace Chained
 			auto& msc = registry.get<Chained::ManagedScriptComponent>(entity);
 			for (auto& script : msc.Scripts)
 			{
-				script.IsInstantiated = false;
+				script.ResetRuntimeState();
 			}
 		}
 	}
@@ -196,17 +196,36 @@ namespace Chained
 							continue;
 						}
 
+						struct ScopedCoralString
+						{
+							Coral::String str;
+							ScopedCoralString(const std::string& s)
+								: str(Coral::String::New(s))
+							{
+							}
+							~ScopedCoralString()
+							{
+								Coral::String::Free(str);
+							}
+							operator Coral::String() const
+							{
+								return str;
+							}
+						};
+
 						for (const auto& [fieldName, field] : script.Fields)
 						{
 							CH_CORE_TRACE("C++ setting field {}", fieldName);
-							Coral::String fNameStr = Coral::String::New(fieldName);
-							Coral::String cNameStr = Coral::String::New(script.ClassName);
+							ScopedCoralString fNameStr(fieldName);
+							ScopedCoralString cNameStr(script.ClassName);
+
 							if (field.Type == ScriptFieldType::Float)
 							{
 								if (auto* val = std::get_if<float>(&field.Value))
 								{
 									ctx.scriptEngineType.InvokeStaticMethod(
-										"SetFieldFloat", static_cast<uint64_t>(entity), cNameStr, fNameStr, *val);
+										"SetFieldFloat", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, *val);
 								}
 							}
 							else if (field.Type == ScriptFieldType::Int)
@@ -214,7 +233,8 @@ namespace Chained
 								if (auto* val = std::get_if<int>(&field.Value))
 								{
 									ctx.scriptEngineType.InvokeStaticMethod(
-										"SetFieldInt", static_cast<uint64_t>(entity), cNameStr, fNameStr, *val);
+										"SetFieldInt", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, *val);
 								}
 							}
 							else if (field.Type == ScriptFieldType::Bool)
@@ -222,21 +242,65 @@ namespace Chained
 								if (auto* val = std::get_if<bool>(&field.Value))
 								{
 									ctx.scriptEngineType.InvokeStaticMethod(
-										"SetFieldBool", static_cast<uint64_t>(entity), cNameStr, fNameStr, *val);
+										"SetFieldBool", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, *val);
 								}
 							}
 							else if (field.Type == ScriptFieldType::String)
 							{
 								if (auto* val = std::get_if<std::string>(&field.Value))
 								{
-									Coral::String vStr = Coral::String::New(*val);
+									ScopedCoralString vStr(*val);
 									ctx.scriptEngineType.InvokeStaticMethod(
-										"SetFieldString", static_cast<uint64_t>(entity), cNameStr, fNameStr, vStr);
-									Coral::String::Free(vStr);
+										"SetFieldString", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, (Coral::String)vStr);
 								}
 							}
-							Coral::String::Free(cNameStr);
-							Coral::String::Free(fNameStr);
+							else if (field.Type == ScriptFieldType::Vec2)
+							{
+								if (auto* val = std::get_if<glm::vec2>(&field.Value))
+								{
+									ctx.scriptEngineType.InvokeStaticMethod(
+										"SetFieldVector2", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, val->x, val->y);
+								}
+							}
+							else if (field.Type == ScriptFieldType::Vec3)
+							{
+								if (auto* val = std::get_if<glm::vec3>(&field.Value))
+								{
+									ctx.scriptEngineType.InvokeStaticMethod(
+										"SetFieldVector3", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, val->x, val->y, val->z);
+								}
+							}
+							else if (field.Type == ScriptFieldType::Vec4)
+							{
+								if (auto* val = std::get_if<glm::vec4>(&field.Value))
+								{
+									ctx.scriptEngineType.InvokeStaticMethod(
+										"SetFieldVector4", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, val->x, val->y, val->z, val->w);
+								}
+							}
+							else if (field.Type == ScriptFieldType::Color)
+							{
+								if (auto* val = std::get_if<Chained::Color>(&field.Value))
+								{
+									ctx.scriptEngineType.InvokeStaticMethod(
+										"SetFieldVector4", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, val->r, val->g, val->b, val->a);
+								}
+							}
+							else if (field.Type == ScriptFieldType::Entity)
+							{
+								if (auto* val = std::get_if<uint64_t>(&field.Value))
+								{
+									ctx.scriptEngineType.InvokeStaticMethod(
+										"SetFieldEntity", static_cast<uint64_t>(entity), (Coral::String)cNameStr,
+										(Coral::String)fNameStr, *val);
+								}
+							}
 						}
 					} catch (const std::exception& e)
 					{

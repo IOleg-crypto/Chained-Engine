@@ -53,11 +53,6 @@ namespace Chained
 		});
 
 		CH_CORE_TRACE("[Network] Initialized in Offline mode.");
-
-		// Configure Firebase Realtime Database for room-code signaling
-		static constexpr const char* kFirebaseHost = "chained-decos-default-rtdb.europe-west1.firebasedatabase.app";
-		m_SignalingClient.SetFirebaseUrl(kFirebaseHost);
-		CH_CORE_TRACE("[Network] Signaling: Firebase RTDB ({})", kFirebaseHost);
 	}
 
 	void Network::Shutdown()
@@ -145,110 +140,9 @@ namespace Chained
 		CH_CORE_INFO("[Network][Host] Server listening on LAN: {} (ENet Host active).", GetListenAddress());
 	}
 
-	uint32_t Network::HostRoom(uint16_t port, int maxClients)
-	{
-		// Generate random 4-digit room code (1000..9999)
-		uint32_t roomCode = 1000 + (static_cast<uint32_t>(rand()) % 9000);
-		m_RoomCode = roomCode;
-
-		CH_CORE_INFO("[Network][Host] Creating Room #{} on port {}...", roomCode, port);
-		HostGame(port, maxClients);
-
-		// Use m_CachedPublicIP which has the correct effective port
-		// (accounts for UPnP mapping vs raw STUN port mismatch).
-		// Raw STUN may return a different port than ENet listens on when
-		// NAT maps STUN sockets to ephemeral ports differently.
-		std::string stunIP;
-		uint16_t stunPort = 0;
-		{
-			std::lock_guard<std::mutex> lock(m_PublicIPMutex);
-			if (!m_CachedPublicIP.empty() && m_CachedPublicIP != "Fetching...")
-			{
-				size_t colon = m_CachedPublicIP.rfind(':');
-				if (colon != std::string::npos)
-				{
-					stunIP = m_CachedPublicIP.substr(0, colon);
-					try
-					{
-						stunPort = static_cast<uint16_t>(std::stoi(m_CachedPublicIP.substr(colon + 1)));
-					} catch (...)
-					{
-						stunPort = port;
-					}
-				}
-			}
-		}
-
-		if (stunIP.empty())
-		{
-			stunIP = "127.0.0.1";
-			stunPort = port;
-		}
-
-		CH_CORE_INFO("[Network][Host] Registering Room #{} on signaling coordinator with endpoint {}:{}...", roomCode,
-					 stunIP, stunPort);
-		auto res = m_SignalingClient.CreateRoomSync(std::to_string(roomCode), stunIP, stunPort);
-		if (res.Success)
-		{
-			m_SignalingPolling = true;
-			m_SignalingPollTimer = 0.0f;
-			CH_CORE_INFO("[Network][Host] Room #{} is LIVE! Share code '{}' with friends.", roomCode, roomCode);
-		}
-		else
-		{
-			CH_CORE_WARN("[Network][Host] Signaling registration failed: {} (direct IP connect still works)",
-						 res.Error);
-		}
-
-		return roomCode;
-	}
-
-	void Network::ConnectRoom(uint32_t roomCode)
-	{
-		m_RoomCode = roomCode;
-		CH_CORE_INFO("[Network][Client] Connecting to Room #{} via signaling coordinator...", roomCode);
-
-		// Fast STUN query for client public endpoint
-		std::string clientIP = "127.0.0.1";
-		uint16_t clientPort = 0;
-
-		auto stunResult = m_StunClient.QueryPublicEndpointSync(0, 1500);
-		if (stunResult.Success)
-		{
-			clientIP = stunResult.PublicIP;
-			clientPort = stunResult.PublicPort;
-		}
-
-		// Join room on signaling server
-		auto joinRes = m_SignalingClient.JoinRoomSync(std::to_string(roomCode), clientIP, clientPort);
-		if (!joinRes.Success || joinRes.HostIP.empty() || joinRes.HostPort == 0)
-		{
-			CH_CORE_ERROR("[Network][Client] Failed to join Room #{}: {}", roomCode, joinRes.Error);
-			return;
-		}
-
-		CH_CORE_INFO("[Network][Client] Room #{} resolved to Host at {}:{}", roomCode, joinRes.HostIP,
-					 joinRes.HostPort);
-
-		// Connect to Host
-		ConnectTo(joinRes.HostIP, joinRes.HostPort);
-
-		// Simultaneous punch burst towards host from our newly created game socket
-		m_Session.PunchHole(joinRes.HostIP, joinRes.HostPort, 10);
-	}
-
 	void Network::ConnectTo(const std::string& ip, uint16_t port)
 	{
 		CH_CORE_INFO("[Network][Client] Connect requested to target {} (port={})...", ip.substr(0, 30), port);
-
-		// Check if the input is a pure numeric room code (4 to 6 digits)
-		bool isNumericRoomCode = (ip.length() >= 4 && ip.length() <= 6 &&
-								  std::all_of(ip.begin(), ip.end(), [](char c) { return std::isdigit(c); }));
-		if (isNumericRoomCode)
-		{
-			ConnectRoom(static_cast<uint32_t>(std::stoul(ip)));
-			return;
-		}
 
 		m_Session.SetDriverType(DriverType::ENet);
 
@@ -347,10 +241,6 @@ namespace Chained
 		m_ReconnectIP.clear();
 		m_ReconnectPort = 0;
 
-		m_RoomCode = 0;
-		m_SignalingPolling = false;
-		m_SignalingPollTimer = 0.0f;
-
 		m_Session.Disconnect();
 		m_Transport.ClearPacketCallback();
 		m_PlayerManager.Reset();
@@ -366,23 +256,6 @@ namespace Chained
 	{
 		m_Session.Update(dt);
 		UpdateHolePunch(dt);
-
-		// Host: poll signaling server for incoming peers to punch NAT
-		if (m_Session.IsHost() && m_SignalingPolling && m_RoomCode != 0)
-		{
-			m_SignalingPollTimer += dt;
-			if (m_SignalingPollTimer >= kSignalingPollInterval)
-			{
-				m_SignalingPollTimer = 0.0f;
-				auto pollRes = m_SignalingClient.PollRoomSync(std::to_string(m_RoomCode), 500);
-				if (pollRes.Success && pollRes.ClientReady && !pollRes.ClientIP.empty() && pollRes.ClientPort != 0)
-				{
-					CH_CORE_INFO("[Network][Host] Peer joining detected from {}:{} -> executing NAT punch burst!",
-								 pollRes.ClientIP, pollRes.ClientPort);
-					m_Session.PunchHole(pollRes.ClientIP, pollRes.ClientPort, 10);
-				}
-			}
-		}
 
 		// Host: send heartbeat and check for dead clients
 		if (m_Session.IsHost())

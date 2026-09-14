@@ -55,8 +55,17 @@ include/*-subbuild/
 include/*-build/
 
 # Build directories
-build/
+/build/
+/build_*/
 cmake-build-*/
+
+# Managed build artifacts (C#)
+engine/scripting/**/bin/
+engine/scripting/**/obj/
+engine/script/**/bin/
+engine/script/**/obj/
+game/**/bin/
+game/**/obj/
 
 .cache
 .zencoder
@@ -71,10 +80,10 @@ build.ninja
 CPackConfig.cmake
 CPackSourceConfig.cmake
 
-# Local build artifacts
-bin/
-obj/
-lib/
+# Local root build artifacts
+/bin/
+/obj/
+/lib/
 
 # Environment files
 .env
@@ -98,10 +107,10 @@ build_error.txt
 AGENTS.md
 CLAUDE.md
 # CMake install directory
-install/
+/install/
 
 # Deploy packaging
-package/
+/package/
 
 # Test results
 *.trx

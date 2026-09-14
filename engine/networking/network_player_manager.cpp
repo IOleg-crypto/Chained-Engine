@@ -117,6 +117,19 @@ namespace Chained
 		return clients;
 	}
 
+	int NetworkPlayerManager::GetClientIndexForNetworkID(uint64_t networkID) const
+	{
+		std::lock_guard<std::mutex> lock(m_Mutex);
+		for (auto& [idx, netID] : m_ClientIndexToNetworkID)
+		{
+			if (netID == networkID)
+			{
+				return idx;
+			}
+		}
+		return -1;
+	}
+
 	void NetworkPlayerManager::AddHostSelf(uint64_t hostNetworkID, const std::string& localPlayerName,
 										   uint8_t localSkinIndex)
 	{

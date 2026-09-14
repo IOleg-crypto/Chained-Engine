@@ -65,3 +65,12 @@ TEST(ColorTest, MaxValues)
 	EXPECT_EQ(c.b, 255);
 	EXPECT_EQ(c.a, 255);
 }
+
+TEST(ColorTest, NegativeValues)
+{
+	Color c(-1, -1, -1, -1);
+	EXPECT_EQ(c.r, 255); // Underflow to 255
+	EXPECT_EQ(c.g, 255);
+	EXPECT_EQ(c.b, 255);
+	EXPECT_EQ(c.a, 255);
+}

@@ -196,10 +196,23 @@ namespace Chained
 		int count = 0;
 		const GLFWvidmode* modes = glfwGetVideoModes(monitor, &count);
 
+		// On WSL2/XWayland, glfwGetVideoModes can return count=0 or a null pointer.
+		// Return empty string so C# falls back to its hardcoded resolution list.
+		if (!modes || count <= 0)
+		{
+			s_ResolutionBuffer = ToWide("");
+			return s_ResolutionBuffer.c_str();
+		}
+
 		std::set<std::pair<int, int>> seen;
 		std::ostringstream oss;
 		for (int i = 0; i < count; i++)
 		{
+			// Sanity-check each mode: skip if dimensions are clearly bogus
+			if (modes[i].width <= 0 || modes[i].height <= 0 || modes[i].width > 16384 || modes[i].height > 16384)
+			{
+				continue;
+			}
 			auto key = std::make_pair(modes[i].width, modes[i].height);
 			if (seen.insert(key).second)
 			{
@@ -209,6 +222,13 @@ namespace Chained
 				}
 				oss << modes[i].width << "x" << modes[i].height;
 			}
+		}
+
+		// If all modes were filtered out, return empty to trigger C# fallback
+		if (oss.str().empty())
+		{
+			s_ResolutionBuffer = ToWide("");
+			return s_ResolutionBuffer.c_str();
 		}
 
 		s_ResolutionBuffer = ToWide(oss.str());

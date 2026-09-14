@@ -17,8 +17,6 @@
 #include <thread>
 #include <unordered_map>
 
-#include "signaling_client.h"
-
 namespace Chained
 {
 	class Network : public Service
@@ -33,19 +31,8 @@ namespace Chained
 		void Shutdown() override;
 
 		void HostGame(uint16_t port = kDefaultPort, int maxClients = 4);
-		uint32_t HostRoom(uint16_t port = kDefaultPort, int maxClients = 4);
 		void ConnectTo(const std::string& ip, uint16_t port = kDefaultPort);
-		void ConnectRoom(uint32_t roomCode);
 		void Disconnect();
-
-		uint32_t GetRoomCode() const
-		{
-			return m_RoomCode;
-		}
-		void SetSignalingFirebase(const std::string& host)
-		{
-			m_SignalingClient.SetFirebaseUrl(host);
-		}
 
 		void Update(float dt);
 
@@ -175,6 +162,10 @@ namespace Chained
 		{
 			return m_PlayerManager.GetNetworkIDForConnection(clientIndex);
 		}
+		int GetClientIndexForNetworkID(uint64_t networkID) const
+		{
+			return m_PlayerManager.GetClientIndexForNetworkID(networkID);
+		}
 
 		std::vector<PlayerNetInfo> GetPlayerList() const
 		{
@@ -229,12 +220,6 @@ namespace Chained
 		NetworkTransport m_Transport;
 		NetworkPlayerManager m_PlayerManager;
 		StunClient m_StunClient;
-		SignalingClient m_SignalingClient;
-
-		uint32_t m_RoomCode = 0;
-		bool m_SignalingPolling = false;
-		float m_SignalingPollTimer = 0.0f;
-		static constexpr float kSignalingPollInterval = 1.0f;
 
 		std::string m_PendingSceneChange;
 		UpnpPortMapper m_UpnpMapper;

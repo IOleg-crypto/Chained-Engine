@@ -36,6 +36,7 @@ target_link_libraries(engine_tests_integration PRIVATE
     engine_external_imgui
     engine_external_entt
     engine_reflection
+    
     gtest
     gtest_main
 )

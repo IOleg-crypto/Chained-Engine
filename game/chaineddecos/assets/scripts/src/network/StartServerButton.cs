@@ -54,8 +54,8 @@ namespace ChainedDecos.Scripts
             Network.SetPlayerPrefab(PlayerPrefabPath);
             Network.SetLocalPlayerInfo(PlayerSettings.Nickname, (byte)LobbyManager.SelectedSkinIndex);
 
-            uint roomCode = Network.HostRoom(port, maxClients);
-            LobbyManager.RoomCode = roomCode;
+            Network.HostGame(port, maxClients);
+            LobbyManager.RoomCode = 0;
 
             LobbyManager.SelectedPort = port;
             LobbyManager.MaxClients = maxClients;

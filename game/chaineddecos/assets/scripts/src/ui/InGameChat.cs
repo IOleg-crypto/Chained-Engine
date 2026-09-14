@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Numerics;
 using Chained;
 
 namespace ChainedDecos.Scripts
@@ -20,17 +19,19 @@ namespace ChainedDecos.Scripts
         public float MessageDuration = 8.0f;
 
         // Chat window constants (relative to viewport)
-        private const float WinW       = 500.0f;
-        private const float WinH       = 240.0f;
-        private const float OverlayW   = 480.0f;
-        private const float OverlayH   = 160.0f;
+        private const float WinW       = 640.0f;
+        private const float WinH       = 280.0f;
+        private const float OverlayW   = 600.0f;
+        private const float OverlayH   = 180.0f;
         private const float PadX       = 16.0f;
-        private const float PadY       = 16.0f;
+        private const float TopY       = 52.0f; // Positioned right under the top-left HUD
 
-        private List<ChatEntry> m_Messages   = new List<ChatEntry>();
-        private string          m_InputText  = "";
-        private bool            m_FocusInput = false;
-        private bool            m_JustOpened = false;
+        private List<ChatEntry> m_Messages       = new List<ChatEntry>();
+        private string          m_InputText      = "";
+        private bool            m_FocusInput     = false;
+        private bool            m_JustOpened     = false;
+        private bool            m_ScrollToBottom = false;
+        private float           m_ToggleCooldown = 0.0f;
 
         public override void OnCreate()
         {
@@ -38,12 +39,19 @@ namespace ChainedDecos.Scripts
             IsOpen = false;
             IsChatOpen = false;
             m_JustOpened = false;
+            m_ScrollToBottom = true;
+            m_ToggleCooldown = 0.0f;
         }
 
         public override void OnUpdate(float deltaTime)
         {
             var netComp = Entity.GetComponent<NetworkIdentityComponent>();
             if (netComp != null && !netComp.IsOwner) return;
+
+            if (m_ToggleCooldown > 0.0f)
+            {
+                m_ToggleCooldown -= deltaTime;
+            }
 
             // Fetch pending network chat messages
             if (Network.IsConnected && Network.HasPendingChat)
@@ -62,13 +70,15 @@ namespace ChainedDecos.Scripts
             // Toggle chat open/close
             if (!IsOpen)
             {
-                if (Input.IsKeyPressed(Key.T) || Input.IsKeyPressed(Key.Enter))
+                if (m_ToggleCooldown <= 0.0f && (Input.IsKeyPressed(Key.T) || Input.IsKeyPressed(Key.Enter)))
                 {
-                    IsOpen       = true;
-                    IsChatOpen   = true;
-                    m_FocusInput = true;
-                    m_JustOpened = true;
-                    m_InputText  = "";
+                    IsOpen           = true;
+                    IsChatOpen       = true;
+                    m_FocusInput     = true;
+                    m_JustOpened     = true;
+                    m_ScrollToBottom = true;
+                    m_InputText      = "";
+                    m_ToggleCooldown = 0.2f;
                     ConsumeEvent();
                 }
             }
@@ -76,12 +86,13 @@ namespace ChainedDecos.Scripts
             {
                 if (Input.IsKeyPressed(Key.Escape) || Input.IsKeyPressed(Key.Delete))
                 {
-                    IsOpen       = false;
-                    IsChatOpen   = false;
-                    m_JustOpened = false;
-                    m_InputText  = "";
+                    IsOpen           = false;
+                    IsChatOpen       = false;
+                    m_JustOpened     = false;
+                    m_InputText      = "";
+                    m_ToggleCooldown = 0.25f;
+                    ConsumeEvent();
                 }
-                ConsumeEvent();
             }
         }
 
@@ -90,38 +101,43 @@ namespace ChainedDecos.Scripts
             var netComp = Entity.GetComponent<NetworkIdentityComponent>();
             if (netComp != null && !netComp.IsOwner) return;
 
-            // Get actual game viewport size each frame
-            Vector2 display = UI.GetDisplaySize();
-            float screenW = display.X;
-            float screenH = display.Y;
-
             if (IsOpen)
             {
-                // Full chat window — anchored bottom-left inside the game window
+                // Full chat window — anchored top-left under HUD
                 float x = PadX;
-                float y = screenH - WinH - PadY;
+                float y = TopY;
 
-                UI.BeginWindow("##InGameChatWindow", x, y, WinW, WinH, 0.78f);
+                UI.BeginWindow("##InGameChatWindow", x, y, WinW, WinH, 0.82f);
 
-                // History
-                int start = Math.Max(0, m_Messages.Count - 12);
-                for (int i = start; i < m_Messages.Count; i++)
+                // 1. Dedicated scrollable message history region (leaves 34px for input bar)
+                UI.BeginChild("##ChatHistory", 0.0f, -34.0f, true);
+                for (int i = 0; i < m_Messages.Count; i++)
                 {
                     var msg = m_Messages[i];
-                    UI.TextColored($"[{msg.Sender}]: ", 0.4f, 0.8f, 1.0f, 1.0f);
+                    UI.TextColored($"[{msg.Sender}]: ", 0.35f, 0.75f, 1.0f, 1.0f);
+                    UI.SameLine();
                     UI.Text(msg.Message);
                 }
 
-                UI.SetScrollHereY(1.0f);
+                if (m_ScrollToBottom)
+                {
+                    UI.SetScrollHereY(1.0f);
+                    m_ScrollToBottom = false;
+                }
+                UI.EndChild();
 
-                // Input field
+                // 2. Input box + Send button docked at the bottom
                 if (m_FocusInput)
                 {
                     UI.SetKeyboardFocusHere();
                     m_FocusInput = false;
                 }
 
+                UI.SetNextItemWidth(WinW - 95.0f);
                 bool submitted = UI.InputText("##ChatInput", ref m_InputText, 256);
+                UI.SameLine();
+                bool sendClicked = UI.Button("Send");
+
                 if (m_JustOpened)
                 {
                     // Ignore submission on the frame it was opened by pressing Enter
@@ -129,12 +145,13 @@ namespace ChainedDecos.Scripts
                     submitted = false;
                 }
 
-                if (submitted)
+                if (submitted || sendClicked)
                 {
                     string toSend = m_InputText.Trim();
-                    m_InputText = "";
-                    IsOpen      = false;
-                    IsChatOpen  = false;
+                    m_InputText      = "";
+                    IsOpen           = false;
+                    IsChatOpen       = false;
+                    m_ToggleCooldown = 0.25f;
 
                     if (!string.IsNullOrWhiteSpace(toSend))
                     {
@@ -146,9 +163,9 @@ namespace ChainedDecos.Scripts
             }
             else
             {
-                // Compact overlay — recent active messages, same anchor
+                // Compact overlay — recent active messages, same top-left anchor
                 bool anyActive = false;
-                int start = Math.Max(0, m_Messages.Count - 6);
+                int start = Math.Max(0, m_Messages.Count - 8);
                 for (int i = start; i < m_Messages.Count; i++)
                 {
                     if (m_Messages[i].TimeLeft > 0.0f) { anyActive = true; break; }
@@ -157,7 +174,7 @@ namespace ChainedDecos.Scripts
                 if (anyActive)
                 {
                     float x = PadX;
-                    float y = screenH - OverlayH - PadY;
+                    float y = TopY;
 
                     UI.BeginWindow("##InGameChatOverlay", x, y, OverlayW, OverlayH, 0.0f);
 
@@ -203,6 +220,8 @@ namespace ChainedDecos.Scripts
                     Message  = message,
                     TimeLeft = MessageDuration
                 });
+
+                m_ScrollToBottom = true;
 
                 if (m_Messages.Count > MaxHistory)
                     m_Messages.RemoveAt(0);

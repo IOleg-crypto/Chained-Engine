@@ -22,5 +22,9 @@ namespace Chained
 
 	CH_SCRIPT_FUNC float Input_GetMouseWheelMove();
 
+	CH_SCRIPT_FUNC float Input_GetMouseWheelHMove();
+
+	CH_SCRIPT_FUNC void Input_GetMouseScroll(float* outX, float* outY);
+
 } // namespace Chained
 #endif

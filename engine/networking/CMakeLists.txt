@@ -16,8 +16,6 @@ set(NETWORK_SOURCES
     stun_client.cpp
     upnp_port_mapper.h
     upnp_port_mapper.cpp
-    signaling_client.h
-    signaling_client.cpp
 )
 
 add_library(engine_network STATIC
@@ -39,7 +37,7 @@ target_link_libraries(engine_network PUBLIC
 )
 
 if(WIN32)
-    target_link_libraries(engine_network PUBLIC ws2_32 winhttp)
+    target_link_libraries(engine_network PUBLIC ws2_32)
 endif()
 
 if(TARGET engine_pch)

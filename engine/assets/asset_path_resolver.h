@@ -13,26 +13,15 @@ namespace Chained
 	class AssetPathResolver
 	{
 	public:
-		void SetAssetDirectory(const std::filesystem::path& path)
-		{
-			m_AssetDirectory = path;
-		}
-		void SetProjectDirectory(const std::filesystem::path& path)
-		{
-			m_ProjectDirectory = path;
-		}
-		void SetEngineRoot(const std::filesystem::path& path)
-		{
-			m_EngineRoot = path;
-		}
-		void SetSourceResourcesDir(const std::filesystem::path& path)
-		{
-			m_SourceResourcesDir = path;
-		}
-		void SetSourceAssetsDir(const std::filesystem::path& path)
-		{
-			m_SourceAssetsDir = path;
-		}
+		AssetPathResolver() = default;
+		~AssetPathResolver() = default;
+
+	public:
+		void SetAssetDirectory(const std::filesystem::path& path);
+		void SetProjectDirectory(const std::filesystem::path& path);
+		void SetEngineRoot(const std::filesystem::path& path);
+		void SetSourceResourcesDir(const std::filesystem::path& path);
+		void SetSourceAssetsDir(const std::filesystem::path& path);
 
 	public:
 		std::string ResolvePath(const std::string& path) const;

@@ -24,5 +24,10 @@ Chained::Entity Chained::GetEntity(uint64_t entityID)
 	{
 		return {};
 	}
-	return Entity(static_cast<entt::entity>(static_cast<uint32_t>(entityID)), &scene->GetRegistry());
+	const auto handle = static_cast<entt::entity>(static_cast<uint32_t>(entityID));
+	if (!scene->GetRegistry().valid(handle))
+	{
+		return {};
+	}
+	return Entity(handle, &scene->GetRegistry());
 }

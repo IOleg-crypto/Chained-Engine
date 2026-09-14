@@ -72,6 +72,7 @@ namespace Chained
 			return m_ClientIndexToNetworkID.size();
 		}
 		std::vector<int> GetClients() const;
+		int GetClientIndexForNetworkID(uint64_t networkID) const;
 
 		void AddHostSelf(uint64_t hostNetworkID, const std::string& localPlayerName, uint8_t localSkinIndex);
 

@@ -41,7 +41,11 @@ namespace Chained
 		}
 		else
 		{
-			CH_CORE_INFO("Audio System: Initialized miniaudio engine successfully via Service.");
+			ma_device* pDevice = ma_engine_get_device(m_engine.get());
+			const char* backendName =
+				(pDevice && pDevice->pContext) ? ma_get_backend_name(pDevice->pContext->backend) : "Default";
+			CH_CORE_INFO("Audio System: Initialized miniaudio engine successfully via Service (backend: {}).",
+						 backendName);
 		}
 	}
 

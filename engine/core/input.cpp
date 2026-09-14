@@ -38,6 +38,8 @@ namespace Chained::Core
 		inst->m_LastMousePosition = {0.0f, 0.0f};
 		inst->m_MouseWheelAccumulator = 0.0f;
 		inst->m_CurrentMouseWheelDelta = 0.0f;
+		inst->m_MouseWheelHAccumulator = 0.0f;
+		inst->m_CurrentMouseWheelHDelta = 0.0f;
 		inst->m_FirstMouseUpdate = true;
 	}
 
@@ -53,6 +55,8 @@ namespace Chained::Core
 		inst->m_LastMousePosition = inst->m_MousePosition;
 		inst->m_CurrentMouseWheelDelta = inst->m_MouseWheelAccumulator;
 		inst->m_MouseWheelAccumulator = 0.0f;
+		inst->m_CurrentMouseWheelHDelta = inst->m_MouseWheelHAccumulator;
+		inst->m_MouseWheelHAccumulator = 0.0f;
 	}
 
 	bool Input::IsKeyPressed(KeyCode key)
@@ -201,6 +205,18 @@ namespace Chained::Core
 		return inst ? inst->m_CurrentMouseWheelDelta : 0.0f;
 	}
 
+	float Input::GetMouseWheelHMove()
+	{
+		auto* inst = GetInstance();
+		return inst ? inst->m_CurrentMouseWheelHDelta : 0.0f;
+	}
+
+	glm::vec2 Input::GetMouseScroll()
+	{
+		auto* inst = GetInstance();
+		return inst ? glm::vec2(inst->m_CurrentMouseWheelHDelta, inst->m_CurrentMouseWheelDelta) : glm::vec2(0.0f);
+	}
+
 	void Input::OnKey(KeyCode key, bool pressed)
 	{
 		auto* inst = GetInstance();
@@ -252,6 +268,7 @@ namespace Chained::Core
 			return;
 		}
 		inst->m_MouseWheelAccumulator += yOffset;
+		inst->m_MouseWheelHAccumulator += xOffset;
 	}
 
 } // namespace Chained::Core
