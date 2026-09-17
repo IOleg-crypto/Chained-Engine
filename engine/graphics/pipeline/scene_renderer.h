@@ -82,6 +82,14 @@ namespace Chained
 		std::shared_ptr<Texture> m_CachedCubemap;
 		std::string m_CachedCubemapPath;
 		std::shared_ptr<ModelAsset> m_SkyboxCubeModel;
+
+		// Reusable sprite queue to avoid heap allocations per frame
+		struct SpriteEntry
+		{
+			entt::entity Entity;
+			int ZOrder;
+		};
+		std::vector<SpriteEntry> m_SpriteRenderQueue;
 	};
 
 } // namespace Chained

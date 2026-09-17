@@ -181,9 +181,11 @@ namespace Chained
 			}
 			for (size_t k = 0; k < a.Materials.size(); ++k)
 			{
-				if (a.Materials[k] != b.Materials[k])
+				uint64_t hashA = a.Materials[k].GetHash();
+				uint64_t hashB = b.Materials[k].GetHash();
+				if (hashA != hashB)
 				{
-					return a.Materials[k].AlbedoPath < b.Materials[k].AlbedoPath;
+					return hashA < hashB;
 				}
 			}
 			return a.Distance < b.Distance;
@@ -243,27 +245,22 @@ namespace Chained
 		}
 		auto view = registry.view<TransformComponent, SpriteComponent>();
 
-		struct SpriteEntry
-		{
-			entt::entity Entity;
-			int ZOrder;
-		};
-
-		std::vector<SpriteEntry> sortedSprites;
+		m_SpriteRenderQueue.clear();
 		for (auto entity : view)
 		{
-			sortedSprites.push_back(SpriteEntry{entity, registry.get<SpriteComponent>(entity).ZOrder});
+			m_SpriteRenderQueue.push_back(SpriteEntry{entity, registry.get<SpriteComponent>(entity).ZOrder});
 		}
 
-		std::sort(sortedSprites.begin(), sortedSprites.end(), [](const SpriteEntry& a, const SpriteEntry& b) {
-			if (a.ZOrder != b.ZOrder)
-			{
-				return a.ZOrder < b.ZOrder;
-			}
-			return a.Entity < b.Entity;
-		});
+		std::sort(m_SpriteRenderQueue.begin(), m_SpriteRenderQueue.end(),
+				  [](const SpriteEntry& a, const SpriteEntry& b) {
+					  if (a.ZOrder != b.ZOrder)
+					  {
+						  return a.ZOrder < b.ZOrder;
+					  }
+					  return a.Entity < b.Entity;
+				  });
 
-		for (const auto& entry : sortedSprites)
+		for (const auto& entry : m_SpriteRenderQueue)
 		{
 			auto& transform = registry.get<TransformComponent>(entry.Entity);
 			auto& sprite = registry.get<SpriteComponent>(entry.Entity);
@@ -327,7 +324,7 @@ namespace Chained
 
 			const auto& mesh = model.Meshes[i];
 
-			Material material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
+			const Material& material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
 
 			bool isTransparent = material.Transparent || material.AlbedoColor.a < 0.99f;
 			if (pass == RenderPassStage::Opaque && isTransparent)
@@ -373,12 +370,9 @@ namespace Chained
 				m_MaterialManager.Bind(activeShader, material, i, model);
 			}
 
-			uint32_t originalID = material.ShaderID;
-			material.ShaderID = activeShader->GetNativeHandle();
-
+			renderer->SetCurrentShaderId(activeShader->GetNativeHandle());
 			activeShader->Bind();
 			renderer->DrawMesh(mesh, material, transform * inst.localTransform);
-			material.ShaderID = originalID;
 		}
 	}
 
@@ -409,7 +403,7 @@ namespace Chained
 
 			const auto& mesh = model.Meshes[i];
 
-			Material material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
+			const Material& material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
 
 			bool isTransparent = material.Transparent || material.AlbedoColor.a < 0.99f;
 			if (pass == RenderPassStage::Opaque && isTransparent)
@@ -448,8 +442,7 @@ namespace Chained
 				m_MaterialManager.Bind(activeShader, material, i, model);
 			}
 
-			uint32_t originalID = material.ShaderID;
-			material.ShaderID = activeShader->GetNativeHandle();
+			renderer->SetCurrentShaderId(activeShader->GetNativeHandle());
 
 			// Precompute all instance matrices: worldTransform * localTransform
 			std::vector<glm::mat4> instanceTransforms(transforms.size());
@@ -459,7 +452,6 @@ namespace Chained
 			}
 
 			renderer->DrawMeshInstanced(mesh, material, instanceTransforms);
-			material.ShaderID = originalID;
 		}
 	}
 

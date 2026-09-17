@@ -79,6 +79,10 @@ namespace Chained
 		{
 			return m_Data->Frame;
 		}
+		void SetCurrentShaderId(uint32_t shaderId)
+		{
+			m_Data->Frame.CurrentShaderId = shaderId;
+		}
 
 		void SetHeadless(bool headless)
 		{

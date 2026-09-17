@@ -145,6 +145,10 @@ jobs:
           xvfb-run -a ctest --test-dir "$BUILD_DIR" -C "${{ matrix.build_type }}" --output-on-failure --timeout 300 --output-junit "$BUILD_DIR/junit_${{ matrix.build_type }}.xml" \
             2>&1 | tee "$BUILD_DIR/ctest_${{ matrix.build_type }}.log"
 
+      - name: Run C# Managed Tests
+        run: |
+          dotnet test "tests/managed/Chained.Managed.Tests.csproj" --verbosity normal
+
       - name: Upload Artifacts
         if: always()
         uses: actions/upload-artifact@v4
