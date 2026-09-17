@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 
 namespace Chained
 {
@@ -25,29 +26,41 @@ namespace Chained
         private static List<Script> s_ScriptsNeedingStart = new List<Script>();
         
         // Caches script types to avoid reflection overhead on every instantiation
-        private static Dictionary<string, Type> s_ScriptTypes = new Dictionary<string, Type>();
+        private static Dictionary<string, Type> s_ScriptTypes = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
 
         // Autoload (Global) scripts that persist across all scenes
         private static List<Script> s_GlobalScripts = new List<Script>();
-        private static bool s_AutoloadScanned = false;
+        private static HashSet<Assembly> s_ScannedAssemblies = new HashSet<Assembly>();
 
         // AutoAttach mappings: Tag -> list of script Types
         private static Dictionary<string, List<Type>> s_AutoAttachByTag = new Dictionary<string, List<Type>>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Scans all loaded assemblies for [Autoload] and [AutoAttach] attributes.
+        /// Scans all loaded assemblies across all AssemblyLoadContexts for [Autoload] and [AutoAttach] attributes.
+        /// Runs dynamically so newly loaded assemblies (like GameScriptsALC) are immediately discovered.
         /// </summary>
         public static void EnsureTypesDiscovered()
         {
-            if (s_AutoloadScanned) return;
-            s_AutoloadScanned = true;
-
             var assembliesToScan = new List<Assembly>();
-            var activeALC = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(typeof(ScriptEngine).Assembly);
-            if (activeALC != null)
+
+            try
             {
-                assembliesToScan.AddRange(activeALC.Assemblies);
+                foreach (var alc in AssemblyLoadContext.All)
+                {
+                    foreach (var asm in alc.Assemblies)
+                    {
+                        if (!assembliesToScan.Contains(asm))
+                        {
+                            assembliesToScan.Add(asm);
+                        }
+                    }
+                }
             }
+            catch (Exception ex)
+            {
+                Log.Warn($"[ScriptEngine] Exception reading AssemblyLoadContext.All: {ex.Message}");
+            }
+
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
                 if (!assembliesToScan.Contains(asm))
@@ -58,12 +71,23 @@ namespace Chained
 
             foreach (var asm in assembliesToScan)
             {
+                if (!s_ScannedAssemblies.Add(asm))
+                {
+                    continue; // Already scanned this assembly
+                }
+
                 try
                 {
                     foreach (var type in asm.GetTypes())
                     {
                         if (type.IsAbstract || !typeof(Script).IsAssignableFrom(type))
                             continue;
+
+                        // Cache type by full name and short name
+                        if (!string.IsNullOrEmpty(type.FullName))
+                            s_ScriptTypes[type.FullName] = type;
+                        if (!string.IsNullOrEmpty(type.Name))
+                            s_ScriptTypes[type.Name] = type;
 
                         // 1. Check Autoload / GlobalScript
                         bool isAutoload = type.IsDefined(typeof(AutoloadAttribute), true) ||
@@ -80,12 +104,12 @@ namespace Chained
                                         globalInst.__Init(0); // Global entity ID
                                         s_GlobalScripts.Add(globalInst);
                                         s_ScriptsNeedingCreate.Add(globalInst);
-                                        Console.WriteLine($"[ScriptEngine] Autoload script initialized: {type.FullName}");
+                                        Log.Info($"[ScriptEngine] Autoload script registered: {type.FullName}");
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    Console.WriteLine($"[ScriptEngine] ERROR: Failed to instantiate Autoload script {type.FullName}: {ex.Message}");
+                                    Log.Error($"[ScriptEngine] Failed to instantiate Autoload script '{type.FullName}':\n{ex}");
                                 }
                             }
                         }
@@ -103,18 +127,18 @@ namespace Chained
                             if (!list.Contains(type))
                             {
                                 list.Add(type);
-                                Console.WriteLine($"[ScriptEngine] Registered AutoAttach: Tag='{attr.Tag}' -> Script='{type.Name}'");
+                                Log.Info($"[ScriptEngine] AutoAttach registered: Tag='{attr.Tag}' -> Script='{type.FullName}'");
                             }
                         }
                     }
                 }
-                catch (ReflectionTypeLoadException)
+                catch (ReflectionTypeLoadException rtle)
                 {
-                    // Skip assemblies with missing dependencies safely
+                    Log.Warn($"[ScriptEngine] Partial type load for assembly '{asm.GetName().Name}': {rtle.Message}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ScriptEngine] WARN: Exception scanning assembly {asm.GetName().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception scanning assembly '{asm.GetName().Name}':\n{ex}");
                 }
             }
         }
@@ -148,7 +172,7 @@ namespace Chained
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ScriptEngine] WARN: Exception in ProcessAutoAttach: {ex.Message}");
+                Log.Error($"[ScriptEngine] Exception in ProcessAutoAttach:\n{ex}");
             }
         }
 
@@ -157,6 +181,12 @@ namespace Chained
         /// </summary>
         public static bool InstantiateScriptTypeInternal(ulong entityId, Type type)
         {
+            if (type == null)
+            {
+                Log.Error("[ScriptEngine] Cannot instantiate script: Type is null.");
+                return false;
+            }
+
             if (s_EntityScripts.TryGetValue(entityId, out var existingList))
             {
                 foreach (var existing in existingList)
@@ -173,7 +203,7 @@ namespace Chained
                 Script? script = Activator.CreateInstance(type) as Script;
                 if (script == null)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Failed to cast {type.FullName} to Script.");
+                    Log.Error($"[ScriptEngine] Failed to cast instance of '{type.FullName}' to Script.");
                     return false;
                 }
 
@@ -191,7 +221,7 @@ namespace Chained
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ScriptEngine] ERROR: Exception instantiating {type.FullName}: {ex}");
+                Log.Error($"[ScriptEngine] Exception instantiating script '{type.FullName}' on Entity {entityId}:\n{ex}");
                 return false;
             }
         }
@@ -211,16 +241,24 @@ namespace Chained
         /// </summary>
         public static byte InstantiateScriptManaged(ulong entityId, string className)
         {
+            if (string.IsNullOrEmpty(className))
+            {
+                Log.Warn("[ScriptEngine] InstantiateScript called with empty class name.");
+                return 0;
+            }
+
+            EnsureTypesDiscovered();
+
             if (!s_ScriptTypes.TryGetValue(className, out Type? type))
             {
-                var activeALC = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(typeof(ScriptEngine).Assembly);
-                if (activeALC != null)
+                foreach (var alc in AssemblyLoadContext.All)
                 {
-                    foreach (var assembly in activeALC.Assemblies)
+                    foreach (var assembly in alc.Assemblies)
                     {
                         type = assembly.GetType(className, false, true);
                         if (type != null) break;
                     }
+                    if (type != null) break;
                 }
                 
                 if (type == null)
@@ -234,7 +272,7 @@ namespace Chained
 
                 if (type == null)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Could not find script type: {className}");
+                    Log.Error($"[ScriptEngine] Could not find script type '{className}' across any loaded assembly.");
                     return 0;
                 }
                 s_ScriptTypes[className] = type;
@@ -249,7 +287,8 @@ namespace Chained
             {
                 foreach (var script in scriptList)
                 {
-                    if (script.GetType().FullName == className || script.GetType().Name == className)
+                    if (string.Equals(script.GetType().FullName, className, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(script.GetType().Name, className, StringComparison.OrdinalIgnoreCase))
                     {
                         var field = script.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                         if (field != null)
@@ -260,7 +299,7 @@ namespace Chained
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"[ScriptEngine] WARN: Failed to set field {fieldName} on {className}: {ex.Message}");
+                                Log.Warn($"[ScriptEngine] Failed to set field '{fieldName}' on '{className}': {ex.Message}");
                             }
                         }
                         return;
@@ -292,7 +331,9 @@ namespace Chained
                 for (int i = 0; i < scriptList.Count; i++)
                 {
                     var script = scriptList[i];
-                    if (string.IsNullOrEmpty(className) || script.GetType().FullName == className || script.GetType().Name == className)
+                    if (string.IsNullOrEmpty(className) ||
+                        string.Equals(script.GetType().FullName, className, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(script.GetType().Name, className, StringComparison.OrdinalIgnoreCase))
                     {
                         // Protect global scripts from being destroyed during regular entity cleanups
                         if (s_GlobalScripts.Contains(script))
@@ -306,7 +347,7 @@ namespace Chained
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[ScriptEngine] ERROR: Exception destroying {className}: {ex.Message}");
+                            Log.Error($"[ScriptEngine] Exception in OnDestroy for '{script.GetType().FullName}':\n{ex}");
                         }
                         
                         s_ActiveScripts.Remove(script);
@@ -336,28 +377,37 @@ namespace Chained
             foreach (var script in s_ActiveScripts)
             {
                 if (s_GlobalScripts.Contains(script)) continue;
-                try { script.OnDestroy(); }
+                try
+                {
+                    script.OnDestroy();
+                }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnDestroy for {script.GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnDestroy for '{script.GetType().FullName}':\n{ex}");
                 }
             }
             foreach (var script in s_ScriptsNeedingCreate)
             {
                 if (s_GlobalScripts.Contains(script)) continue;
-                try { script.OnDestroy(); }
+                try
+                {
+                    script.OnDestroy();
+                }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnDestroy for {script.GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnDestroy for '{script.GetType().FullName}':\n{ex}");
                 }
             }
             foreach (var script in s_ScriptsNeedingStart)
             {
                 if (s_GlobalScripts.Contains(script)) continue;
-                try { script.OnDestroy(); }
+                try
+                {
+                    script.OnDestroy();
+                }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnDestroy for {script.GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnDestroy for '{script.GetType().FullName}':\n{ex}");
                 }
             }
 
@@ -365,7 +415,6 @@ namespace Chained
             s_EntityScripts.Clear();
             s_ScriptsNeedingCreate.Clear();
             s_ScriptsNeedingStart.Clear();
-            s_ScriptTypes.Clear();
 
             // Re-register surviving Autoload global scripts and notify them of scene reload
             foreach (var globalScript in s_GlobalScripts)
@@ -384,7 +433,7 @@ namespace Chained
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnSceneLoaded for {globalScript.GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnSceneLoaded for '{globalScript.GetType().FullName}':\n{ex}");
                 }
             }
         }
@@ -397,7 +446,7 @@ namespace Chained
         /// </summary>
         public static void OnUpdateManaged(float deltaTime)
         {
-            // Ensure Autoload / AutoAttach types are discovered
+            // Ensure Autoload / AutoAttach types are discovered from all loaded ALCs
             EnsureTypesDiscovered();
 
             // Process automatic tag-based attachment for newly loaded entities
@@ -413,14 +462,14 @@ namespace Chained
                     try
                     {
                         script.OnCreate();
+                        // Script successfully created; queue for OnStart on next frame
+                        s_ScriptsNeedingStart.Add(script);
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnCreate for {script.GetType().Name}: {ex.Message}");
+                        Log.Error($"[ScriptEngine] Exception in OnCreate for '{script.GetType().FullName}' (Entity ID: {script.Entity?.ID}):\n{ex}");
                     }
                 }
-                // They need OnStart on the NEXT frame
-                s_ScriptsNeedingStart.AddRange(batch);
             }
 
             // 2. OnStart for scripts that got OnCreate last frame
@@ -433,12 +482,12 @@ namespace Chained
                     try
                     {
                         script.OnStart();
+                        s_ActiveScripts.Add(script);
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnStart for {script.GetType().Name}: {ex.Message}");
+                        Log.Error($"[ScriptEngine] Exception in OnStart for '{script.GetType().FullName}' (Entity ID: {script.Entity?.ID}):\n{ex}");
                     }
-                    s_ActiveScripts.Add(script);
                 }
                 s_ActiveScripts.Sort((a, b) => a.Priority.CompareTo(b.Priority));
             }
@@ -446,13 +495,14 @@ namespace Chained
             // 3. OnUpdate for all active scripts
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
+                var script = s_ActiveScripts[i];
                 try
                 {
-                    s_ActiveScripts[i].OnUpdate(deltaTime);
+                    script.OnUpdate(deltaTime);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnUpdate for {s_ActiveScripts[i].GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnUpdate for '{script.GetType().FullName}' (Entity ID: {script.Entity?.ID}):\n{ex}");
                 }
             }
         }
@@ -462,16 +512,17 @@ namespace Chained
         {
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
-                s_ActiveScripts[i].__ResetEventState();
+                var script = s_ActiveScripts[i];
+                script.__ResetEventState();
                 try
                 {
-                    s_ActiveScripts[i].OnEvent(eventType);
+                    script.OnEvent(eventType);
                 }
                 catch (Exception ex)
                 {
-                     Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnEvent for {s_ActiveScripts[i].GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnEvent for '{script.GetType().FullName}':\n{ex}");
                 }
-                if (s_ActiveScripts[i].EventConsumed) break;
+                if (script.EventConsumed) break;
             }
         }
 
@@ -480,16 +531,17 @@ namespace Chained
         {
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
-                s_ActiveScripts[i].__ResetEventState();
+                var script = s_ActiveScripts[i];
+                script.__ResetEventState();
                 try
                 {
-                    s_ActiveScripts[i].OnGUI();
+                    script.OnGUI();
                 }
                 catch (Exception ex)
                 {
-                     Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnGUI for {s_ActiveScripts[i].GetType().Name}: {ex.Message}");
+                    Log.Error($"[ScriptEngine] Exception in OnGUI for '{script.GetType().FullName}':\n{ex}");
                 }
-                if (s_ActiveScripts[i].EventConsumed) break;
+                if (script.EventConsumed) break;
             }
         }
 
@@ -498,24 +550,30 @@ namespace Chained
         {
             if (s_EntityScripts.TryGetValue(entityA, out var scriptsA))
             {
-                foreach(var script in scriptsA)
+                foreach (var script in scriptsA)
                 {
-                    try { script.OnCollisionEnter(entityB); }
+                    try
+                    {
+                        script.OnCollisionEnter(entityB);
+                    }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnCollisionEnter for {script.GetType().Name}: {ex.Message}");
+                        Log.Error($"[ScriptEngine] Exception in OnCollisionEnter for '{script.GetType().FullName}' (Entity {entityA}):\n{ex}");
                     }
                 }
             }
 
             if (s_EntityScripts.TryGetValue(entityB, out var scriptsB))
             {
-                foreach(var script in scriptsB)
+                foreach (var script in scriptsB)
                 {
-                    try { script.OnCollisionEnter(entityA); }
+                    try
+                    {
+                        script.OnCollisionEnter(entityA);
+                    }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[ScriptEngine] ERROR: Exception in OnCollisionEnter for {script.GetType().Name}: {ex.Message}");
+                        Log.Error($"[ScriptEngine] Exception in OnCollisionEnter for '{script.GetType().FullName}' (Entity {entityB}):\n{ex}");
                     }
                 }
             }

@@ -256,24 +256,6 @@ Entities:
       Tag: Player
     IDComponent:
       {}
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: chaineddecos.scripts.gamehud
-        - ClassName: chaineddecos.scripts.debuginfoscript
-        - ClassName: chaineddecos.scripts.gamepausescript
-        - ClassName: chaineddecos.scripts.playercontroller
-          Fields:
-            - Name: Gravity
-              Type: 1
-              Value: 9.80000019
-            - Name: JumpForce
-              Type: 1
-              Value: 32.5
-            - Name: MovementSpeed
-              Type: 1
-              Value: 11.8999996
-        - ClassName: chaineddecos.scripts.spawnzone
-        - ClassName: chaineddecos.scripts.playerfall
     ColliderComponent:
       Type: 0
       Size: [2.29999995, 6.80000019, -2.5]

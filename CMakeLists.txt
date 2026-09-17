@@ -13,8 +13,6 @@ endif()
 
 project(ChainedDecos LANGUAGES CXX C)
 
-
-
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(CH_CI "Set to ON for CI environments" OFF)

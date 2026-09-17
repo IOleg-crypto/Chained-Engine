@@ -103,13 +103,6 @@ Entities:
       MovementSpeed: 15
       LookSensitivity: 0.899999976
       JumpForce: 10
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: chaineddecos.scripts.gamehud
-        - ClassName: chaineddecos.scripts.playercontroller
-        - ClassName: chaineddecos.scripts.playerfall
-        - ClassName: chaineddecos.scripts.spawnzone
-        - ClassName: chaineddecos.scripts.spawnzone
   - Entity: 1283719283719289
     TagComponent:
       Tag: Entity
