@@ -3,6 +3,7 @@ using Chained;
 
 namespace ChainedDecos.Scripts
 {
+    [AutoAttach("Player")]
     public class PlayerController : Script
     {
         private float MovementSpeed => Entity.GetComponent<PlayerComponent>()?.MovementSpeed ?? 15.0f;

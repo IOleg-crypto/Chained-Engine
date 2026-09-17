@@ -3,6 +3,7 @@ using Chained;
 
 namespace ChainedDecos.Scripts
 {
+    [Autoload]
     public class GamePauseScript : Script
     {
         public string MenuScene = "scenes/start_menu.chscene";

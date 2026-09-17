@@ -3,6 +3,7 @@ using Chained;
 
 namespace ChainedDecos.Scripts
 {
+[AutoAttach("Player")]
 public class CameraController : Script
 {
     public float LookSensitivity = 0.2f;

@@ -4,6 +4,7 @@ using Chained;
 
 namespace ChainedDecos.Scripts
 {
+[AutoAttach("Player")]
 public class PlayerFall : Script
 {
     private Entity? m_Camera;
