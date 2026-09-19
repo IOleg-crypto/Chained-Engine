@@ -22,6 +22,7 @@
 #include "scene_scripting_manager.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/scene/prefab_serializer.h"
+#include "engine/runtime/session_api.h"
 #include "engine/app/application.h"
 
 namespace Chained
@@ -50,6 +51,7 @@ namespace Chained
 
 	Scene::~Scene()
 	{
+		NetworkSystem::Reset(this);
 		auto& reg = *m_Registry;
 		reg.on_destroy<IDComponent>().disconnect();
 		reg.on_destroy<HierarchyComponent>().disconnect();
@@ -240,20 +242,20 @@ namespace Chained
 		}
 
 		AudioSystem::OnRuntimeStop(*m_Registry);
+		NetworkSystem::Reset(this);
 
-		if (auto* netSys = ServiceLocator::TryGet<NetworkSystem>())
+		bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
+		if (!hasSuspended)
 		{
-			netSys->Reset();
-		}
+			if (auto* physics = ServiceLocator::TryGet<Physics>())
+			{
+				physics->ClearContext(this);
+			}
 
-		if (auto* physics = ServiceLocator::TryGet<Physics>())
-		{
-			physics->ClearContext(this);
-		}
-
-		if (auto* scripting = ServiceLocator::TryGet<ScriptEngine>())
-		{
-			scripting->SetContextScene(nullptr);
+			if (auto* scripting = ServiceLocator::TryGet<ScriptEngine>())
+			{
+				scripting->SetContextScene(nullptr);
+			}
 		}
 	}
 
@@ -276,20 +278,16 @@ namespace Chained
 			return;
 		}
 
-		auto* netSys = ServiceLocator::TryGet<NetworkSystem>();
-		if (netSys)
-		{
-			netSys->PollNetwork(this, ts);
-		}
+		NetworkSystem::PollNetwork(this, ts);
 
 		// Interpolate remote entities BEFORE scripts so PlayerController
 		// reads the correct velocity/grounded values for animation.
 		if (auto* net = ServiceLocator::TryGet<Network>())
 		{
-			if (net->IsClient() && netSys)
+			if (net->IsClient())
 			{
 				float dt = static_cast<float>(ts);
-				netSys->InterpolateEntities(*m_Registry, dt);
+				NetworkSystem::InterpolateEntities(*m_Registry, dt);
 			}
 		}
 
@@ -301,10 +299,7 @@ namespace Chained
 		TickCommonSystems(ts);
 
 		PhysicsBodySystem::Update(*m_Registry);
-		if (netSys)
-		{
-			netSys->ApplyHostInputs(*m_Registry, ts);
-		}
+		NetworkSystem::ApplyHostInputs(*m_Registry, ts);
 
 		if (auto* physics = ServiceLocator::TryGet<Physics>())
 		{
@@ -312,10 +307,7 @@ namespace Chained
 		}
 
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		if (netSys)
-		{
-			netSys->FinalizeFrame(this, ts);
-		}
+		NetworkSystem::FinalizeFrame(this, ts);
 
 		if (auto target = SceneTransitionSystem::Update(*m_Registry))
 		{
@@ -346,11 +338,22 @@ namespace Chained
 
 	void Scene::InitializePhysicsStartup()
 	{
+		if (m_Settings.Type == SceneType::UI)
+		{
+			m_IsStartingUp = false;
+			FinishRuntimeStart();
+			return;
+		}
+
 		if (auto* physics = ServiceLocator::TryGet<Physics>())
 		{
 			if (!m_PhysicsStartupInitialized)
 			{
-				physics->ResetWorld(this);
+				bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
+				if (!hasSuspended)
+				{
+					physics->ResetWorld(this);
+				}
 				physics->ResetAccumulator(this);
 				if (!m_Registry->ctx().contains<Physics*>())
 				{

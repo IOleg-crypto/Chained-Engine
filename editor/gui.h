@@ -45,7 +45,7 @@ namespace Chained
 		bool DrawVec3(const char* label, glm::vec3& values, float resetValue = 0.0f);
 		bool DrawVec4(const char* label, glm::vec4& values, float resetValue = 0.0f);
 		// Applies the editor-wide ImGui style.
-		void ApplyTheme();
+		void ApplyTheme(float fontSize = 14.0f);
 
 		template <typename F> bool PropertyWidget(const char* label, F&& widgetFn);
 

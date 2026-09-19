@@ -305,22 +305,45 @@ namespace Chained
 			}
 		}
 
-		// 5. Deduplication: When binary .chasset companion exists, strip raw .glb/.gltf/.bin
+		// 5. Deduplication: strip raw .glb/.gltf/.bin files when any .chasset exists in the
+		//    same directory — covers cases where .chasset has a different stem than the source
+		//    model (e.g. doric_arena.glb compiled into arena.chasset, toy_train.glb -> train_vagon.chasset).
 		std::unordered_set<std::string> strippedSources;
+
+		// Build a set of directories that contain at least one .chasset
+		std::unordered_set<std::string> dirsWithChAsset;
+		for (const auto& [key, rel] : allAssetsLower)
+		{
+			if (StringToLower(fs::path(key).extension().string()) == ".chasset")
+			{
+				dirsWithChAsset.insert(NormalizeKey(fs::path(key).parent_path()));
+			}
+		}
+
 		for (const auto& key : referencedLower)
 		{
 			fs::path p(key);
 			std::string ext = StringToLower(p.extension().string());
 
+			// Strip raw model source files and loose .bin buffers when the folder
+			// already has a compiled .chasset — exact-stem OR any chasset in that dir.
 			if ((kModelExts.count(ext) > 0 && ext != ".chasset" && ext != ".chmesh") || ext == ".bin")
 			{
-				fs::path chassetPath = p;
-				chassetPath.replace_extension(".chasset");
-				if (allAssetsLower.count(NormalizeKey(chassetPath)) > 0)
+				std::string parentKey = NormalizeKey(p.parent_path());
+
+				// Exact-stem match (original logic — fast path)
+				fs::path exactChasset = p;
+				exactChasset.replace_extension(".chasset");
+				bool hasExact = allAssetsLower.count(NormalizeKey(exactChasset)) > 0;
+
+				// Folder-level match: any .chasset in same directory
+				bool hasFolderChasset = dirsWithChAsset.count(parentKey) > 0;
+
+				if (hasExact || hasFolderChasset)
 				{
 					strippedSources.insert(key);
 
-					// Also strip potential companion scene.bin / stem.bin
+					// Also strip companion scene.bin / stem.bin
 					fs::path parent = p.parent_path();
 					strippedSources.insert(NormalizeKey(parent / (p.stem().string() + ".bin")));
 					strippedSources.insert(NormalizeKey(parent / "scene.bin"));

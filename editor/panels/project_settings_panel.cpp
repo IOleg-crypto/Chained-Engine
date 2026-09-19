@@ -3,7 +3,6 @@
 #include "engine/platform/dialogs/dialogs.h"
 #include "engine/project/project.h"
 #include "imgui.h"
-#include "layer.h"
 #include "project/project_serializer.h"
 #include "project_manager.h"
 #include "thirdparty/IconsFontAwesome6.h"

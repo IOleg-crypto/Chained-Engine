@@ -128,6 +128,8 @@ namespace Chained
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetRight_Ptr", (void*)&Camera_GetRight);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetOrbit_Ptr", (void*)&Camera_GetOrbit);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_SetOrbit_Ptr", (void*)&Camera_SetOrbit);
+		assembly.AddInternalCall("Chained.CameraComponent", "Camera_SetFreeFly_Ptr", (void*)&Camera_SetFreeFly);
+		assembly.AddInternalCall("Chained.CameraComponent", "Camera_UpdateFreeFly_Ptr", (void*)&Camera_UpdateFreeFly);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetPrimary_Ptr", (void*)&Camera_GetPrimary);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_SetPrimary_Ptr", (void*)&Camera_SetPrimary);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetIsOrbit_Ptr", (void*)&Camera_GetIsOrbit);
@@ -293,6 +295,16 @@ namespace Chained
 		assembly.AddInternalCall("Chained.UI", "UI_SetKeyboardFocusHere_Ptr", (void*)&UI_SetKeyboardFocusHere);
 		assembly.AddInternalCall("Chained.UI", "UI_SetScrollHereY_Ptr", (void*)&UI_SetScrollHereY);
 		assembly.AddInternalCall("Chained.UI", "UI_GetDisplaySize_Ptr", (void*)&UI_GetDisplaySize);
+		assembly.AddInternalCall("Chained.UI", "UI_PushStyleColor_Ptr", (void*)&UI_PushStyleColor);
+		assembly.AddInternalCall("Chained.UI", "UI_PopStyleColor_Ptr", (void*)&UI_PopStyleColor);
+		assembly.AddInternalCall("Chained.UI", "UI_PushStyleVarFloat_Ptr", (void*)&UI_PushStyleVarFloat);
+		assembly.AddInternalCall("Chained.UI", "UI_PushStyleVarVec2_Ptr", (void*)&UI_PushStyleVarVec2);
+		assembly.AddInternalCall("Chained.UI", "UI_PopStyleVar_Ptr", (void*)&UI_PopStyleVar);
+		assembly.AddInternalCall("Chained.UI", "UI_Dummy_Ptr", (void*)&UI_Dummy);
+		assembly.AddInternalCall("Chained.UI", "UI_IsItemHovered_Ptr", (void*)&UI_IsItemHovered);
+		assembly.AddInternalCall("Chained.UI", "UI_SetWindowFontScale_Ptr", (void*)&UI_SetWindowFontScale);
+		assembly.AddInternalCall("Chained.UI", "UI_SliderFloat_Ptr", (void*)&UI_SliderFloat);
+		assembly.AddInternalCall("Chained.UI", "UI_Checkbox_Ptr", (void*)&UI_Checkbox);
 
 		// ── Input ─────────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Input", "Input_IsKeyDown_Ptr", (void*)&Input_IsKeyDown);
@@ -317,6 +329,9 @@ namespace Chained
 								 (void*)&Scene_GetPrimaryCameraEntity);
 		assembly.AddInternalCall("Chained.Scene", "Scene_CopyEntity_Ptr", (void*)&Scene_CopyEntity);
 		assembly.AddInternalCall("Chained.Scene", "Scene_GetCurrentScenePath_Ptr", (void*)&Scene_GetCurrentScenePath);
+		assembly.AddInternalCall("Chained.Scene", "Scene_HasSuspendedSession_Ptr", (void*)&Scene_HasSuspendedSession);
+		assembly.AddInternalCall("Chained.Scene", "Scene_ResumeSuspendedSession_Ptr",
+								 (void*)&Scene_ResumeSuspendedSession);
 
 		// ── Audio static ──────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Audio", "Audio_Play_Ptr", (void*)&Audio_Play);

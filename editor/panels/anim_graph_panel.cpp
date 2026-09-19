@@ -7,9 +7,10 @@
 #include "engine/assets/types/model_asset.h"
 #include "engine/assets/loaders/anim_graph_loader.h"
 #include "engine/core/service_locator.h"
-#include "thirdparty/IconsFontAwesome6.h"
 #include "editor/panels/anim_graph_panel.h"
-#include "editor/layer.h"
+#include "editor/types.h"
+#include "editor/scene_manager.h"
+#include "thirdparty/IconsFontAwesome6.h"
 
 namespace Chained
 {
@@ -52,7 +53,7 @@ namespace Chained
 		// Override/restore animation preview in main viewport
 		if (panel)
 		{
-			Entity entity = EditorLayer::Get().GetSelectedEntity();
+			Entity entity = panel->m_EditorState ? panel->m_EditorState->SelectedEntity : Entity{};
 			if (selected)
 			{
 				panel->ApplyPreview(graph, (int)nodeIndex, entity);
@@ -231,7 +232,9 @@ namespace Chained
 
 	// ── Panel ─────────────────────────────────────────────────────────
 
-	AnimGraphPanel::AnimGraphPanel()
+	AnimGraphPanel::AnimGraphPanel(EditorState* editorState, EditorSceneManager* sceneManager)
+		: m_EditorState(editorState),
+		  m_SceneManager(sceneManager)
 	{
 		m_Name = "Animation Graph";
 		m_Delegate.panel = this;
@@ -251,7 +254,7 @@ namespace Chained
 
 		ImGui::Begin("Animation Graph", &m_IsOpen);
 
-		Entity selectedEntity = EditorLayer::Get().GetSelectedEntity();
+		Entity selectedEntity = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 
 		// Restore preview if entity changed
 		if (m_PreviewNodeIdx >= 0 && m_PreviewEntity != selectedEntity)
@@ -546,7 +549,8 @@ namespace Chained
 			AnimNode& node = graph->Nodes[selectedIdx];
 
 			// Keep entity preview synced to selected node in Edit mode
-			bool isSimulation = EditorLayer::Get().GetSceneState() != SceneState::Edit;
+			SceneState sceneState = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
+			bool isSimulation = sceneState != SceneState::Edit;
 			if (!isSimulation)
 			{
 				animComp.CurrentNodeID = node.ID;

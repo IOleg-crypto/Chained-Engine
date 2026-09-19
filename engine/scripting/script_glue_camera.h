@@ -15,6 +15,11 @@ namespace Chained
 
 	CH_SCRIPT_FUNC void Camera_SetOrbit(uint64_t entityID, float yaw, float pitch, float distance);
 
+	CH_SCRIPT_FUNC void Camera_SetFreeFly(uint64_t entityID, glm::vec3* inPos, float yaw, float pitch);
+
+	CH_SCRIPT_FUNC void Camera_UpdateFreeFly(uint64_t entityID, float forwardInput, float rightInput, float upInput,
+											 float deltaYaw, float deltaPitch, float speed, float dt);
+
 	CH_SCRIPT_FUNC uint8_t Camera_GetPrimary(uint64_t entityID);
 
 	CH_SCRIPT_FUNC void Camera_SetPrimary(uint64_t entityID, uint8_t primary);

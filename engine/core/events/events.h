@@ -26,7 +26,12 @@ namespace Chained
 		AppLaunchRuntime,
 		AppResetLayout,
 		AppSaveLayout,
-		ViewportFocusEntity
+		ViewportFocusEntity,
+		EditorOpenScene,
+		EditorSaveScene,
+		EditorSceneStateChange,
+		EditorSelectEntity,
+		EditorReloadFonts
 	};
 
 	using EventTypeID = uint32_t;

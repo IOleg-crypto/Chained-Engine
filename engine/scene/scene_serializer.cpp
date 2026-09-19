@@ -26,14 +26,11 @@ namespace Chained
 			return node[key].as<T>(fallback);
 		}
 
-		namespace
+		std::string ToProjectRelativePath(const std::string& absPath)
 		{
-			static std::string ToProjectRelativePath(const std::string& absPath)
-			{
-				auto project = Project::GetActive();
-				return project ? project->GetRelativePath(absPath) : absPath;
-			}
-		} // namespace
+			auto project = Project::GetActive();
+			return project ? project->GetRelativePath(absPath) : absPath;
+		}
 
 		static void SerializeBackgroundSettings(YAML::Emitter& out, const SceneSettings& settings)
 		{

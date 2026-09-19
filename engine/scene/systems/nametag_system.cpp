@@ -125,6 +125,14 @@ namespace Chained::NametagSystem
 		auto fontAsset = am->Get<FontAsset>("font/lato/lato-regular.ttf");
 		if (!fontAsset || !fontAsset->IsReady())
 		{
+			fontAsset = am->Get<FontAsset>("engine/resources/font/lato/lato-regular.ttf");
+		}
+		if (!fontAsset || !fontAsset->IsReady())
+		{
+			fontAsset = am->Get<FontAsset>("resources/font/lato/lato-regular.ttf");
+		}
+		if (!fontAsset || !fontAsset->IsReady())
+		{
 			return;
 		}
 		const auto& font = fontAsset->GetFont();
@@ -165,6 +173,10 @@ namespace Chained::NametagSystem
 			}
 
 			const auto& tc = view.get<TransformComponent>(entity);
+			if (tc.Scale.x < 0.001f || tc.Translation.y < -500.0f)
+			{
+				continue;
+			}
 
 			std::string name;
 			bool isHost = false;

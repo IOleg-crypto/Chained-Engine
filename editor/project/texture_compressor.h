@@ -1,6 +1,7 @@
 #pragma once
 
 #include "project_exporter.h"
+#include "engine/project/project.h"
 
 #include <atomic>
 #include <filesystem>
@@ -18,12 +19,13 @@ namespace Chained
 		/// @param dstPath Target .ktx2 path.
 		/// @param flipY Whether to flip texture vertically (true for Scene, false for UI).
 		/// @param isNormalMap Whether texture is a normal/bump map (uses UASTC + Zstd9).
+		/// @param mode Pack mode to control compression effort.
 		bool CompressToKTX2(const std::filesystem::path& srcPath, const std::filesystem::path& dstPath, bool flipY,
-							bool isNormalMap);
+							bool isNormalMap, PackMode mode);
 
 		/// @brief Convert eligible texture PackItems to KTX2 in parallel using disk cache.
 		/// @return true if successful or completed; false if cancelled.
-		bool ProcessTextures(const std::filesystem::path& projectDir, std::vector<PackItem>& items,
+		bool ProcessTextures(const std::filesystem::path& projectDir, std::vector<PackItem>& items, PackMode mode,
 							 ExportProgressCallback onProgress, const std::atomic<bool>* cancelFlag);
 
 		/// @brief Check if pack key corresponds to a UI or icon texture (not flipped).

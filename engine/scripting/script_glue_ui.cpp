@@ -677,4 +677,95 @@ namespace Chained
 		}
 	}
 
+	void UI_PushStyleColor(int32_t colIdx, float r, float g, float b, float a)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::PushStyleColor(static_cast<ImGuiCol>(colIdx), ImVec4(r, g, b, a));
+		}
+	}
+
+	void UI_PopStyleColor(int32_t count)
+	{
+		if (ImGui::GetCurrentContext() && count > 0)
+		{
+			ImGui::PopStyleColor(count);
+		}
+	}
+
+	void UI_PushStyleVarFloat(int32_t varIdx, float val)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::PushStyleVar(static_cast<ImGuiStyleVar>(varIdx), val);
+		}
+	}
+
+	void UI_PushStyleVarVec2(int32_t varIdx, float x, float y)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::PushStyleVar(static_cast<ImGuiStyleVar>(varIdx), ImVec2(x, y));
+		}
+	}
+
+	void UI_PopStyleVar(int32_t count)
+	{
+		if (ImGui::GetCurrentContext() && count > 0)
+		{
+			ImGui::PopStyleVar(count);
+		}
+	}
+
+	void UI_Dummy(float w, float h)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::Dummy(ImVec2(w, h));
+		}
+	}
+
+	uint8_t UI_IsItemHovered()
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			return ImGui::IsItemHovered() ? 1 : 0;
+		}
+		return 0;
+	}
+
+	void UI_SetWindowFontScale(float scale)
+	{
+		if (ImGui::GetCurrentContext())
+		{
+			ImGui::SetWindowFontScale(scale);
+		}
+	}
+
+	uint8_t UI_SliderFloat(const Coral::UCChar* label, float* v, float v_min, float v_max)
+	{
+		if (ImGui::GetCurrentContext() == nullptr || !ImGui::GetCurrentContext()->WithinFrameScope || !label || !v)
+		{
+			return 0;
+		}
+		std::string strLabel = ch_u16_to_string(label);
+		return ImGui::SliderFloat(strLabel.c_str(), v, v_min, v_max, "%.1f") ? 1 : 0;
+	}
+
+	uint8_t UI_Checkbox(const Coral::UCChar* label, uint8_t* v)
+	{
+		if (ImGui::GetCurrentContext() == nullptr || !ImGui::GetCurrentContext()->WithinFrameScope || !label || !v)
+		{
+			return 0;
+		}
+		std::string strLabel = ch_u16_to_string(label);
+		bool val = (*v != 0);
+		bool changed = ImGui::Checkbox(strLabel.c_str(), &val);
+		if (changed)
+		{
+			*v = val ? 1 : 0;
+		}
+		return changed ? 1 : 0;
+	}
+
 } // namespace Chained

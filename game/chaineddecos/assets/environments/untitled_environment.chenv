@@ -1,0 +1,40 @@
+Environment:
+  Lighting:
+    Direction:
+      X: -1
+      Y: -1
+      Z: -1
+    LightColor:
+      R: 255
+      G: 255
+      B: 255
+      A: 255
+    Ambient: 0.300000012
+    Exposure: 1
+    Gamma: 2.20000005
+  Skybox:
+    TexturePath: skyboxes\qwantani_dusk_2_puresky_8k.hdr
+    Mode: 0
+    CubeFace0: ""
+    CubeFace1: ""
+    CubeFace2: ""
+    CubeFace3: ""
+    CubeFace4: ""
+    CubeFace5: ""
+    Exposure: 1
+    Brightness: 0
+    Contrast: 1
+    FlipUV_Y: false
+    FlipUV_X: false
+    Rotation: 0
+  Fog:
+    Enabled: false
+    Color:
+      R: 158
+      G: 148
+      B: 148
+      A: 255
+    Density: 0.00100000005
+    Start: 10
+    End: 5000
+    HeightFalloff: 0.200000003

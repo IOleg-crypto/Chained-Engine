@@ -1,6 +1,5 @@
-#include "layer.h"
-#include "editor_menu.h"
 #include "layout.h"
+#include "editor_menu.h"
 
 #include "gui.h"
 #include "imgui.h"
@@ -13,8 +12,10 @@ namespace Chained
 
 	constexpr float kLeftDockRatio = 0.20f;
 
-	EditorLayout::EditorLayout(EditorPanels& panels)
-		: m_Panels(panels)
+	EditorLayout::EditorLayout(EditorPanels& panels, EditorMenu& menu, EditorSceneManager& sceneManager)
+		: m_Panels(panels),
+		  m_Menu(menu),
+		  m_SceneManager(sceneManager)
 	{
 		// Rebuild the default DockBuilder arrangement only when no saved layout exists.
 		// If imgui.ini is present, honor it so the user's arrangement persists across launches.
@@ -114,15 +115,14 @@ namespace Chained
 			ImGui::DockSpace(m_DockSpaceID, ImVec2(0.0f, 0.0f), dockspace_flags);
 		}
 
-		auto& menu = EditorLayer::Get().GetMenu();
-		menu.DrawMenuBar(m_Panels);
+		m_Menu.DrawMenuBar(m_Panels);
 
-		bool readOnly = EditorLayer::Get().GetSceneState() == SceneState::Play;
+		bool readOnly = m_SceneManager.GetSceneState() == SceneState::Play;
 		m_Panels.OnImGuiRender(readOnly);
 
-		menu.DrawEditorSettings();
-		menu.DrawExportDialog();
-		menu.DrawExportProgressOverlay();
+		m_Menu.DrawEditorSettings();
+		m_Menu.DrawExportDialog();
+		m_Menu.DrawExportProgressOverlay();
 
 		ImGui::End();
 	}

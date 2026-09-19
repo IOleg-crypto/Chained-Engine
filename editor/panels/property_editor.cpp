@@ -3,11 +3,16 @@
 #include "engine/reflection/reflection_rfl_impl.h"
 #include "engine/scene/component_registry.h"
 #include "thirdparty/IconsFontAwesome6.h"
-#include "editor/layer.h"
+#include "editor/undo/command_history.h"
 #include "editor/undo/component_commands.h"
 #include "editor/undo/modify_component_command.h"
 #include "engine/core/service_locator.h"
 #include "gui.h"
+
+namespace
+{
+	static Chained::CommandHistory* s_CommandHistory = nullptr;
+}
 
 #include "engine/physics/physics.h"
 #include "engine/scene/scene_settings.h"
@@ -360,8 +365,11 @@ namespace Chained
 					auto oldState = s_InitialStates[e];
 					auto newState = comp;
 
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<ModifyComponentCommand<T>>(entity, oldState, newState, "Modify " + name));
+					if (s_CommandHistory)
+					{
+						s_CommandHistory->PushCommand(
+							std::make_unique<ModifyComponentCommand<T>>(entity, oldState, newState, "Modify " + name));
+					}
 
 					s_InitialStates.erase(e);
 				}
@@ -391,8 +399,14 @@ namespace Chained
 					return false;
 				},
 				[&]() {
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<RemoveComponentCommand<T>>(entity));
+					if (s_CommandHistory)
+					{
+						s_CommandHistory->PushCommand(std::make_unique<RemoveComponentCommand<T>>(entity));
+					}
+					else
+					{
+						entity.RemoveComponent<T>();
+					}
 				});
 		}
 	}
@@ -449,11 +463,25 @@ namespace Chained
 		override.Add = [](Entity e) {
 			if (!e.HasComponent<T>())
 			{
-				EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<AddComponentCommand<T>>(e));
+				if (s_CommandHistory)
+				{
+					s_CommandHistory->PushCommand(std::make_unique<AddComponentCommand<T>>(e));
+				}
+				else
+				{
+					e.AddComponent<T>();
+				}
 			}
 		};
 		override.Remove = [](Entity e) {
-			EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<RemoveComponentCommand<T>>(e));
+			if (s_CommandHistory)
+			{
+				s_CommandHistory->PushCommand(std::make_unique<RemoveComponentCommand<T>>(e));
+			}
+			else
+			{
+				e.RemoveComponent<T>();
+			}
 		};
 		ComponentRegistry::OverrideMetadata(typeId, override);
 	}
@@ -473,8 +501,14 @@ namespace Chained
 
 	// --- Implementation ---
 
-	void PropertyEditor::Init()
+	void PropertyEditor::SetCommandHistory(CommandHistory* commandHistory)
 	{
+		s_CommandHistory = commandHistory;
+	}
+
+	void PropertyEditor::Init(CommandHistory* commandHistory)
+	{
+		s_CommandHistory = commandHistory;
 		// --- Core Components ---
 		ComponentRegistry::SetAllowAdd(entt::type_hash<TransformComponent>::value(), false);
 

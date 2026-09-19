@@ -115,6 +115,13 @@ if(TARGET pack-static)
     target_link_libraries(editor_core PUBLIC pack-static)
 endif()
 
+# Threads — required by ZSTDMT (parallel per-file compression) and
+# our ParallelPacker thread pool inside resource_packer.cpp.
+find_package(Threads QUIET)
+if(Threads_FOUND)
+    target_link_libraries(editor_core PUBLIC Threads::Threads)
+endif()
+
 if(TARGET engine_external_basisu_encoder)
     target_link_libraries(editor_core PUBLIC engine_external_basisu_encoder)
 endif()

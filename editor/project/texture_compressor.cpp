@@ -62,7 +62,7 @@ namespace Chained
 	}
 
 	bool TextureCompressor::CompressToKTX2(const fs::path& srcPath, const fs::path& dstPath, bool flipY,
-										   bool isNormalMap)
+										   bool isNormalMap, PackMode mode)
 	{
 		try
 		{
@@ -90,20 +90,41 @@ namespace Chained
 
 			if (isNormalMap)
 			{
-				// High-precision UASTC + Zstd level 9 for normal/bump maps
 				params.m_uastc = true;
-				params.m_rdo_uastc_ldr_4x4 = false;
-				params.m_pack_uastc_ldr_4x4_flags = basisu::cPackUASTCLevelFastest;
-				params.m_ktx2_uastc_supercompression = basist::KTX2_SS_ZSTANDARD;
-				params.m_ktx2_zstd_supercompression_level = 9;
+				if (mode == PackMode::Max)
+				{
+					// High-precision UASTC + Zstd level 19 for normal/bump maps with RDO
+					params.m_rdo_uastc_ldr_4x4 = true;
+					params.m_rdo_uastc_ldr_4x4_dict_size = 4096;
+					params.m_pack_uastc_ldr_4x4_flags = basisu::cPackUASTCLevelSlower;
+					params.m_ktx2_uastc_supercompression = basist::KTX2_SS_ZSTANDARD;
+					params.m_ktx2_zstd_supercompression_level = 19;
+				}
+				else
+				{
+					// Fast high-precision UASTC + Zstd level 9
+					params.m_rdo_uastc_ldr_4x4 = false;
+					params.m_pack_uastc_ldr_4x4_flags = basisu::cPackUASTCLevelFastest;
+					params.m_ktx2_uastc_supercompression = basist::KTX2_SS_ZSTANDARD;
+					params.m_ktx2_zstd_supercompression_level = 9;
+				}
 				params.m_perceptual = false;
 			}
 			else
 			{
-				// Ultra-compact ETC1S / BasisLZ for Albedo, Diffuse, UI, and color textures (5x-10x smaller)
 				params.m_uastc = false;
-				params.m_etc1s_compression_level = 2; // Fast encoding
-				params.m_quality_level = 128;
+				if (mode == PackMode::Max)
+				{
+					// Max-compressed ETC1S
+					params.m_etc1s_compression_level = 5;
+					params.m_quality_level = 255;
+				}
+				else
+				{
+					// Ultra-compact ETC1S / BasisLZ for Albedo, Diffuse, UI, and color textures
+					params.m_etc1s_compression_level = 2; // Fast encoding
+					params.m_quality_level = 128;
+				}
 				params.m_perceptual = true;
 			}
 
@@ -150,7 +171,7 @@ namespace Chained
 		}
 	}
 
-	bool TextureCompressor::ProcessTextures(const fs::path& projectDir, std::vector<PackItem>& items,
+	bool TextureCompressor::ProcessTextures(const fs::path& projectDir, std::vector<PackItem>& items, PackMode mode,
 											ExportProgressCallback onProgress, const std::atomic<bool>* cancelFlag)
 	{
 		fs::path cacheDir = projectDir / ".texture_cache";
@@ -187,9 +208,10 @@ namespace Chained
 			const bool isNormal = IsNormalMap(items[i].PackKey);
 			const bool flipY = !isUi; // Scene textures flip Y for OpenGL; UI textures remain unflipped
 
-			// Cache key includes: pack key, flipY, normal map flag, version tag
+			// Cache key includes: pack key, flipY, normal map flag, version tag, and pack mode
+			std::string modeTag = (mode == PackMode::Max) ? "|max" : "|fast";
 			std::string cacheKey = items[i].PackKey.generic_string() + (flipY ? "|flip" : "|noflip") +
-								   (isNormal ? "|norm" : "|color") + "|v4_nomip";
+								   (isNormal ? "|norm" : "|color") + "|v4_nomip" + modeTag;
 			std::string ktxName = std::to_string(std::hash<std::string>{}(cacheKey)) + ".ktx2";
 			fs::path ktxPath = cacheDir / ktxName;
 
@@ -216,7 +238,13 @@ namespace Chained
 
 		CH_CORE_INFO("TextureCompressor: Compressing {} textures to KTX2...", jobs.size());
 
-		const unsigned int threadCount = std::min<unsigned int>(std::max(1u, std::thread::hardware_concurrency()), 4u);
+		unsigned int threadCount = std::min<unsigned int>(std::max(1u, std::thread::hardware_concurrency()), 4u);
+		if (mode == PackMode::Max)
+		{
+			// Dedicate 2 cores to the UI pump when running heavy RDO to prevent freezes
+			unsigned int hwCores = std::thread::hardware_concurrency();
+			threadCount = std::max(1u, hwCores > 2 ? hwCores - 2 : 1u);
+		}
 
 		std::atomic<size_t> completed{0};
 		std::atomic<bool> abortJobs{false};
@@ -232,7 +260,7 @@ namespace Chained
 				}
 
 				const auto& job = jobs[j];
-				if (CompressToKTX2(job.src, job.dst, job.flipY, job.isNormal))
+				if (CompressToKTX2(job.src, job.dst, job.flipY, job.isNormal, mode))
 				{
 					std::lock_guard<std::mutex> lock(resultMutex);
 					items[job.itemIndex].Source = job.dst;

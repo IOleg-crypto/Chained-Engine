@@ -1,73 +1,40 @@
 #ifndef CH_NETWORK_SYSTEM_H
 #define CH_NETWORK_SYSTEM_H
 
+#include "engine/scene/systems/network/network_types.h"
+#include "engine/scene/systems/network/network_session_tracker.h"
+#include "engine/scene/systems/network/network_input_controller.h"
+#include "engine/scene/systems/network/network_replication_manager.h"
 #include "engine/common/timestep.h"
 #include "engine/common/uuid.h"
-#include "engine/core/service.h"
 #include "engine/networking/net_packet.h"
 #include "engine/networking/network_service.h"
 #include <entt/entt.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 #include <string>
+#include <vector>
 #include <cstdint>
 
 namespace Chained
 {
 	class Scene;
 
-	// NetworkPeerHandle and Role are now defined in network_service.h
-
-	struct PendingNetworkState
+	namespace NetworkSystem
 	{
-		uint64_t NetworkID = 0;
-		uint32_t LastTick = 0;
-		glm::vec3 TargetPosition = {0, 0, 0};	 // Authoritative server position
-		glm::quat TargetRotation = {1, 0, 0, 0}; // Authoritative server rotation
-		glm::vec3 TargetVelocity = {0, 0, 0};
-		glm::vec3 RenderPosition = {0, 0, 0};	 // Smoothly-interpolated render pos (never hard-reset)
-		glm::quat RenderRotation = {1, 0, 0, 0}; // Smoothly-interpolated render rot
-		bool RenderInitialized = false;			 // First packet: snap render pos to server pos
-		bool IsGrounded = false;
-		uint8_t ActionFlags = 0;
-	};
-
-	struct ProcessedInput
-	{
-		uint64_t NetworkID = 0;
-		float MoveX = 0.0f;
-		float MoveZ = 0.0f;
-		uint8_t ActionFlags = 0;
-		float MouseX = 0.0f;
-		float MouseY = 0.0f;
-	};
-
-	class NetworkSystem : public Service
-	{
-	public:
-		static NetworkSystem& GetInstance();
-
-		void Initialize() override
+		struct SceneNetworkContext
 		{
-		}
-		void Shutdown() override
-		{
-			Reset();
-		}
+			NetworkSessionTracker Session;
+			NetworkInputController Input;
+			NetworkReplicationManager Replication;
+			Role CallbackRole = Role::Offline;
+			bool SceneLoadedPending = false;
+			float NetworkTickAccumulator = 0.0f;
+		};
 
-		// Maximum distance (m) between local and server position before snap-correction
-		// kicks in for owned entities. Below this threshold, local physics runs freely.
-		static constexpr float kMaxCorrectionDistance = 10.0f;
+		SceneNetworkContext& GetOrCreateContext(Scene* scene);
+		SceneNetworkContext* TryGetContext(Scene* scene);
 
-		// Ensure the local player entity has a NetworkIdentityComponent BEFORE scripts
-		// run. Must be called early in the frame so PlayerController etc. can find it.
 		void EnsureLocalIdentity(Scene* scene);
-
-		// Resets all per-session state. Must be called from OnRuntimeStop.
-		void Reset();
+		void Reset(Scene* scene = nullptr);
 
 		void PollNetwork(Scene* scene, Timestep ts);
 		void FinalizeFrame(Scene* scene, Timestep ts);
@@ -75,70 +42,19 @@ namespace Chained
 		void InterpolateEntities(entt::registry& reg, float dt);
 		void CheckAndPropagateSceneChange(Scene* scene);
 
-		const std::vector<ProcessedInput>& GetPendingInputs();
-		void ClearPendingInputs();
+		const std::vector<ProcessedInput>& GetPendingInputs(Scene* scene);
+		void ClearPendingInputs(Scene* scene);
 
-		void RegisterPeerEntity(int peer, uint64_t networkID);
-		void UnregisterPeer(int peer);
+		void RegisterPeerEntity(Scene* scene, int peer, uint64_t networkID);
+		void UnregisterPeer(Scene* scene, int peer);
 
-		// Prefab instantiated for each connecting client. Relative to the assets
-		// directory. Empty by default — clients get no avatar until this is set.
-		void SetPlayerPrefab(const std::string& path);
-		const std::string& GetPlayerPrefab();
+		void SetPlayerPrefab(Scene* scene, const std::string& path);
+		const std::string& GetPlayerPrefab(Scene* scene);
 
-	private:
-		// ---- Incoming message processing ----
-		void ProcessWorldStateMessage(WorldStateMessage* msg);
-		void ProcessSceneChangeMessage(SceneChangeMessage* msg);
-		void ProcessEntitySpawnMessage(EntitySpawnMessage* msg, Scene* scene);
-		void ProcessEntityDestroyMessage(EntityDestroyMessage* msg, Scene* scene);
-		void ProcessPlayerAssignMessage(PlayerAssignMessage* msg);
-
-		// ---- Incoming message processing (host side) ----
-		void ProcessInputStateMessage(InputStateMessage* msg, int clientIndex);
-		void ProcessPlayerInfoMessage(PlayerInfoMessage* msg, int clientIndex);
-		void ProcessPlayerListMessage(PlayerListMessage* msg);
-		void ProcessChatMessageMessage(Chained::ChatMessageMessage* msg);
-
-		// ---- Host-side helpers ----
-		void EnsureHostIdentity(Scene* scene);
-		void SyncPeerAvatars(Scene* scene, Network* net);
-		void BroadcastWorldState(entt::registry& reg);
-		void SendEntitySpawn(Network* net, uint64_t networkID, const std::string& prefabPath, int clientIndex);
-		void SendEntityDestroy(Network* net, uint64_t networkID);
-		void ResyncClientEntities(int clientIndex, Scene* scene);
-
-		// ---- Client-side helpers ----
-		void CollectAndSendInput(Network* net, float dt);
-
-		// ---- Packet callback installer ----
-		void InstallPacketCallback();
-
-		// ---- Member state (previously file-scope globals) ----
-		std::unordered_map<uint64_t, PendingNetworkState> m_PendingStates;
-		std::vector<ProcessedInput> m_PendingInputs;
-		std::unordered_map<uint64_t, ProcessedInput> m_ActiveClientInputs;
-		std::unordered_map<uint64_t, float> m_ActiveClientInputTimers;
-		uint32_t m_ClientTick = 0;
-		uint32_t m_HostTick = 0;
-		std::unordered_map<int, uint64_t> m_PeerToNetworkID;
-		Role m_CallbackRole = Role::Offline;
-		std::string m_PlayerPrefab = "prefab/player.chprefab";
-		std::unordered_map<int, UUID> m_PeerToAvatar;
-		std::unordered_map<uint64_t, UUID> m_NetworkIDToEntity;
-		uint64_t m_LocalNetworkID = 0;
-		std::unordered_map<int, std::pair<std::string, uint8_t>> m_PendingPlayerInfo;
-		std::unordered_map<uint64_t, uint8_t> m_LastActionFlags;
-		Scene* m_ReplicationScene = nullptr;
-		bool m_PrefabWarnedOnce = false;
-		bool m_SceneLoadedPending = false;
-		std::unordered_map<int, std::string> m_DeferredSceneLoaded;
-		std::vector<EntitySpawnMessage>
-			m_PendingEntitySpawns; // BUG #2: buffer spawns that arrive before scene is ready
-		std::unordered_set<uint64_t> m_WarnedInputNetID;
-		float m_NetworkTickAccumulator = 0.0f;
-		static constexpr float kNetworkTickInterval = 1.0f / 64.0f; // 64 Hz (Valve / Source tickrate standard)
-	};
+		NetworkSessionTracker* GetSessionTracker(Scene* scene);
+		NetworkInputController* GetInputController(Scene* scene);
+		NetworkReplicationManager* GetReplicationManager(Scene* scene);
+	} // namespace NetworkSystem
 
 } // namespace Chained
 

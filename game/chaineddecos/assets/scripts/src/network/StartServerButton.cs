@@ -60,6 +60,9 @@ namespace ChainedDecos.Scripts
             LobbyManager.SelectedPort = port;
             LobbyManager.MaxClients = maxClients;
 
+            string roomName = string.IsNullOrWhiteSpace(PlayerSettings.Nickname) ? "Chained Server" : (PlayerSettings.Nickname + "'s Room");
+            LanDiscoveryBeacon.Start(roomName, "Lobby", port, maxClients);
+
             Scene.LoadScene(LobbyScene);
         }
     }

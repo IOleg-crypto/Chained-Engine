@@ -34,6 +34,11 @@ namespace ChainedDecos.Scripts
 
         public override void OnCreate()
         {
+            var netComp = Entity.GetComponent<NetworkIdentityComponent>();
+            if (netComp == null || netComp.IsOwner)
+            {
+                SpectatorState.Reset();
+            }
             Gravity = Physics.GetGravity();
             _rb        = Entity.GetComponent<RigidBodyComponent>();
             _transform = Entity.GetComponent<TransformComponent>();
@@ -62,25 +67,6 @@ namespace ChainedDecos.Scripts
             {
                 m_WasConnected = true;
                 m_DisconnectGraceFrames = 0;
-            }
-
-            if (!Network.IsConnected && SessionState.SavedPlayerPosition.HasValue && _transform != null)
-            {
-                string currentScene = Scene.GetCurrentScenePath();
-                if (string.Equals(currentScene, SessionState.LastGameplayScene, StringComparison.OrdinalIgnoreCase))
-                {
-                    _transform.Translation = SessionState.SavedPlayerPosition.Value;
-                    if (SessionState.SavedPlayerRotation.HasValue)
-                    {
-                        _transform.Rotation = SessionState.SavedPlayerRotation.Value;
-                    }
-                    if (_rb != null)
-                    {
-                        _rb.ForceSetVelocity(Vector3.Zero);
-                    }
-                }
-                SessionState.SavedPlayerPosition = null;
-                SessionState.SavedPlayerRotation = null;
             }
 
             if (_rb == null || _transform == null) return;
@@ -114,6 +100,23 @@ namespace ChainedDecos.Scripts
                     _anim.SetBool("isMoving", isMoving);
                     _anim.SetBool("isGrounded", _rb.IsGrounded);
                     _anim.SetFloat("speed", isMoving ? (isSprinting ? 1.0f : 0.5f) : 0.0f);
+                }
+                return;
+            }
+
+            // If finished, hide avatar completely, freeze physics, and exit
+            if (SpectatorState.IsFinished)
+            {
+                StopHorizontalMovement();
+                if (_rb != null)
+                {
+                    _rb.Velocity = Vector3.Zero;
+                    _rb.ForceSetVelocity(Vector3.Zero);
+                }
+                if (_transform != null)
+                {
+                    _transform.Scale = Vector3.Zero;
+                    _transform.Translation = new Vector3(0.0f, -9999.0f, 0.0f);
                 }
                 return;
             }

@@ -19,6 +19,9 @@ Skybox:
   Exposure: 1
   Brightness: 0
   Contrast: 1
+  FlipUV_Y: false
+  FlipUV_X: false
+  Rotation: 0
 Fog:
   Enabled: false
   Color: [130, 130, 130, 255]
@@ -46,21 +49,21 @@ DebugSettings:
   DrawSpawnZones: true
   CollisionWireframeMode: 0
 Entities:
-  - Entity: 8210660680077203169
+  - Entity: 9680470161642317510
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: title_menu_video
+      Tag: volume_master_label_copy
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-755.5, -360.0]
-        OffsetMax: [-355.5, -300.0]
+        OffsetMin: [-184.600006, -184.899994]
+        OffsetMax: [215.399994, -154.899994]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -83,154 +86,7 @@ Entities:
         Transition Speed: 0.100000001
       Text Style:
         Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 38
-        Text Color: [110, 231, 211, 255]
-        Shadow: true
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.5
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 3
-      Text: Video Settings
-      Auto Size: false
-  - Entity: 14217870914551860716
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: option_vsync
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-749.9, -266.9]
-        OffsetMax: [-349.9, -221.9]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 8
-        Hover Scale: 1.00999999
-        Pressed Scale: 0.99000001
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
         Font Size: 20
-        Text Color: [235, 240, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 6
-      Label: VSync
-      Checked: false
-  - Entity: 9279852004574219486
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: option_fullscreen
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-748.0, -185.0]
-        OffsetMax: [-348.0, -140.0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 8
-        Hover Scale: 1.00999999
-        Pressed Scale: 0.99000001
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 20
-        Text Color: [235, 240, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 6
-      Label: Fullscreen
-      Checked: false
-  - Entity: 13744707957821596020
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: title_menu_resolution
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-733.0, -101.9]
-        OffsetMax: [-333.0, -71.9]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 22
         Text Color: [180, 230, 245, 255]
         Shadow: false
         Shadow Offset: 2
@@ -240,23 +96,23 @@ Entities:
         H Align: 0
         V Align: 1
       Widget Type: 3
-      Text: Resolution
+      Text: Shadow Resolution
       Auto Size: false
-  - Entity: 10806342300921618979
+  - Entity: 10173589266771626497
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: resolution
+      Tag: shadow_resolution_combobox
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-736.8, -54.4]
-        OffsetMax: [-334.9, -9.4]
+        OffsetMin: [-186.517181, -137.289413]
+        OffsetMax: [163.443878, -97.2894211]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -265,22 +121,22 @@ Entities:
       HiddenInHierarchy: false
     WidgetComponent:
       Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
+        BG Color: [40, 40, 40, 255]
+        Hover Color: [60, 60, 60, 255]
+        Pressed Color: [30, 30, 30, 255]
+        Rounding: 4
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
-        Padding: 6
+        Padding: 4
         Hover Scale: 1
         Pressed Scale: 1
-        Transition Speed: 0.150000006
+        Transition Speed: 0.100000001
       Text Style:
-        Font Name: Default
+        Font Name: font/static/Figtree-Regular.ttf
         Font Size: 18
-        Text Color: [235, 240, 245, 255]
+        Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
@@ -289,25 +145,25 @@ Entities:
         H Align: 1
         V Align: 1
       Widget Type: 10
-      Label: Resolution
+      Label: Combo
       Items:
         []
       Selected Index: 0
-  - Entity: 8959579849811663549
+  - Entity: 6686347877390948909
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: anti_aliasing_title
+      Tag: option_shadows
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-733.0, 7.5]
-        OffsetMax: [-333.0, 37.5]
+        OffsetMin: [-188.439972, -266.115479]
+        OffsetMax: [55.7683372, -226.115524]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -316,10 +172,10 @@ Entities:
       HiddenInHierarchy: false
     WidgetComponent:
       Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
+        BG Color: [40, 40, 40, 255]
+        Hover Color: [60, 60, 60, 255]
+        Pressed Color: [30, 30, 30, 255]
+        Rounding: 4
         Border Size: 0
         Border Color: [255, 255, 255, 255]
         Gradient: false
@@ -329,58 +185,9 @@ Entities:
         Pressed Scale: 1
         Transition Speed: 0.100000001
       Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 22
-        Text Color: [180, 230, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 3
-      Text: Anti-aliasing
-      Auto Size: false
-  - Entity: 7160301136410527201
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: anti_aliasing_combobox
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-733.0, 49.4]
-        OffsetMax: [-333.0, 94.4]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 6
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: Default
+        Font Name: font/static/Figtree-Regular.ttf
         Font Size: 18
-        Text Color: [235, 240, 245, 255]
+        Text Color: [255, 255, 255, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
@@ -388,26 +195,24 @@ Entities:
         Line Height: 1.20000005
         H Align: 1
         V Align: 1
-      Widget Type: 10
-      Label: Anti-aliasing
-      Items:
-        []
-      Selected Index: 2
-  - Entity: 6473300139259296453
+      Widget Type: 6
+      Label: Enable Shadows
+      Checked: false
+  - Entity: 16107388566318239795
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: audio_title
+      Tag: shadow_settings_title
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [338.6, -367.5]
-        OffsetMax: [738.6, -307.5]
+        OffsetMin: [-210.570038, -371.43988]
+        OffsetMax: [189.429932, -311.43988]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -440,362 +245,9 @@ Entities:
         H Align: 0
         V Align: 1
       Widget Type: 3
-      Text: Audio Settings
+      Text: Shadows Settings
       Auto Size: false
-  - Entity: 4642856083996106855
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_master_label
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [249.9, -240.6]
-        OffsetMax: [649.9, -210.6]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 20
-        Text Color: [180, 230, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 3
-      Text: Master Volume
-      Auto Size: false
-  - Entity: 12779933594466101305
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_master
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [344.3, -195.0]
-        OffsetMax: [744.3, -155.0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: Default
-        Font Size: 18
-        Text Color: [235, 240, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 5
-      Label: Master
-      Value: 95.3700027
-      Min: 0
-      Max: 100
-  - Entity: 8655677459201376516
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_music_label
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [249.9, -138.7]
-        OffsetMax: [649.9, -108.7]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 20
-        Text Color: [180, 230, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 3
-      Text: Music Volume
-      Auto Size: false
-  - Entity: 4210474120106472646
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_music
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [349.9, -95.0]
-        OffsetMax: [749.9, -55.0]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: Default
-        Font Size: 18
-        Text Color: [235, 240, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 5
-      Label: Music
-      Value: 18.9599991
-      Min: 0
-      Max: 100
-  - Entity: 12759997154969667955
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_sfx_label
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [253.6, -27.5]
-        OffsetMax: [653.6, 2.5]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 20
-        Text Color: [180, 230, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 0
-        V Align: 1
-      Widget Type: 3
-      Text: SFX Volume
-      Auto Size: false
-  - Entity: 17307234115536026971
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_sfx
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [348.0, 21.9]
-        OffsetMax: [748.0, 61.9]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [25, 28, 35, 255]
-        Hover Color: [35, 40, 50, 255]
-        Pressed Color: [20, 22, 28, 255]
-        Rounding: 8
-        Border Size: 1
-        Border Color: [255, 255, 255, 25]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: Default
-        Font Size: 18
-        Text Color: [235, 240, 245, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 5
-      Label: SFX
-      Value: 80.5
-      Min: 0
-      Max: 100
-  - Entity: 7414485799946767606
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: ChainedDecos.Scripts.SettingsScript
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: btn_apply_settings
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-220, 360]
-        OffsetMax: [-20, 415]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [56, 178, 166, 255]
-        Hover Color: [82, 204, 191, 255]
-        Pressed Color: [40, 130, 122, 255]
-        Rounding: 8
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1.03999996
-        Pressed Scale: 0.959999979
-        Transition Speed: 0.150000006
-      Text Style:
-        Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 20
-        Text Color: [15, 24, 26, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.20000005
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 1
-      Label: Apply
-      Interactable: true
-      Auto Size: false
-  - Entity: 10702008440535422933
+  - Entity: 2343790200427254774
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -848,21 +300,24 @@ Entities:
       Label: Back
       Interactable: true
       Auto Size: false
-  - Entity: 14909058216316866473
+  - Entity: 6362424133137823706
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.SettingsScript
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: shadow_settings_title
+      Tag: btn_apply_settings
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-210.570038, -371.43988]
-        OffsetMax: [189.429932, -311.43988]
+        OffsetMin: [-220, 360]
+        OffsetMax: [-20, 415]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -871,47 +326,48 @@ Entities:
       HiddenInHierarchy: false
     WidgetComponent:
       Box Style:
-        BG Color: [0, 0, 0, 0]
-        Hover Color: [0, 0, 0, 0]
-        Pressed Color: [0, 0, 0, 0]
-        Rounding: 0
+        BG Color: [56, 178, 166, 255]
+        Hover Color: [82, 204, 191, 255]
+        Pressed Color: [40, 130, 122, 255]
+        Rounding: 8
         Border Size: 0
         Border Color: [255, 255, 255, 255]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
+        Hover Scale: 1.03999996
+        Pressed Scale: 0.959999979
+        Transition Speed: 0.150000006
       Text Style:
         Font Name: font/static/Figtree-Bold.ttf
-        Font Size: 38
-        Text Color: [110, 231, 211, 255]
-        Shadow: true
+        Font Size: 20
+        Text Color: [15, 24, 26, 255]
+        Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1.5
+        Letter Spacing: 1.20000005
         Line Height: 1.20000005
-        H Align: 0
+        H Align: 1
         V Align: 1
-      Widget Type: 3
-      Text: Shadows Settings
+      Widget Type: 1
+      Label: Apply
+      Interactable: true
       Auto Size: false
-  - Entity: 17811213680698325170
+  - Entity: 16705786999528218989
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: option_shadows
+      Tag: volume_sfx
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-188.439972, -266.115479]
-        OffsetMax: [55.7683372, -226.115524]
+        OffsetMin: [348, 21.8999996]
+        OffsetMax: [748, 61.9000015]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -920,22 +376,22 @@ Entities:
       HiddenInHierarchy: false
     WidgetComponent:
       Box Style:
-        BG Color: [40, 40, 40, 255]
-        Hover Color: [60, 60, 60, 255]
-        Pressed Color: [30, 30, 30, 255]
-        Rounding: 4
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
         Gradient: false
         Gradient Color: [20, 20, 20, 255]
         Padding: 4
         Hover Scale: 1
         Pressed Scale: 1
-        Transition Speed: 0.100000001
+        Transition Speed: 0.150000006
       Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
+        Font Name: Default
         Font Size: 18
-        Text Color: [255, 255, 255, 255]
+        Text Color: [235, 240, 245, 255]
         Shadow: false
         Shadow Offset: 2
         Shadow Color: [0, 0, 0, 255]
@@ -943,75 +399,26 @@ Entities:
         Line Height: 1.20000005
         H Align: 1
         V Align: 1
-      Widget Type: 6
-      Label: Enable Shadows
-      Checked: false
-  - Entity: 2810082941261061113
+      Widget Type: 5
+      Label: SFX
+      Value: 80.5
+      Min: 0
+      Max: 100
+  - Entity: 8860565854292989717
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: shadow_resolution_combobox
+      Tag: volume_sfx_label
     IDComponent:
       {}
     ControlComponent:
       Transform:
         AnchorMin: [0.5, 0.5]
         AnchorMax: [0.5, 0.5]
-        OffsetMin: [-186.517181, -137.289413]
-        OffsetMax: [163.443878, -97.2894211]
-        Pivot: [0.5, 0.5]
-        Rotation: 0
-        Scale: [1, 1]
-      ZOrder: 0
-      IsActive: true
-      HiddenInHierarchy: false
-    WidgetComponent:
-      Box Style:
-        BG Color: [40, 40, 40, 255]
-        Hover Color: [60, 60, 60, 255]
-        Pressed Color: [30, 30, 30, 255]
-        Rounding: 4
-        Border Size: 0
-        Border Color: [255, 255, 255, 255]
-        Gradient: false
-        Gradient Color: [20, 20, 20, 255]
-        Padding: 4
-        Hover Scale: 1
-        Pressed Scale: 1
-        Transition Speed: 0.100000001
-      Text Style:
-        Font Name: font/static/Figtree-Regular.ttf
-        Font Size: 18
-        Text Color: [255, 255, 255, 255]
-        Shadow: false
-        Shadow Offset: 2
-        Shadow Color: [0, 0, 0, 255]
-        Letter Spacing: 1
-        Line Height: 1.20000005
-        H Align: 1
-        V Align: 1
-      Widget Type: 10
-      Label: Combo
-      Items:
-        []
-      Selected Index: 0
-  - Entity: 4732225016032991658
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    TagComponent:
-      Tag: volume_master_label_copy
-    IDComponent:
-      {}
-    ControlComponent:
-      Transform:
-        AnchorMin: [0.5, 0.5]
-        AnchorMax: [0.5, 0.5]
-        OffsetMin: [-184.6, -184.9]
-        OffsetMax: [215.4, -154.9]
+        OffsetMin: [253.600006, -27.5]
+        OffsetMax: [653.599976, 2.5]
         Pivot: [0.5, 0.5]
         Rotation: 0
         Scale: [1, 1]
@@ -1044,5 +451,601 @@ Entities:
         H Align: 0
         V Align: 1
       Widget Type: 3
-      Text: Shadow Resolution
+      Text: SFX Volume
+      Auto Size: false
+  - Entity: 9487018650497546446
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: volume_music
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [349.899994, -95]
+        OffsetMax: [749.900024, -55]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: Default
+        Font Size: 18
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 5
+      Label: Music
+      Value: 18.9599991
+      Min: 0
+      Max: 100
+  - Entity: 2733197431905650682
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: volume_music_label
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [249.899994, -138.699997]
+        OffsetMax: [649.900024, -108.699997]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 20
+        Text Color: [180, 230, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Music Volume
+      Auto Size: false
+  - Entity: 13644364458015305868
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: volume_master
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [344.299988, -195]
+        OffsetMax: [744.299988, -155]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: Default
+        Font Size: 18
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 5
+      Label: Master
+      Value: 95.3700027
+      Min: 0
+      Max: 100
+  - Entity: 8959126073229738007
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: volume_master_label
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [249.899994, -240.600006]
+        OffsetMax: [649.900024, -210.600006]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 20
+        Text Color: [180, 230, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Master Volume
+      Auto Size: false
+  - Entity: 17178341653243130807
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: audio_title
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [338.600006, -367.5]
+        OffsetMax: [738.599976, -307.5]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 38
+        Text Color: [110, 231, 211, 255]
+        Shadow: true
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1.5
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Audio Settings
+      Auto Size: false
+  - Entity: 8843966016773528229
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: anti_aliasing_combobox
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-733, 49.4000015]
+        OffsetMax: [-333, 94.4000015]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 6
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: Default
+        Font Size: 18
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 10
+      Label: Anti-aliasing
+      Items:
+        []
+      Selected Index: 2
+  - Entity: 14337358223467006717
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: anti_aliasing_title
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-733, 7.5]
+        OffsetMax: [-333, 37.5]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 22
+        Text Color: [180, 230, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Anti-aliasing
+      Auto Size: false
+  - Entity: 281581608439987721
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: resolution
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-736.799988, -54.4000015]
+        OffsetMax: [-334.899994, -9.39999962]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 6
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: Default
+        Font Size: 18
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 1
+        V Align: 1
+      Widget Type: 10
+      Label: Resolution
+      Items:
+        []
+      Selected Index: 0
+  - Entity: 4604846909846802076
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: title_menu_resolution
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-733, -101.900002]
+        OffsetMax: [-333, -71.9000015]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 22
+        Text Color: [180, 230, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Resolution
+      Auto Size: false
+  - Entity: 8561661859903267490
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: option_fullscreen
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-748, -185]
+        OffsetMax: [-348, -140]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 8
+        Hover Scale: 1.00999999
+        Pressed Scale: 0.99000001
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 20
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 6
+      Label: Fullscreen
+      Checked: false
+  - Entity: 7164222996989230020
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: option_vsync
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-749.900024, -266.899994]
+        OffsetMax: [-349.899994, -221.899994]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [25, 28, 35, 255]
+        Hover Color: [35, 40, 50, 255]
+        Pressed Color: [20, 22, 28, 255]
+        Rounding: 8
+        Border Size: 1
+        Border Color: [255, 255, 255, 25]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 8
+        Hover Scale: 1.00999999
+        Pressed Scale: 0.99000001
+        Transition Speed: 0.150000006
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 20
+        Text Color: [235, 240, 245, 255]
+        Shadow: false
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 6
+      Label: VSync
+      Checked: false
+  - Entity: 12703420139878895808
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: title_menu_video
+    IDComponent:
+      {}
+    ControlComponent:
+      Transform:
+        AnchorMin: [0.5, 0.5]
+        AnchorMax: [0.5, 0.5]
+        OffsetMin: [-755.5, -360]
+        OffsetMax: [-355.5, -300]
+        Pivot: [0.5, 0.5]
+        Rotation: 0
+        Scale: [1, 1]
+      ZOrder: 0
+      IsActive: true
+      HiddenInHierarchy: false
+    WidgetComponent:
+      Box Style:
+        BG Color: [0, 0, 0, 0]
+        Hover Color: [0, 0, 0, 0]
+        Pressed Color: [0, 0, 0, 0]
+        Rounding: 0
+        Border Size: 0
+        Border Color: [255, 255, 255, 255]
+        Gradient: false
+        Gradient Color: [20, 20, 20, 255]
+        Padding: 4
+        Hover Scale: 1
+        Pressed Scale: 1
+        Transition Speed: 0.100000001
+      Text Style:
+        Font Name: font/static/Figtree-Bold.ttf
+        Font Size: 38
+        Text Color: [110, 231, 211, 255]
+        Shadow: true
+        Shadow Offset: 2
+        Shadow Color: [0, 0, 0, 255]
+        Letter Spacing: 1.5
+        Line Height: 1.20000005
+        H Align: 0
+        V Align: 1
+      Widget Type: 3
+      Text: Video Settings
       Auto Size: false

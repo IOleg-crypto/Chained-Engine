@@ -14,6 +14,8 @@ namespace Chained
 	CH_SCRIPT_FUNC void Scene_LoadScene(const Coral::UCChar* path);
 	CH_SCRIPT_FUNC uint64_t Scene_GetPrimaryCameraEntity();
 	CH_SCRIPT_FUNC const Coral::UCChar* Scene_GetCurrentScenePath();
+	CH_SCRIPT_FUNC uint8_t Scene_HasSuspendedSession();
+	CH_SCRIPT_FUNC void Scene_ResumeSuspendedSession();
 
 } // namespace Chained
 #endif

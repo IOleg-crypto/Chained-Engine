@@ -510,3 +510,15 @@ Entities:
       Widget Type: 3
       Text: Join Game
       Auto Size: false
+  - Entity: 18446744073709551600
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: server_browser_controller
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.ServerBrowserUI

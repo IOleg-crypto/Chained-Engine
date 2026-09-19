@@ -148,7 +148,7 @@ namespace Chained
 		// 4. Texture optimization (KTX2 conversion with smart caching)
 		if (!isRawMode && !skipKtx2)
 		{
-			if (!TextureCompressor::ProcessTextures(projectDir, items, onProgress, cancelFlag))
+			if (!TextureCompressor::ProcessTextures(projectDir, items, exp.Mode, onProgress, cancelFlag))
 			{
 				return CleanupAndCancel("texture compression");
 			}
@@ -184,8 +184,16 @@ namespace Chained
 			const bool preferSpeed = (exp.Mode == PackMode::Fast);
 			std::string packError;
 
+			ParallelPackConfig customCfg;
+			if (exp.Mode == PackMode::Max)
+			{
+				customCfg.ZstdWindowLog = 27; // 128MB LRM window for maximum compression
+				customCfg.EnableLongRangeMatching = true;
+				customCfg.FileWorkers = 4; // Capped to 4 workers to prevent RAM exhaustion during 128MB LRM
+			}
+
 			packSuccess = ResourcePacker::Pack(packPath, packBaseName, items, exp.DataVersion, threshold, preferSpeed,
-											   exp.SplitSizeMB, onProgress, cancelFlag, packError);
+											   exp.SplitSizeMB, onProgress, cancelFlag, packError, &customCfg);
 			if (!packSuccess && !packError.empty())
 			{
 				result.Error = packError;

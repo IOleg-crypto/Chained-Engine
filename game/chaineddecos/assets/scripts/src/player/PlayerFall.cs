@@ -52,6 +52,29 @@ public class PlayerFall : Script
         var netComp = Entity.GetComponent<NetworkIdentityComponent>();
         if (netComp != null && !netComp.IsOwner) return;
 
+        if (SpectatorState.IsFinished)
+        {
+            if (m_Intensity > 0.0f)
+            {
+                m_Intensity = 0.0f;
+                if (m_Audio != null && m_Audio.IsPlaying)
+                {
+                    m_Audio.Volume = 0.0f;
+                    m_Audio.Stop();
+                }
+                if (m_Camera != null)
+                {
+                    var shader = m_Camera.GetComponent<ShaderComponent>();
+                    if (shader != null)
+                    {
+                        shader.Enabled = false;
+                        shader.SetFloat("uIntensity", 0.0f);
+                    }
+                }
+            }
+            return;
+        }
+
         RigidBodyComponent? rb = Entity.GetComponent<RigidBodyComponent>();
         if (rb == null) return;
 

@@ -267,7 +267,7 @@ namespace Chained
 					}
 
 					uint64_t sourceHash = ComputeFileHash(path);
-					auto compressed = Zstd::Compress(sbuf.buffer.data(), sbuf.buffer.size(), 3);
+					auto compressed = Zstd::Compress(sbuf.buffer.data(), sbuf.buffer.size(), 19);
 
 					ChainedAssetHeader header;
 					header.sourceHash = sourceHash;

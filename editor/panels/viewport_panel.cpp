@@ -1,7 +1,9 @@
 #include "viewport_panel.h"
-#include "editor/layer.h"
 #include "editor/asset_types.h"
 #include "editor/events.h"
+#include "editor/scene_manager.h"
+#include "editor/types.h"
+#include "editor/undo/command_history.h"
 #include "engine/app/application.h"
 #include "engine/core/events/events.h"
 #include "engine/core/input.h"
@@ -21,13 +23,19 @@
 namespace Chained
 {
 
-	ViewportPanel::ViewportPanel(ImVec2& editorViewportSize)
-		: m_EditorViewportSize(editorViewportSize)
+	ViewportPanel::ViewportPanel(ImVec2& editorViewportSize, EditorSceneManager* sceneManager, EditorState* editorState,
+								 const EditorConfig* config, CommandHistory* commandHistory)
+		: m_EditorViewportSize(editorViewportSize),
+		  m_SceneManager(sceneManager),
+		  m_EditorState(editorState),
+		  m_Config(config),
+		  m_CommandHistory(commandHistory)
 	{
 		m_Name = "Viewport";
 
 		m_CameraController = std::make_unique<EditorCameraController>();
-		m_Toolbar = std::make_unique<ViewportToolbar>(m_Gizmo, *m_CameraController);
+		m_Toolbar = std::make_unique<ViewportToolbar>(m_Gizmo, *m_CameraController, m_SceneManager, m_EditorState,
+													  m_CommandHistory);
 
 		uint32_t w = 1280, h = 720;
 		if (Application::Get().GetWindow().GetNativeWindow())
@@ -55,7 +63,8 @@ namespace Chained
 			return {};
 		}
 		auto activeCameraOpt = SceneRenderer::GetActiveCamera(scene->GetRegistry());
-		if (activeCameraOpt.has_value() && EditorLayer::Get().GetSceneManager().GetSceneState() == SceneState::Play)
+		SceneState sceneState = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
+		if (activeCameraOpt.has_value() && sceneState == SceneState::Play)
 		{
 			return activeCameraOpt.value();
 		}
@@ -101,7 +110,10 @@ namespace Chained
 
 				if (ext == ".chscene")
 				{
-					EditorLayer::Get().GetSceneManager().OpenScene(filepath);
+					if (m_SceneManager)
+					{
+						m_SceneManager->OpenScene(filepath);
+					}
 				}
 				else if (ext == ".chprefab")
 				{
@@ -122,13 +134,16 @@ namespace Chained
 
 	void ViewportPanel::RenderOverlays(Scene* activeScene, const ImVec2& viewportSize, const ImVec2& viewportScreenPos)
 	{
-		auto selectedEntity = EditorLayer::Get().GetEditorState().SelectedEntity;
+		auto selectedEntity = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 		if (selectedEntity)
 		{
 			if (!activeScene || selectedEntity.GetRegistryPtr() != &activeScene->GetRegistry() ||
 				!selectedEntity.IsValid())
 			{
-				EditorLayer::Get().GetEditorState().SelectedEntity = {};
+				if (m_EditorState)
+				{
+					m_EditorState->SelectedEntity = {};
+				}
 				selectedEntity = {};
 			}
 		}
@@ -138,19 +153,20 @@ namespace Chained
 		ImGui::SetCursorScreenPos(viewportScreenPos);
 
 		// Gizmo handling
+		SceneState sceneState = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
+		bool isTransitioning = m_SceneManager ? m_SceneManager->IsTransitioning() : false;
 		m_Gizmo.RenderAndHandle(!isUISelected ? m_Gizmo.GetCurrentTool() : GizmoType::NONE, viewportScreenPos,
-								viewportSize, camera);
+								viewportSize, camera, activeScene, selectedEntity, m_CommandHistory,
+								sceneState == SceneState::Play, isTransitioning);
 
 		// Game UI Overlay
 		ImVec2 canvasOrigin = viewportScreenPos;
 		if (auto* widgetRenderer = ServiceLocator::TryGet<WidgetRenderer>())
 		{
-			widgetRenderer->DrawCanvas(activeScene, canvasOrigin, viewportSize,
-									   EditorLayer::Get().GetSceneManager().GetSceneState() == SceneState::Edit);
+			widgetRenderer->DrawCanvas(activeScene, canvasOrigin, viewportSize, sceneState == SceneState::Edit);
 		}
 
 		// Script UI Overlay (OnGUI)
-		SceneState sceneState = EditorLayer::Get().GetSceneManager().GetSceneState();
 		if (activeScene && (sceneState == SceneState::Play || sceneState == SceneState::Simulate))
 		{
 			ImGui::SetCursorScreenPos(ImVec2(viewportScreenPos.x + 10.0f, viewportScreenPos.y + 10.0f));
@@ -158,7 +174,7 @@ namespace Chained
 		}
 
 		// Selection Highlight for UI entities
-		if (isUISelected && selectedEntity && EditorLayer::Get().GetSceneManager().GetSceneState() == SceneState::Edit)
+		if (isUISelected && selectedEntity && sceneState == SceneState::Edit)
 		{
 			auto* widgetRenderer = ServiceLocator::TryGet<WidgetRenderer>();
 			auto rect = widgetRenderer ? widgetRenderer->GetEntityRect(selectedEntity) : UIRect{0, 0, 0, 0};
@@ -194,7 +210,7 @@ namespace Chained
 			m_PlatformWindow = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
 		}
 
-		auto activeScene = EditorLayer::Get().GetSceneManager().GetActiveScene();
+		auto activeScene = m_SceneManager ? m_SceneManager->GetActiveScene() : nullptr;
 
 		std::string sceneName = "None";
 		if (activeScene && !activeScene->GetSettings().Name.empty())
@@ -225,7 +241,9 @@ namespace Chained
 		if (!activeScene->IsStartingUp())
 		{
 			auto camera = GetActiveOrEditorCamera(activeScene.get());
-			m_Renderer.RenderScene(activeScene.get(), camera);
+			bool showIcons = (m_SceneManager && m_SceneManager->GetSceneState() != SceneState::Play) &&
+							 (m_Config ? m_Config->ShowEditorIcons : true);
+			m_Renderer.RenderScene(activeScene.get(), camera, showIcons, m_Config);
 		}
 
 		// UI Image
@@ -240,7 +258,7 @@ namespace Chained
 
 		ImGui::Image((ImTextureID)(uintptr_t)finalTextureID, viewportSize, {0, 1}, {1, 0});
 
-		bool isTransitioning = EditorLayer::Get().GetSceneManager().IsTransitioning();
+		bool isTransitioning = m_SceneManager ? m_SceneManager->IsTransitioning() : false;
 		if (activeScene->IsStartingUp() || isTransitioning)
 		{
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -249,7 +267,7 @@ namespace Chained
 
 			drawList->AddRectFilled(p0, p1, IM_COL32(15, 15, 20, 200));
 
-			std::string status = EditorLayer::Get().GetSceneManager().GetLoadingStatus();
+			std::string status = m_SceneManager ? m_SceneManager->GetLoadingStatus() : "";
 			if (status.empty())
 			{
 				status = "Loading Scene...";
@@ -264,7 +282,9 @@ namespace Chained
 		RenderOverlays(activeScene.get(), viewportSize, viewportScreenPos);
 
 		auto camera = GetActiveOrEditorCamera(activeScene.get());
-		m_Picking.HandlePicking(activeScene.get(), viewportSize, viewportScreenPos, m_Gizmo, m_UIManipulator, camera);
+		SceneState currentSceneState = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
+		m_Picking.HandlePicking(activeScene.get(), viewportSize, viewportScreenPos, m_Gizmo, m_UIManipulator, camera,
+								currentSceneState, isTransitioning, m_Config);
 
 		m_Toolbar->Render(activeScene.get(), viewportScreenPos);
 
@@ -302,7 +322,7 @@ namespace Chained
 #endif
 
 		// Auto-switch camera 2D mode based on scene type and background mode
-		auto activeScene = EditorLayer::Get().GetSceneManager().GetActiveScene();
+		auto activeScene = m_SceneManager ? m_SceneManager->GetActiveScene() : nullptr;
 		if (activeScene)
 		{
 			SceneType sceneType = activeScene->GetSettings().Type;
@@ -338,26 +358,27 @@ namespace Chained
 #endif
 
 		// Update editor camera
-		SceneState state = EditorLayer::Get().GetSceneManager().GetSceneState();
+		SceneState state = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
 		if (state == SceneState::Edit || state == SceneState::Simulate)
 		{
-			auto activeScene = EditorLayer::Get().GetSceneManager().GetActiveScene();
 			bool mouseInViewport = m_Hovered || rightDown;
 			if (activeScene && mouseInViewport)
 			{
-				const auto& editorCfg = EditorLayer::Get().GetConfig();
-				m_CameraController->SetMoveSpeed(editorCfg.CameraMoveSpeed);
-				m_CameraController->SetBoostMultiplier(editorCfg.CameraBoostMultiplier);
-				m_CameraController->SetDisableZoom(editorCfg.DisableCameraZoom);
-				m_CameraController->SetRotationSpeed(editorCfg.CameraRotationSpeed);
-				m_CameraController->SetZoomSpeedMultiplier(editorCfg.CameraZoomSpeedMultiplier);
-				m_CameraController->SetFovDegrees(editorCfg.CameraFovDegrees);
-				m_CameraController->SetNearClip(editorCfg.CameraNearClip);
-				m_CameraController->SetFarClip(editorCfg.CameraFarClip);
+				if (m_Config)
+				{
+					m_CameraController->SetMoveSpeed(m_Config->CameraMoveSpeed);
+					m_CameraController->SetBoostMultiplier(m_Config->CameraBoostMultiplier);
+					m_CameraController->SetDisableZoom(m_Config->DisableCameraZoom);
+					m_CameraController->SetRotationSpeed(m_Config->CameraRotationSpeed);
+					m_CameraController->SetZoomSpeedMultiplier(m_Config->CameraZoomSpeedMultiplier);
+					m_CameraController->SetFovDegrees(m_Config->CameraFovDegrees);
+					m_CameraController->SetNearClip(m_Config->CameraNearClip);
+					m_CameraController->SetFarClip(m_Config->CameraFarClip);
+				}
 
 				Entity primaryCamera =
 					SceneRenderer::GetPrimaryCameraEntity(activeScene->GetRegistry(), activeScene->GetRegistryPtr());
-				m_CameraController->OnUpdate(primaryCamera, ts, m_ViewportSize);
+				m_CameraController->OnUpdate(primaryCamera, ts, m_ViewportSize, state == SceneState::Play);
 			}
 		}
 	}

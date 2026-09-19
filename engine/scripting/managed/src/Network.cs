@@ -193,6 +193,37 @@ namespace Chained
             return Network_GetLocalNetworkID_Ptr != null ? Network_GetLocalNetworkID_Ptr() : 0;
         }
 
+        private class LocalPlayerNameEntry
+        {
+            public ulong id { get; set; }
+            public string name { get; set; } = "";
+        }
+
+        /// <summary>Returns the local player's display name from the active session.</summary>
+        public static string GetLocalPlayerName()
+        {
+            if (!IsConnected) return "Player";
+            try
+            {
+                string json = GetPlayerListJSON();
+                if (!string.IsNullOrEmpty(json))
+                {
+                    ulong myId = GetLocalNetworkID();
+                    var players = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<LocalPlayerNameEntry>>(json);
+                    if (players != null)
+                    {
+                        foreach (var p in players)
+                        {
+                            if (p.id == myId && !string.IsNullOrEmpty(p.name))
+                                return p.name;
+                        }
+                    }
+                }
+            }
+            catch {}
+            return "Player";
+        }
+
         // ── Chat ────────────────────────────────────────────────────────
 
         /// <summary>Sends a chat message to all players.</summary>
