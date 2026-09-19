@@ -486,7 +486,12 @@ namespace Chained
 		if (m_SceneManager->IsLoading())
 		{
 			DrawLoadingOverlay("Editor Busy", m_SceneManager->GetLoadingStatus().c_str());
+			// m_Panels->OnImGuiRender(true);
 		}
+		// else
+		// {
+		// 	m_Panels->OnImGuiRender(false);
+		// }
 	}
 
 	void EditorLayer::ResetLayout()
