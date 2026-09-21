@@ -3,11 +3,13 @@
 // Handles project loading, scene transitions, scripting lifecycle, and the main runtime loop.
 
 #include "runtime_layer.h"
+#include "engine/runtime/session_api.h"
 #include "engine/app/application.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/audio/audio.h"
 #include "engine/common/asset_path.h"
 #include "engine/core/events/window_events.h"
+#include "engine/core/input.h"
 #include "engine/core/platform.h"
 #include "engine/core/service_locator.h"
 #include "engine/core/window.h"
@@ -23,6 +25,7 @@
 #include "engine/networking/network_service.h"
 #include "imgui.h"
 #include "engine/scene/systems/asset_resolution_system.h"
+#include "engine/scene/systems/network_system.h"
 #include "engine/scripting/scene_scripting_manager.h"
 #include "engine/scripting/scriptengine.h"
 
@@ -59,13 +62,31 @@ namespace Chained
 		: Layer("RuntimeLayer"),
 		  m_ProjectPath(projectPath)
 	{
+		s_Instance = this;
 		m_SceneRenderer = std::make_unique<SceneRenderer>();
 
 		m_Renderer = ServiceLocator::TryGet<Renderer>();
 		m_AssetManager = ServiceLocator::TryGet<AssetManager>();
+
+		// Populate lightweight session API pointers used by engine_scripting.
+		SessionAPI::HasSuspendedSession = []() -> bool { return s_Instance && s_Instance->HasSuspendedSession(); };
+		SessionAPI::ResumeSuspendedSession = []() {
+			if (s_Instance)
+			{
+				s_Instance->ResumeSuspendedSession();
+			}
+		};
 	}
 
-	RuntimeLayer::~RuntimeLayer() = default;
+	RuntimeLayer::~RuntimeLayer()
+	{
+		if (s_Instance == this)
+		{
+			s_Instance = nullptr;
+			SessionAPI::HasSuspendedSession = nullptr;
+			SessionAPI::ResumeSuspendedSession = nullptr;
+		}
+	}
 
 	void RuntimeLayer::OnAttach()
 	{
@@ -117,6 +138,7 @@ namespace Chained
 		StopCurrentScene();
 
 		m_Scene = nullptr;
+		m_SuspendedGameplayScene = nullptr;
 		if (auto* se = ServiceLocator::TryGet<ScriptEngine>())
 		{
 			se->SetContextScene(nullptr);
@@ -126,12 +148,47 @@ namespace Chained
 
 	void RuntimeLayer::OnUpdate(Timestep ts)
 	{
+		if (m_PendingResume)
+		{
+			m_PendingResume = false;
+			ExecuteResumeSuspendedSession();
+			return;
+		}
+
 		if (!m_PendingScenePath.empty())
 		{
 			std::string path = std::move(m_PendingScenePath);
 			m_PendingScenePath.clear();
 			LoadScene(path);
 			return;
+		}
+
+		if (Core::Input::IsKeyPressed(KeyCode::Escape))
+		{
+			if (m_Scene && m_Scene->GetSettings().Type == SceneType::Default &&
+				m_LoadState.State == RuntimeLoadState::Running)
+			{
+				SuspendCurrentGameplaySceneAndGoToMenu();
+				return;
+			}
+			else if (m_SuspendedGameplayScene && m_LoadState.State == RuntimeLoadState::Running)
+			{
+				ResumeSuspendedSession();
+				return;
+			}
+		}
+
+		// Keep background multiplayer network alive when browsing the main menu
+		if (m_SuspendedGameplayScene)
+		{
+			if (auto* net = ServiceLocator::TryGet<Network>())
+			{
+				if (net->IsConnected())
+				{
+					NetworkSystem::PollNetwork(m_SuspendedGameplayScene.get(), ts);
+					NetworkSystem::FinalizeFrame(m_SuspendedGameplayScene.get(), ts);
+				}
+			}
 		}
 
 		if (m_AssetManager)
@@ -222,6 +279,16 @@ namespace Chained
 	{
 		if (!m_Scene || !IsRunning())
 		{
+			return;
+		}
+
+		if (m_IsPaused)
+		{
+			// Paused: keep network alive and continue rendering, but freeze physics and gameplay
+			if (auto* net = ServiceLocator::TryGet<Network>())
+			{
+				net->Update(ts);
+			}
 			return;
 		}
 
@@ -365,11 +432,32 @@ namespace Chained
 	//-----------------------------------------------------------------------------
 	void RuntimeLayer::LoadScene(const std::string& path)
 	{
+		m_IsPaused = false;
 		const std::string normalizedPath = NormalizeAssetPath(path);
 		if (normalizedPath.empty())
 		{
 			CH_CORE_WARN("RuntimeSystem: Ignoring empty scene path request.");
 			return;
+		}
+
+		// If user is loading a new gameplay scene from scratch (not a menu/UI scene),
+		// discard any old suspended gameplay session so it starts fresh!
+		if (m_SuspendedGameplayScene)
+		{
+			std::string lowerPath = normalizedPath;
+			std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
+			bool isMenu =
+				(lowerPath.find("menu") != std::string::npos || lowerPath.find("lobby") != std::string::npos ||
+				 lowerPath.find("setup") != std::string::npos || lowerPath.find("waiting") != std::string::npos ||
+				 lowerPath.find("info") != std::string::npos || lowerPath.find("option") != std::string::npos ||
+				 lowerPath.find("video") != std::string::npos);
+			if (!isMenu)
+			{
+				CH_CORE_INFO("RuntimeLayer: Discarding old suspended gameplay scene for new gameplay scene '{}'",
+							 normalizedPath);
+				m_SuspendedGameplayScene->OnRuntimeStop();
+				m_SuspendedGameplayScene = nullptr;
+			}
 		}
 
 		std::filesystem::path scenePath = normalizedPath;
@@ -405,6 +493,66 @@ namespace Chained
 		{
 			CH_CORE_ERROR("RuntimeSystem: Failed to transition to scene '{}'.", scenePath.string());
 		}
+	}
+
+	void RuntimeLayer::SuspendCurrentGameplaySceneAndGoToMenu()
+	{
+		if (!m_Scene || m_Scene->GetSettings().Type != SceneType::Default)
+		{
+			return;
+		}
+
+		CH_CORE_INFO("RuntimeLayer: Suspending active gameplay scene '{}' and opening start menu...",
+					 m_Scene->GetSettings().ScenePath);
+
+		m_SuspendedGameplayScene = std::move(m_Scene);
+		m_Scene = nullptr;
+
+		LoadScene("scenes/start_menu.chscene");
+	}
+
+	void RuntimeLayer::ResumeSuspendedSession()
+	{
+		if (!m_SuspendedGameplayScene)
+		{
+			CH_CORE_WARN("RuntimeLayer: No suspended gameplay scene to resume!");
+			return;
+		}
+
+		m_PendingResume = true;
+	}
+
+	void RuntimeLayer::ExecuteResumeSuspendedSession()
+	{
+		if (!m_SuspendedGameplayScene)
+		{
+			return;
+		}
+
+		CH_CORE_INFO("RuntimeLayer: Resuming suspended gameplay scene '{}'...",
+					 m_SuspendedGameplayScene->GetSettings().ScenePath);
+
+		if (m_Scene)
+		{
+			m_Scene->OnRuntimeStop();
+			m_Scene = nullptr;
+		}
+
+		m_Scene = std::move(m_SuspendedGameplayScene);
+		m_SuspendedGameplayScene = nullptr;
+
+		if (auto* se = ServiceLocator::TryGet<ScriptEngine>())
+		{
+			se->SetContextScene(m_Scene.get());
+		}
+
+		Window& window = Application::Get().GetWindow();
+		m_Scene->OnViewportResize(window.GetWidth(), window.GetHeight());
+		EnsureRuntimeFramebuffer((uint32_t)window.GetWidth(), (uint32_t)window.GetHeight());
+
+		m_LoadState.State = RuntimeLoadState::Running;
+		m_LoadState.SuppressNextUIInput = true;
+		m_IsPaused = false;
 	}
 
 	bool RuntimeLayer::InitProject(const std::string& projectPath)

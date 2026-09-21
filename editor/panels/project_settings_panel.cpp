@@ -3,7 +3,6 @@
 #include "engine/platform/dialogs/dialogs.h"
 #include "engine/project/project.h"
 #include "imgui.h"
-#include "layer.h"
 #include "project/project_serializer.h"
 #include "project_manager.h"
 #include "thirdparty/IconsFontAwesome6.h"
@@ -43,7 +42,8 @@ namespace Chained
 										ICON_FA_MOUNTAIN_SUN " Rendering",
 										ICON_FA_VOLUME_HIGH " Audio",
 										ICON_FA_CUBE " Mesh",
-										ICON_FA_PLAY " Runtime"};
+										ICON_FA_PLAY " Runtime",
+										ICON_FA_FILE_EXPORT " Export"};
 
 			// Two-column layout: sidebar left, content right
 			ImGui::Columns(2, "ProjectSettingsColumns", true);
@@ -364,6 +364,102 @@ namespace Chained
 				{
 					ImGui::SetTooltip("0 = Uncapped framerate");
 				}
+				break;
+			}
+			case 8: // Export
+			{
+				ImGui::TextDisabled("Export Settings");
+				ImGui::Separator();
+				ImGui::Spacing();
+
+				const char* packModes[] = {"Fast (LZ4)", "Balanced (ZSTD)", "Max (ZSTD Ultra)", "Raw (No Compression)"};
+				int modeIdx = (int)config.Export.Mode;
+				if (ImGui::Combo("Compression Level", &modeIdx, packModes, IM_ARRAYSIZE(packModes)))
+				{
+					config.Export.Mode = (PackMode)modeIdx;
+				}
+
+				ImGui::Spacing();
+				ImGui::Text("Excluded Scenes");
+				ImGui::TextDisabled(
+					"Uncheck scenes to completely exclude them (and their dependencies) from the build.");
+				ImGui::Separator();
+
+				// Quick static scan for scenes
+				static std::vector<std::string> allScenes;
+				static bool scanned = false;
+				if (!scanned)
+				{
+					allScenes.clear();
+					std::error_code ec;
+					std::filesystem::path assetDir = config.ProjectDirectory / config.AssetDirectory;
+					for (const auto& entry : std::filesystem::recursive_directory_iterator(assetDir, ec))
+					{
+						if (entry.is_regular_file() && entry.path().extension() == ".chscene")
+						{
+							auto rel = std::filesystem::relative(entry.path(), assetDir, ec).generic_string();
+							allScenes.push_back(rel);
+						}
+					}
+					scanned = true;
+				}
+
+				if (ImGui::Button("Refresh Scene List"))
+				{
+					scanned = false;
+				}
+				ImGui::SameLine();
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+				if (ImGui::Button(ICON_FA_TRASH " Delete Texture Cache"))
+				{
+					std::error_code ec;
+					std::filesystem::path cacheDir = config.ProjectDirectory / ".texture_cache";
+					if (std::filesystem::exists(cacheDir, ec))
+					{
+						std::filesystem::remove_all(cacheDir, ec);
+						CH_CORE_INFO("ProjectSettings: Deleted texture cache at '{}'", cacheDir.string());
+					}
+				}
+				ImGui::PopStyleColor(2);
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Force re-compress all textures on next export.\nRequired after changing "
+									  "compression settings.");
+				}
+
+				ImGui::BeginChild("ExcludedScenesList", ImVec2(0, 200), true);
+				for (const auto& scene : allScenes)
+				{
+					bool isExcluded = false;
+					for (const auto& exc : config.Export.ExcludedScenes)
+					{
+						if (exc == scene)
+						{
+							isExcluded = true;
+							break;
+						}
+					}
+
+					bool isIncluded = !isExcluded;
+					if (ImGui::Checkbox(scene.c_str(), &isIncluded))
+					{
+						if (!isIncluded)
+						{
+							config.Export.ExcludedScenes.push_back(scene);
+						}
+						else
+						{
+							auto it = std::find(config.Export.ExcludedScenes.begin(),
+												config.Export.ExcludedScenes.end(), scene);
+							if (it != config.Export.ExcludedScenes.end())
+							{
+								config.Export.ExcludedScenes.erase(it);
+							}
+						}
+					}
+				}
+				ImGui::EndChild();
 				break;
 			}
 			}

@@ -1,6 +1,8 @@
 #include "viewport_toolbar.h"
 #include "editor/editor_colors.h"
-#include "editor/layer.h"
+#include "editor/scene_manager.h"
+#include "editor/types.h"
+#include "editor/undo/command_history.h"
 #include "engine/core/input.h"
 #include "engine/core/key_codes.h"
 #include "engine/project/project.h"
@@ -24,7 +26,7 @@ namespace Chained
 
 	void ViewportToolbar::Render(Scene* scene, const ImVec2& viewportScreenPos)
 	{
-		SceneState sceneState = EditorLayer::Get().GetSceneManager().GetSceneState();
+		SceneState sceneState = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
 		if (sceneState == SceneState::Play || sceneState == SceneState::Simulate)
 		{
 			return;
@@ -80,7 +82,7 @@ namespace Chained
 			ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 			ImGui::SameLine(0, 10);
 
-			DrawSnapSection();
+			DrawSnapSection(scene);
 			DrawTransformSpaceToggle();
 
 			ImGui::SameLine(0, 15);
@@ -173,7 +175,7 @@ namespace Chained
 		ImGui::PopStyleColor();
 	}
 
-	void ViewportToolbar::DrawSnapSection()
+	void ViewportToolbar::DrawSnapSection(Scene* scene)
 	{
 		bool snapping = m_Gizmo.IsSnappingEnabled();
 		if (snapping)
@@ -193,8 +195,12 @@ namespace Chained
 			ImGui::SetTooltip("Enable Grid Snapping");
 		}
 
+		if (!scene)
+		{
+			return;
+		}
+
 		ImGui::SameLine(0, 5);
-		auto scene = EditorLayer::Get().GetActiveScene();
 		float gridSize = scene->GetSettings().Grid.Spacing;
 		ImGui::SetNextItemWidth(60);
 		if (ImGui::DragFloat("##SnapValue", &gridSize, 0.1f, 0.1f, 50.0f, "%.1f"))
@@ -291,10 +297,9 @@ namespace Chained
 
 		if (isCtrl && isDPressed)
 		{
-			Entity selected = EditorLayer::Get().GetEditorState().SelectedEntity;
-			if (selected)
+			if (m_EditorState && m_EditorState->SelectedEntity && m_CommandHistory)
 			{
-				EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<DuplicateEntityCommand>(selected));
+				m_CommandHistory->PushCommand(std::make_unique<DuplicateEntityCommand>(m_EditorState->SelectedEntity));
 			}
 		}
 	}

@@ -1,4 +1,5 @@
 #include "material_panel.h"
+#include "editor/scene_manager.h"
 #include "engine/scene/components/render/model_component.h"
 #include "engine/scene/scene_events.h"
 #include "imgui.h"
@@ -9,13 +10,13 @@
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/model_asset.h"
 #include "engine/assets/types/material_asset.h"
-#include "editor/layer.h"
 #include <filesystem>
 
 namespace Chained
 {
 
-	MaterialPanel::MaterialPanel()
+	MaterialPanel::MaterialPanel(EditorSceneManager* sceneManager)
+		: m_SceneManager(sceneManager)
 	{
 		m_Name = "Material Editor";
 	}
@@ -466,7 +467,10 @@ namespace Chained
 		}
 
 		m_SelectedEntity.GetRegistry().patch<ModelComponent>(m_SelectedEntity, [](ModelComponent&) {});
-		EditorLayer::Get().GetSceneManager().MarkSceneDirty();
+		if (m_SceneManager)
+		{
+			m_SceneManager->MarkSceneDirty();
+		}
 	}
 
 	void MaterialPanel::DeleteMaterials()
@@ -534,7 +538,10 @@ namespace Chained
 		}
 
 		m_SelectedEntity.GetRegistry().patch<ModelComponent>(m_SelectedEntity, [](ModelComponent&) {});
-		EditorLayer::Get().GetSceneManager().MarkSceneDirty();
+		if (m_SceneManager)
+		{
+			m_SceneManager->MarkSceneDirty();
+		}
 	}
 
 	void MaterialPanel::OnEvent(Event& e)

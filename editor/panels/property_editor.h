@@ -9,9 +9,12 @@
 
 namespace Chained
 {
+	class CommandHistory;
+
 	namespace PropertyEditor
 	{
-		void Init();
+		void Init(CommandHistory* commandHistory = nullptr);
+		void SetCommandHistory(CommandHistory* commandHistory);
 
 		// Registry API
 		void DrawEntityProperties(Entity entity);

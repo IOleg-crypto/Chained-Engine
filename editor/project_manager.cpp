@@ -1,7 +1,8 @@
 #include "engine/platform/dialogs/dialogs.h"
 #include "engine/core/service_locator.h"
+#include "engine/app/application.h"
 #include "project_manager.h"
-#include "layer.h"
+#include "editor/scene_manager.h"
 #include "engine/project/project.h"
 #include "project/project_serializer.h"
 #include "engine/graphics/pipeline/renderer.h"
@@ -29,6 +30,15 @@
 
 namespace Chained
 {
+	EditorProjectManager::EditorProjectManager(EditorConfig* config, EditorSceneManager* sceneManager,
+											   std::function<void()> reloadFontsCallback,
+											   std::function<void()> saveConfigCallback)
+		: m_Config(config),
+		  m_SceneManager(sceneManager),
+		  m_ReloadFontsCallback(std::move(reloadFontsCallback)),
+		  m_SaveConfigCallback(std::move(saveConfigCallback))
+	{
+	}
 
 	static std::filesystem::path FindProjectRoot()
 	{
@@ -198,10 +208,6 @@ namespace Chained
 		}
 
 		return str;
-	}
-
-	EditorProjectManager::EditorProjectManager()
-	{
 	}
 
 	void EditorProjectManager::NewProject()
@@ -516,21 +522,29 @@ namespace Chained
 			// Must be done in one pass: Clear → add editor fonts → add project fonts → Build().
 			// Calling Build() twice (once per font group) crashes because ImGui frees
 			// font file data after the first Build(), making a second Build() invalid.
-			EditorLayer::Get().ReloadEditorFonts();
+			if (m_ReloadFontsCallback)
+			{
+				m_ReloadFontsCallback();
+			}
 
 			m_LastProjectPath = openedPath;
 
 			// Track in recent projects list (move to front, cap at 10)
-			auto& config = EditorLayer::Get().GetConfig();
-			auto& recents = config.RecentProjects;
-			recents.erase(std::remove(recents.begin(), recents.end(), m_LastProjectPath), recents.end());
-			recents.insert(recents.begin(), m_LastProjectPath);
-			if (recents.size() > 10)
+			if (m_Config)
 			{
-				recents.resize(10);
+				auto& recents = m_Config->RecentProjects;
+				recents.erase(std::remove(recents.begin(), recents.end(), m_LastProjectPath), recents.end());
+				recents.insert(recents.begin(), m_LastProjectPath);
+				if (recents.size() > 10)
+				{
+					recents.resize(10);
+				}
 			}
 
-			EditorLayer::Get().SaveConfig();
+			if (m_SaveConfigCallback)
+			{
+				m_SaveConfigCallback();
+			}
 
 			// Auto-load script assembly if configured
 			if (auto* scriptEngine = ServiceLocator::TryGet<ScriptEngine>())
@@ -561,7 +575,10 @@ namespace Chained
 			if (!sceneToLoad.empty() && std::filesystem::exists(sceneToLoad))
 			{
 				CH_CORE_INFO("EditorProjectManager: Auto-loading scene: {}", sceneToLoad.string());
-				EditorLayer::Get().GetSceneManager().OpenScene(sceneToLoad);
+				if (m_SceneManager)
+				{
+					m_SceneManager->OpenScene(sceneToLoad);
+				}
 			}
 		}
 	}

@@ -3,12 +3,18 @@
 
 #include "engine/common/timestep.h"
 #include "panels/panel.h"
+#include <imgui.h>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace Chained
 {
+	class EditorSceneManager;
+	struct EditorState;
+	struct EditorConfig;
+
+	class CommandHistory;
 
 	class EditorPanels
 	{
@@ -16,7 +22,9 @@ namespace Chained
 		EditorPanels() = default;
 		~EditorPanels() = default;
 
-		void Init();
+		void Init(EditorSceneManager* sceneManager = nullptr, EditorState* editorState = nullptr,
+				  const EditorConfig* config = nullptr, ImVec2* viewportSize = nullptr,
+				  CommandHistory* commandHistory = nullptr);
 
 		template <typename T, typename... Args> std::shared_ptr<T> Register(Args&&... args)
 		{
@@ -69,6 +77,7 @@ namespace Chained
 
 	private:
 		std::vector<std::shared_ptr<Panel>> m_Panels;
+		std::shared_ptr<Scene> m_Context;
 	};
 
 } // namespace Chained

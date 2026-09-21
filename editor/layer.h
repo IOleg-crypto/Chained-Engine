@@ -28,16 +28,6 @@ namespace Chained
 	class EditorLayer : public Layer
 	{
 	public:
-		static EditorLayer& Get()
-		{
-			return *s_Instance;
-		}
-
-		static bool HasInstance()
-		{
-			return s_Instance != nullptr;
-		}
-
 		EditorLayer();
 		virtual ~EditorLayer();
 
@@ -123,9 +113,8 @@ namespace Chained
 		}
 		void SetLastScenePath(const std::string& path)
 		{
-			if (!path.empty())
+			if (path.empty())
 			{
-				CH_CORE_INFO("EditorLayer: Not setting last scene path to '{}'", path);
 				return;
 			}
 			m_Config.LastScenePath = path;
@@ -177,8 +166,6 @@ namespace Chained
 		// as IsMouseClicked this frame) does not leak through to game widgets.
 		SceneState m_PrevSceneState = SceneState::Edit;
 		bool m_SuppressNextUIInput = false;
-
-		static inline EditorLayer* s_Instance = nullptr;
 	};
 } // namespace Chained
 

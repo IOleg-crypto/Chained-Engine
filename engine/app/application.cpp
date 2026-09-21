@@ -18,7 +18,6 @@
 #include "engine/core/input.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/networking/network_service.h"
-#include "engine/scene/systems/network_system.h"
 
 namespace Chained
 {
@@ -84,7 +83,7 @@ namespace Chained
 		}
 	}
 
-	void Application::RegisterCoreServices()
+	void Application::RegisterCoreServices() const
 	{
 		unsigned int threads = std::thread::hardware_concurrency();
 		if (threads == 0)
@@ -151,7 +150,6 @@ namespace Chained
 				[=] { return std::make_unique<ScriptEngine>(m_Specification.EnableScripting); });
 		}
 		ServiceLocator::Provide<Network>([] { return std::make_unique<Network>(); });
-		ServiceLocator::Provide<NetworkSystem>([] { return std::make_unique<NetworkSystem>(); });
 	}
 
 	Application::~Application()

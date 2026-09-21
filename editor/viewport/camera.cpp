@@ -1,5 +1,4 @@
 #include "camera.h"
-#include "editor/layer.h"
 #include "engine/app/application.h"
 #include "engine/core/input.h"
 #include "engine/scene/components/render/camera_component.h"
@@ -84,7 +83,8 @@ namespace Chained
 		UpdateView();
 	}
 
-	void EditorCameraController::OnUpdate(Entity cameraEntity, Timestep ts, const glm::vec2& viewportSize)
+	void EditorCameraController::OnUpdate(Entity cameraEntity, Timestep ts, const glm::vec2& viewportSize,
+										  bool isPlayMode)
 	{
 		m_ViewportWidth = (uint32_t)viewportSize.x;
 		m_ViewportHeight = (uint32_t)viewportSize.y;
@@ -122,7 +122,7 @@ namespace Chained
 
 		// In Play mode: sync editor camera FROM TransformComponent (e.g. scripts or inspector changes).
 		// In Edit mode: skip — the editor camera is authoritative, TransformComponent write-back happens below.
-		if (hasEntity && EditorLayer::Get().GetSceneState() == SceneState::Play && !rightDown && !middleDown)
+		if (hasEntity && isPlayMode && !rightDown && !middleDown)
 		{
 			auto& tc = cameraEntity.GetComponent<TransformComponent>();
 			if (std::isfinite(tc.Rotation.x) && std::isfinite(tc.Rotation.y))

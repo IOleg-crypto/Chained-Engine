@@ -64,7 +64,7 @@ TEST(AssetDependencyCollectorTest, ScanTextForReferences)
 	std::unordered_set<std::string> referencedLower;
 	std::vector<fs::path> newReferences;
 
-	AssetDependencyCollector::ScanTextForReferences(tempFile, allAssetsLower, referencedLower, newReferences);
+	AssetDependencyCollector::ScanTextForReferences(tempFile, allAssetsLower, referencedLower, newReferences, {});
 
 	EXPECT_EQ(referencedLower.size(), 3u);
 	EXPECT_EQ(newReferences.size(), 3u);

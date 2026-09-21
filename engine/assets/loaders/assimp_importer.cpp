@@ -30,28 +30,23 @@ namespace Chained
 		{
 			const unsigned char* bytes = reinterpret_cast<const unsigned char*>(texture->pcData);
 			int byteCount = (int)texture->mWidth;
+			if (byteCount <= 0)
+			{
+				return false;
+			}
 			if (stbi_is_hdr_from_memory(bytes, byteCount))
 			{
 				CH_CORE_WARN("Assimp embedded HDR texture is not supported by the current texture pipeline. Skipping.");
 				return false;
 			}
 
-			int width = 0;
-			int height = 0;
-			int channels = 0;
-			unsigned char* decoded = stbi_load_from_memory(bytes, byteCount, &width, &height, &channels, 4);
-			if (!decoded)
-			{
-				return false;
-			}
-
-			out.width = width;
-			out.height = height;
+			// Store compressed image buffer directly — avoids inflating 1MB PNG into 67MB uncompressed RGBA8
+			out.width = 0; // 0 indicates compressed image buffer (PNG, JPEG, etc.)
+			out.height = 0;
 			out.channels = 4;
 			out.isHDR = false;
-			out.data.resize((size_t)width * (size_t)height * 4);
-			std::memcpy(out.data.data(), decoded, out.data.size());
-			stbi_image_free(decoded);
+			out.data.resize(static_cast<size_t>(byteCount));
+			std::memcpy(out.data.data(), bytes, static_cast<size_t>(byteCount));
 			return true;
 		}
 

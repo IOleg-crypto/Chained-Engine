@@ -5,8 +5,6 @@ namespace ChainedDecos.Scripts
 {
     public class ResumeButtonScript : Script
     {
-        public string DefaultScene = "scenes/game_mode_selection.chscene";
-
         public override void OnCreate()
         {
             UpdateButtonVisibility();
@@ -21,9 +19,8 @@ namespace ChainedDecos.Scripts
 
             if (btn.IsActive && btn.IsClicked)
             {
-                string target = SessionState.HasActiveSession ? SessionState.LastGameplayScene! : DefaultScene;
-                Log.Info($"[ResumeButton] Resuming scene: {target} (HasSession={SessionState.HasActiveSession})");
-                Scene.LoadScene(target);
+                Log.Info("[ResumeButton] Resuming active game session...");
+                Scene.ResumeSession();
             }
         }
 
@@ -32,7 +29,7 @@ namespace ChainedDecos.Scripts
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
             if (btn != null)
             {
-                btn.IsActive = SessionState.HasActiveSession;
+                btn.IsActive = Scene.HasActiveSession();
             }
         }
     }

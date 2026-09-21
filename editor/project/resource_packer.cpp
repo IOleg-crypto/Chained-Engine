@@ -4,10 +4,32 @@
 
 #include <pack/reader.hpp>
 #include <pack/writer.hpp>
+#include <pack/common.h>
+
+// ZSTD C API — used directly to control LRM and ZSTDMT without modifying thirdparty/.
+// zstd.h wraps itself in extern "C" when compiled as C++, so no wrapper needed.
+#include "zstd.h"
+// zdict.h — ZSTD dictionary training API (ZSTD_trainFromBuffer, ZSTD_createCDict)
+#include "zdict.h"
+// lz4hc.h — fallback compressor for preferSpeed chunks (already compiled into lz4_static)
+#include "lz4hc.h"
+
+// XXH64 for O(n) duplicate detection (header-only, inlined)
+#define XXH_INLINE_ALL
+#include "xxhash.h"
 
 #include <algorithm>
+#include <cctype>
+#include <future>
 #include <mutex>
 #include <system_error>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
+#include "engine/assets/loaders/model_loader.h"
+#include <cereal/archives/binary.hpp>
+#include "engine/common/zstd_compression.h"
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -45,6 +67,740 @@ namespace Chained
 			}
 			return true;
 		}
+
+		// ---------------------------------------------------------------------------
+		// ParallelPackChunk — parallel-compress + sequential-write replacement for
+		// pack::Writer::pack().  Only used for ZSTD (non-preferSpeed) chunks.
+		// The pack binary format is identical to thirdparty/pack/source/writer.c:
+		//   [PackHeader]
+		//   for each item:  [PackItemHeader][path_bytes][data_bytes?]
+		// ---------------------------------------------------------------------------
+
+		/// @brief Result from a single file's compression worker.
+		struct CompressedEntry
+		{
+			std::string itemPath;		  // pack key (used as path in header)
+			std::vector<uint8_t> rawData; // original file bytes (kept for dedup compare)
+			std::vector<uint8_t> zipData; // compressed bytes (empty → store raw)
+			// Backup of rawData before chasset decompression — restored if ZSTD fails so we
+			// never write more bytes to the pack than the file originally occupied on disk.
+			std::vector<uint8_t> originalRawData;
+			uint32_t dataSize = 0; // uncompressed size
+			uint32_t zipSize = 0;  // compressed size (0 → stored uncompressed)
+			uint64_t xxh3 = 0;	   // XX_H3 hash of the data written to disk
+			bool ok = true;
+			std::string error;
+		};
+
+		/// @brief Returns true for formats that are already compressed and gain nothing (or grow) from ZSTD.
+		static bool IsAlreadyCompressedFormat(const fs::path& ext)
+		{
+			// Texture formats with internal compression
+			if (ext == ".ktx2" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp")
+			{
+				return true;
+			}
+			// Audio formats
+			if (ext == ".ogg" || ext == ".mp3" || ext == ".opus" || ext == ".flac")
+			{
+				return true;
+			}
+			// Archive / already-compressed containers
+			if (ext == ".zip" || ext == ".gz" || ext == ".zst" || ext == ".br")
+			{
+				return true;
+			}
+			return false;
+		}
+
+		/// @brief Compress a single file with ZSTD (level max, optional LRM, optional shared CDict).
+		/// @param dict Pre-trained ZSTD dictionary shared across all parallel workers. May be nullptr.
+		static CompressedEntry CompressOneFile(const PackItem& item, float zipThreshold, const ParallelPackConfig& cfg,
+											   const ZSTD_CDict* dict)
+		{
+			CompressedEntry entry;
+			entry.itemPath = item.PackKey.generic_string();
+
+			// Read source file
+			std::error_code ec;
+			const uint64_t fileSize = fs::file_size(item.Source, ec);
+			if (ec || fileSize == 0)
+			{
+				entry.dataSize = 0;
+				entry.zipSize = 0;
+				entry.xxh3 = XXH64(nullptr, 0, 0);
+				return entry;
+			}
+
+			entry.rawData.resize(static_cast<size_t>(fileSize));
+			{
+				FILE* f =
+#if defined(_WIN32)
+					_wfopen(item.Source.wstring().c_str(), L"rb");
+#else
+					fopen(item.Source.string().c_str(), "rb");
+#endif
+				if (!f)
+				{
+					entry.ok = false;
+					entry.error = "Cannot open: " + item.Source.string();
+					return entry;
+				}
+				const size_t rd = fread(entry.rawData.data(), 1, entry.rawData.size(), f);
+				fclose(f);
+				if (rd != entry.rawData.size())
+				{
+					entry.ok = false;
+					entry.error = "Short read: " + item.Source.string();
+					return entry;
+				}
+			}
+
+			entry.dataSize = static_cast<uint32_t>(fileSize);
+
+			// Fast path: already-compressed formats gain nothing from ZSTD and may even grow.
+			// Store them raw immediately — no need to attempt compression at all.
+			if (IsAlreadyCompressedFormat(item.Source.extension()))
+			{
+				entry.zipSize = 0; // sentinel: stored uncompressed
+				entry.xxh3 = XXH64(entry.rawData.data(), entry.dataSize, 0);
+				return entry;
+			}
+
+			// Unpack .chasset / .chmesh payload before passing to ZSTD LRM to avoid double-compression
+			bool isModelAsset = (item.Source.extension() == ".chasset" || item.Source.extension() == ".chmesh");
+
+			if (isModelAsset && entry.rawData.size() > sizeof(ChainedAssetHeader))
+			{
+				try
+				{
+					struct MemStreamBuf : public std::streambuf
+					{
+						MemStreamBuf(char* base, size_t size)
+						{
+							setg(base, base, base + size);
+						}
+
+						size_t Tell() const
+						{
+							return static_cast<size_t>(gptr() - eback());
+						}
+
+					protected:
+						pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+										 std::ios_base::openmode which = std::ios_base::in) override
+						{
+							if (dir == std::ios_base::cur)
+							{
+								gbump(static_cast<int>(off));
+							}
+							else if (dir == std::ios_base::end)
+							{
+								setg(eback(), egptr() + off, egptr());
+							}
+							else if (dir == std::ios_base::beg)
+							{
+								setg(eback(), eback() + off, egptr());
+							}
+							return gptr() - eback();
+						}
+						pos_type seekpos(pos_type sp, std::ios_base::openmode which = std::ios_base::in) override
+						{
+							return seekoff(sp - pos_type(0), std::ios_base::beg, which);
+						}
+					};
+					MemStreamBuf msb(reinterpret_cast<char*>(entry.rawData.data()), entry.rawData.size());
+					std::istream is(&msb);
+					ChainedAssetHeader header;
+					{
+						cereal::BinaryInputArchive archive(is);
+						archive(header);
+					}
+
+					if (header.compressed && header.compressedSize > 0)
+					{
+						// Guard: if the uncompressed payload exceeds the ZSTD window size,
+						// decompressing it just to hand it to ZSTD is pointless — ZSTD can't
+						// reference data outside the window anyway, so ratio won't improve.
+						// More importantly, on huge models (200MB+) the ZSTD context itself
+						// requires ~windowSize of RAM per worker thread, causing OOM.
+						const uint64_t windowBytes =
+							cfg.ZstdWindowLog > 0 ? (1ULL << cfg.ZstdWindowLog) : (128ULL * 1024 * 1024);
+						if (static_cast<uint64_t>(header.uncompressedSize) > windowBytes)
+						{
+							CH_CORE_TRACE("ResourcePacker: Skipping unpack of '{}' — uncompressed {} MB > window {} "
+										  "MB, keeping internal compression",
+										  item.PackKey.generic_string(), header.uncompressedSize / (1024 * 1024),
+										  windowBytes / (1024 * 1024));
+						}
+						else
+						{
+							size_t headerSize = msb.Tell();
+							if (headerSize + header.compressedSize <= entry.rawData.size())
+							{
+								auto decompressed = Zstd::Decompress(entry.rawData.data() + headerSize,
+																	 static_cast<size_t>(header.compressedSize),
+																	 static_cast<size_t>(header.uncompressedSize));
+								if (!decompressed.empty())
+								{
+									header.compressed = false;
+									header.compressedSize = 0;
+
+									std::stringstream ss;
+									{
+										cereal::BinaryOutputArchive archive(ss);
+										archive(header);
+									}
+									std::string newHeaderStr = ss.str();
+
+									std::vector<uint8_t> newRawData(newHeaderStr.size() + decompressed.size());
+									std::memcpy(newRawData.data(), newHeaderStr.data(), newHeaderStr.size());
+									std::memcpy(newRawData.data() + newHeaderStr.size(), decompressed.data(),
+												decompressed.size());
+
+									// Remember original in case ZSTD OOMs on this file —
+									// we restore it so we never store MORE bytes than the file on disk.
+									entry.originalRawData = entry.rawData;
+									entry.rawData = std::move(newRawData);
+									entry.dataSize = static_cast<uint32_t>(entry.rawData.size());
+									CH_CORE_INFO(
+										"ResourcePacker: Unpacked .chasset '{}' for LRM compression ({} -> {} bytes)",
+										item.PackKey.generic_string(), fileSize, entry.dataSize);
+								}
+								else
+								{
+									CH_CORE_WARN("ResourcePacker: Failed to unpack .chasset '{}'",
+												 item.PackKey.generic_string());
+								}
+							}
+							else
+							{
+								CH_CORE_WARN("ResourcePacker: Invalid sizes for .chasset '{}' (headerSize={}, "
+											 "compSize={}, rawSize={})",
+											 item.PackKey.generic_string(), headerSize, header.compressedSize,
+											 entry.rawData.size());
+							}
+						}
+					}
+				} catch (const std::exception& e)
+				{
+					CH_CORE_WARN("ResourcePacker: Exception unpacking .chasset '{}': {}", item.PackKey.generic_string(),
+								 e.what());
+				} catch (...)
+				{
+					CH_CORE_WARN("ResourcePacker: Unknown exception unpacking .chasset '{}'",
+								 item.PackKey.generic_string());
+				}
+			}
+
+			// Compression threshold: max compressed bytes allowed before we store raw
+			const uint32_t maxZipSize =
+				entry.dataSize - static_cast<uint32_t>(static_cast<double>(entry.dataSize) * zipThreshold);
+
+			// Large-file guard: if the payload exceeds 4× the ZSTD window, compressing it in
+			// parallel would require enormous RAM (input + output + context per thread) and yield
+			// almost no benefit — the file is already internally compressed by the chasset pipeline.
+			// Store raw immediately; the chasset internal ZSTD is the best we can do here.
+			const uint64_t windowBytes = cfg.ZstdWindowLog > 0 ? (1ULL << cfg.ZstdWindowLog) : (8ULL * 1024 * 1024);
+			if (static_cast<uint64_t>(entry.dataSize) > windowBytes * 4)
+			{
+				// Restore original if we had decompressed it (uncompressed > disk size)
+				if (!entry.originalRawData.empty())
+				{
+					entry.rawData = std::move(entry.originalRawData);
+					entry.dataSize = static_cast<uint32_t>(entry.rawData.size());
+				}
+				entry.zipSize = 0;
+				entry.zipData.clear();
+				entry.zipData.shrink_to_fit();
+				entry.xxh3 = XXH64(entry.rawData.data(), entry.dataSize, 0);
+				CH_CORE_TRACE("ResourcePacker: Skipping ZSTD for large file '{}' ({} MB > 4× window)",
+							  item.PackKey.generic_string(), entry.dataSize / (1024 * 1024));
+				return entry;
+			}
+
+			// Create per-thread ZSTD context
+			ZSTD_CCtx* cctx = ZSTD_createCCtx();
+			if (!cctx)
+			{
+				entry.ok = false;
+				entry.error = "ZSTD_createCCtx failed";
+				return entry;
+			}
+
+			// Configure: max level, optional LRM, optional ZSTDMT
+			ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, ZSTD_maxCLevel());
+
+			if (cfg.ZstdWindowLog > 0)
+			{
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, static_cast<int>(cfg.ZstdWindowLog));
+				// CRITICAL: Level 22 (btultra2) defaults to hashLog=25 (32MB) and chainLog=28
+				// (256MB) regardless of windowLog — wasting ~288MB per CCtx when window is only
+				// 8MB. Cap both to windowLog+1 so hash/chain tables match the actual window.
+				// 16 threads: 32MB each instead of 288MB each (512MB total vs 4.6GB).
+				const int capLog = static_cast<int>(cfg.ZstdWindowLog) + 1;
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, std::min(capLog, 25));
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_chainLog, std::min(capLog, 28));
+			}
+
+			if (cfg.EnableLongRangeMatching)
+			{
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1);
+				// ldmHashLog=20: ~1MB hash table, well-matched to 8MB window (windowLog=23)
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashLog, 20);
+				// ldmMinMatch=32: catches shorter repeating patterns (mesh vertices, UV coords)
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmMinMatch, 32);
+				// ldmHashRateLog=5: sample every 32 bytes — dense enough for small-window LRM
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashRateLog, 5);
+				// ldmBucketSizeLog=3: 8 entries per bucket, reduces collision evictions
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmBucketSizeLog, 3);
+				// overlapLog=9: carry maximum block history forward for cross-block matches
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_overlapLog, 9);
+			}
+
+			if (cfg.ZstdWorkers > 0)
+			{
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, static_cast<int>(cfg.ZstdWorkers));
+			}
+
+			// Allocate output buffer (ZSTD_compressBound guarantees it is enough)
+			const size_t bound = ZSTD_compressBound(entry.dataSize);
+			entry.zipData.resize(bound);
+
+			// Execute single-shot compression.
+			// When a pre-trained dictionary is available, use it — it substitutes for the cross-file
+			// sliding-window history that single-threaded streaming used to provide, recovering ratio.
+			// Fall back to ZSTD_compress2 (plain CCtx parameters only) when no dictionary was built.
+			size_t result;
+			if (dict)
+			{
+				result = ZSTD_compress_usingCDict(cctx, entry.zipData.data(), bound, entry.rawData.data(),
+												  entry.dataSize, dict);
+			}
+			else
+			{
+				result = ZSTD_compress2(cctx, entry.zipData.data(), bound, entry.rawData.data(), entry.dataSize);
+			}
+
+			ZSTD_freeCCtx(cctx);
+
+			if (ZSTD_isError(result))
+			{
+				CH_CORE_WARN("ResourcePacker: ZSTD_compressCCtx failed for '{}': {}", item.PackKey.generic_string(),
+							 ZSTD_getErrorName(result));
+			}
+
+			if (!ZSTD_isError(result) && static_cast<uint32_t>(result) <= maxZipSize)
+			{
+				// Compression worthwhile
+				entry.zipSize = static_cast<uint32_t>(result);
+				entry.zipData.resize(entry.zipSize);
+				entry.xxh3 = XXH64(entry.zipData.data(), entry.zipSize, 0);
+
+				// Free rawData and backup to prevent peak RAM explosion
+				entry.rawData.clear();
+				entry.rawData.shrink_to_fit();
+				entry.originalRawData.clear();
+				entry.originalRawData.shrink_to_fit();
+			}
+			else
+			{
+				// Store raw: zipSize == 0 signals "uncompressed" to the writer below.
+				// If we had decompressed a chasset and ZSTD then failed (OOM) or couldn't
+				// beat the threshold, restore the original compressed bytes — they are
+				// smaller than the expanded payload, avoiding pack inflation.
+				if (!entry.originalRawData.empty())
+				{
+					entry.rawData = std::move(entry.originalRawData);
+					entry.dataSize = static_cast<uint32_t>(entry.rawData.size());
+					CH_CORE_TRACE("ResourcePacker: ZSTD failed for '{}', reverted to original {} bytes",
+								  item.PackKey.generic_string(), entry.dataSize);
+				}
+				entry.zipSize = 0;
+				entry.zipData.clear();
+				entry.zipData.shrink_to_fit();
+				entry.xxh3 = XXH64(entry.rawData.data(), entry.dataSize, 0);
+			}
+
+			return entry;
+		}
+
+		/// @brief Sort predicate matching thirdparty writer.c comparePackPathPairs:
+		/// shorter path first, then lexicographic.
+		static bool PackPathLess(const CompressedEntry& a, const CompressedEntry& b)
+		{
+			if (a.itemPath.size() != b.itemPath.size())
+			{
+				return a.itemPath.size() < b.itemPath.size();
+			}
+			return a.itemPath < b.itemPath;
+		}
+
+		/// @brief Full parallel packer: compress all files concurrently, dedup, write.
+		/// @return true on success; outError set on failure.
+		static bool ParallelPackChunk(const fs::path& chunkPath, const std::vector<PackItem>& chunkItems,
+									  uint32_t dataVersion, float zipThreshold, const ParallelPackConfig& cfg,
+									  std::atomic<uint64_t>& globalPacked, uint64_t totalCount,
+									  std::mutex& progressMutex, ExportProgressCallback onProgress,
+									  const std::atomic<bool>* cancelFlag, std::atomic<bool>& aborted,
+									  std::string& outError)
+		{
+			if (chunkItems.empty())
+			{
+				return true;
+			}
+
+			// ---------------------------------------------------------------
+			// Phase 0: ZSTD Dictionary Training
+			// Build a shared CDict from samples of all files so that each
+			// per-thread CCtx benefits from cross-file pattern knowledge —
+			// recovering the compression ratio that single-threaded streaming
+			// provided via a shared sliding-window context.
+			// ---------------------------------------------------------------
+			const unsigned int hwThreads = std::thread::hardware_concurrency();
+			const unsigned int fileWorkers = (cfg.FileWorkers > 0) ? cfg.FileWorkers : std::max(1u, hwThreads);
+
+			std::vector<CompressedEntry> entries(chunkItems.size());
+			std::atomic<size_t> nextJob{0};
+
+			ZSTD_CDict* cdict = nullptr;
+			if (cfg.DictionarySize > 0 && !chunkItems.empty())
+			{
+				// Collect training samples: up to DictSampleSizePerFile bytes from each file.
+				std::vector<uint8_t> trainBuf;
+				std::vector<size_t> sampleSizes;
+				trainBuf.reserve(cfg.DictSampleSizePerFile * chunkItems.size());
+
+				for (const auto& item : chunkItems)
+				{
+					if (IsAlreadyCompressedFormat(item.Source.extension()))
+					{
+						continue; // skip already-compressed — they won't use the dict anyway
+					}
+
+					std::error_code ec;
+					const uint64_t fsz = fs::file_size(item.Source, ec);
+					if (ec || fsz == 0)
+					{
+						continue;
+					}
+
+					const size_t sampleSz =
+						static_cast<size_t>(std::min<uint64_t>(fsz, static_cast<uint64_t>(cfg.DictSampleSizePerFile)));
+
+					FILE* f =
+#if defined(_WIN32)
+						_wfopen(item.Source.wstring().c_str(), L"rb");
+#else
+						fopen(item.Source.string().c_str(), "rb");
+#endif
+					if (!f)
+					{
+						continue;
+					}
+
+					const size_t before = trainBuf.size();
+					trainBuf.resize(before + sampleSz);
+					const size_t rd = fread(trainBuf.data() + before, 1, sampleSz, f);
+					fclose(f);
+
+					if (rd > 0)
+					{
+						trainBuf.resize(before + rd);
+						sampleSizes.push_back(rd);
+					}
+					else
+					{
+						trainBuf.resize(before);
+					}
+				}
+
+				if (!sampleSizes.empty())
+				{
+					std::vector<uint8_t> dictBuf(cfg.DictionarySize);
+					const size_t dictSz = ZDICT_trainFromBuffer(dictBuf.data(), dictBuf.size(), trainBuf.data(),
+																sampleSizes.data(), sampleSizes.size());
+
+					if (!ZDICT_isError(dictSz))
+					{
+						dictBuf.resize(dictSz);
+						cdict = ZSTD_createCDict(dictBuf.data(), dictSz, ZSTD_maxCLevel());
+						if (cdict)
+						{
+							CH_CORE_INFO(
+								"ResourcePacker: ZSTD dict trained — {} bytes from {} samples, {} file workers", dictSz,
+								sampleSizes.size(), fileWorkers);
+						}
+					}
+					else
+					{
+						CH_CORE_WARN("ResourcePacker: ZSTD dict training failed: {}", ZDICT_getErrorName(dictSz));
+					}
+				}
+			}
+
+			// Worker lambda: each thread picks the next unprocessed file
+			auto worker = [&]() {
+				while (true)
+				{
+					const size_t idx = nextJob.fetch_add(1, std::memory_order_relaxed);
+					if (idx >= chunkItems.size())
+					{
+						break;
+					}
+					if (aborted.load(std::memory_order_relaxed) || IsCancelled(cancelFlag))
+					{
+						aborted.store(true);
+						return;
+					}
+
+					try
+					{
+						entries[idx] = CompressOneFile(chunkItems[idx], zipThreshold, cfg, cdict);
+					} catch (const std::bad_alloc&)
+					{
+						aborted.store(true);
+						std::lock_guard<std::mutex> lk(progressMutex);
+						outError = "Out of memory compressing: " + chunkItems[idx].PackKey.generic_string();
+						return;
+					} catch (const std::exception& e)
+					{
+						aborted.store(true);
+						std::lock_guard<std::mutex> lk(progressMutex);
+						outError =
+							"Exception compressing " + chunkItems[idx].PackKey.generic_string() + ": " + e.what();
+						return;
+					}
+
+					if (!entries[idx].ok)
+					{
+						aborted.store(true);
+						std::lock_guard<std::mutex> lk(progressMutex);
+						outError = entries[idx].error;
+						return;
+					}
+
+					// Progress callback
+					uint64_t done = ++globalPacked;
+					if (onProgress)
+					{
+						std::lock_guard<std::mutex> lk(progressMutex);
+						onProgress(done, totalCount, entries[idx].itemPath);
+					}
+				}
+			};
+
+			// ---------------------------------------------------------------
+			// Phase 1: Parallel compression
+			// ---------------------------------------------------------------
+			// Launch fileWorkers - 1 extra threads; current thread is the Nth worker
+			std::vector<std::future<void>> futures;
+			futures.reserve(fileWorkers > 1 ? fileWorkers - 1 : 0);
+			for (unsigned int t = 1; t < fileWorkers; ++t)
+			{
+				futures.push_back(std::async(std::launch::async, worker));
+			}
+			worker(); // main thread also works
+			for (auto& f : futures)
+			{
+				f.get();
+			}
+
+			// Dictionary is only needed during compression — free it now
+			if (cdict)
+			{
+				ZSTD_freeCDict(cdict);
+				cdict = nullptr;
+			}
+
+			if (aborted.load(std::memory_order_relaxed) || IsCancelled(cancelFlag))
+			{
+				return false;
+			}
+
+			// ---------------------------------------------------------------
+			// Phase 2: Sort (path-length order, matches original writer.c qsort)
+			//          then O(n) XXH3 dedup
+			// ---------------------------------------------------------------
+			std::sort(entries.begin(), entries.end(), PackPathLess);
+
+			// Map: xxh3 hash → first entry index that produced this data blob
+			std::unordered_map<uint64_t, size_t> dedupMap;
+			dedupMap.reserve(entries.size());
+
+			// Per-entry dedup flag and reference offset (filled in write phase)
+			std::vector<uint64_t> refOffset(entries.size(), UINT64_MAX);
+
+			// First pass: build dedup candidates (same xxh3 + same size)
+			// We store the *index* of the first occurrence; the write phase
+			// will fill in the actual byte offset once known.
+			struct DedupKey
+			{
+				uint64_t xxh3;
+				uint32_t zipSize;
+				uint32_t dataSize;
+				bool operator==(const DedupKey& o) const
+				{
+					return xxh3 == o.xxh3 && zipSize == o.zipSize && dataSize == o.dataSize;
+				}
+			};
+			struct DedupKeyHash
+			{
+				size_t operator()(const DedupKey& k) const
+				{
+					// Combine the three fields into one hash
+					uint64_t h = k.xxh3;
+					h ^= static_cast<uint64_t>(k.zipSize) * 0x9e3779b97f4a7c15ULL;
+					h ^= static_cast<uint64_t>(k.dataSize) * 0x6c62272e07bb0142ULL;
+					return static_cast<size_t>(h);
+				}
+			};
+			std::unordered_map<DedupKey, size_t, DedupKeyHash> firstOccurrence;
+			firstOccurrence.reserve(entries.size());
+
+			for (size_t i = 0; i < entries.size(); ++i)
+			{
+				if (entries[i].dataSize == 0)
+				{
+					continue;
+				}
+				DedupKey key{entries[i].xxh3, entries[i].zipSize, entries[i].dataSize};
+				auto it = firstOccurrence.find(key);
+				if (it != firstOccurrence.end())
+				{
+					// Candidate duplicate — will resolve actual byte offset in write phase
+					refOffset[i] = it->second; // store index of first occurrence for now
+				}
+				else
+				{
+					firstOccurrence.emplace(key, i);
+				}
+			}
+
+			// ---------------------------------------------------------------
+			// Phase 3: Sequential write — pack binary format
+			// ---------------------------------------------------------------
+			// Format (identical to thirdparty/pack/source/writer.c):
+			//   PackHeader (fixed, written first)
+			//   for each item:
+			//     PackItemHeader  (zipSize, dataSize, pathSize:8|isReference:1|dataOffset:55)
+			//     path bytes      (pathSize chars, no null terminator)
+			//     data bytes      (zipSize if compressed, dataSize if raw, 0 if reference)
+
+			FILE* pf =
+#if defined(_WIN32)
+				_wfopen(chunkPath.wstring().c_str(), L"w+b");
+#else
+				fopen(chunkPath.string().c_str(), "w+b");
+#endif
+			if (!pf)
+			{
+				outError = "Cannot create: " + chunkPath.string();
+				return false;
+			}
+
+			// Write placeholder header (will seek back to overwrite itemCount later if needed)
+			PackHeader ph{};
+			ph.magic = PACK_HEADER_MAGIC;
+			ph.versionMajor = PACK_VERSION_MAJOR;
+			ph.versionMinor = PACK_VERSION_MINOR;
+			ph.versionPatch = PACK_VERSION_PATCH;
+			ph.isBigEndian = 0; // little-endian
+			ph.itemCount = static_cast<uint64_t>(entries.size());
+			ph.dataVersion = dataVersion;
+			ph.preferSpeed = 0; // ZSTD path
+			ph._reserved = 0;
+
+			if (fwrite(&ph, sizeof(ph), 1, pf) != 1)
+			{
+				fclose(pf);
+				outError = "Header write failed: " + chunkPath.string();
+				return false;
+			}
+
+			// Collect actual byte offsets for reference items (index → file byte offset)
+			std::vector<uint64_t> dataByteOffset(entries.size(), UINT64_MAX);
+
+			uint64_t fileOffset = sizeof(PackHeader);
+
+			for (size_t i = 0; i < entries.size(); ++i)
+			{
+				const CompressedEntry& e = entries[i];
+
+				const size_t pathLen = e.itemPath.size();
+				if (pathLen > UINT8_MAX)
+				{
+					fclose(pf);
+					outError = "Path too long (>255): " + e.itemPath;
+					return false;
+				}
+
+				// Determine if this entry references a previously written blob
+				bool isRef = false;
+				uint64_t referenceDataOffset = UINT64_MAX;
+
+				if (e.dataSize > 0 && refOffset[i] != UINT64_MAX)
+				{
+					const size_t firstIdx = refOffset[i];
+					// dataByteOffset[firstIdx] must be set (firstIdx < i by construction)
+					if (dataByteOffset[firstIdx] != UINT64_MAX)
+					{
+						isRef = true;
+						referenceDataOffset = dataByteOffset[firstIdx];
+					}
+				}
+
+				// Calculate where data bytes will live
+				const uint64_t thisDataOffset = fileOffset + sizeof(PackItemHeader) + pathLen;
+
+				PackItemHeader ih{};
+				ih.zipSize = e.zipSize;
+				ih.dataSize = e.dataSize;
+				ih.pathSize = static_cast<uint8_t>(pathLen);
+				ih.isReference = isRef ? 1 : 0;
+				ih.dataOffset = isRef ? referenceDataOffset : thisDataOffset;
+
+				if (fwrite(&ih, sizeof(ih), 1, pf) != 1)
+				{
+					fclose(pf);
+					outError = "Item header write failed";
+					return false;
+				}
+				if (fwrite(e.itemPath.data(), 1, pathLen, pf) != pathLen)
+				{
+					fclose(pf);
+					outError = "Path write failed";
+					return false;
+				}
+
+				fileOffset += sizeof(PackItemHeader) + pathLen;
+
+				if (e.dataSize > 0 && !isRef)
+				{
+					dataByteOffset[i] = thisDataOffset;
+					const uint8_t* writePtr = e.zipSize > 0 ? e.zipData.data() : e.rawData.data();
+					const size_t writeSize = e.zipSize > 0 ? e.zipSize : e.dataSize;
+
+					if (writeSize > 5 * 1024 * 1024)
+					{
+						CH_CORE_TRACE("Packed {0}: {1} MB (compressed: {2})", e.itemPath,
+									  writeSize / (1024.0f * 1024.0f), e.zipSize > 0);
+					}
+
+					if (fwrite(writePtr, 1, writeSize, pf) != writeSize)
+					{
+						fclose(pf);
+						outError = "Data write failed";
+						return false;
+					}
+					fileOffset += writeSize;
+				}
+			}
+
+			fclose(pf);
+			return true;
+		}
+
 	} // namespace
 
 	bool ResourcePacker::IsPackStale(const fs::path& packPath, const std::vector<PackItem>& items,
@@ -56,20 +812,50 @@ namespace Chained
 			return true;
 		}
 
+		const fs::path exportDir = packPath.parent_path();
+		const std::string packBaseName = packPath.stem().string();
+		const std::string chunkPrefix = packBaseName + "_";
+
+		uint64_t totalPackedCount = 0;
+		auto oldestPackTime = fs::last_write_time(packPath, ec);
+		if (ec)
+		{
+			return true;
+		}
+
 		try
 		{
-			pack::Reader reader(packPath);
-			if (reader.getItemCount() != expectedCount)
-			{
-				return true;
-			}
+			pack::Reader mainReader(packPath);
+			totalPackedCount += mainReader.getItemCount();
 		} catch (...)
 		{
 			return true;
 		}
 
-		const auto packTime = fs::last_write_time(packPath, ec);
-		if (ec)
+		for (const auto& entry : fs::directory_iterator(exportDir, ec))
+		{
+			if (entry.is_regular_file(ec) && entry.path().extension() == ".pack" && entry.path() != packPath)
+			{
+				if (entry.path().stem().string().starts_with(chunkPrefix))
+				{
+					try
+					{
+						pack::Reader chunkReader(entry.path());
+						totalPackedCount += chunkReader.getItemCount();
+						auto chunkTime = fs::last_write_time(entry.path(), ec);
+						if (!ec && chunkTime < oldestPackTime)
+						{
+							oldestPackTime = chunkTime;
+						}
+					} catch (...)
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		if (totalPackedCount != expectedCount)
 		{
 			return true;
 		}
@@ -78,7 +864,7 @@ namespace Chained
 		{
 			std::error_code srcEc;
 			const auto srcTime = fs::last_write_time(item.Source, srcEc);
-			if (srcEc || srcTime > packTime)
+			if (srcEc || srcTime > oldestPackTime)
 			{
 				return true;
 			}
@@ -113,7 +899,8 @@ namespace Chained
 		return true;
 	}
 
-	void ResourcePacker::CleanupStaleChunks(const fs::path& outputDir, const std::string& packBaseName)
+	void ResourcePacker::CleanupStaleChunks(const fs::path& outputDir, const std::string& packBaseName,
+											size_t validChunkCount)
 	{
 		std::error_code ec;
 		const std::string chunkPrefix = packBaseName + "_";
@@ -121,9 +908,20 @@ namespace Chained
 		{
 			if (entry.is_regular_file(ec) && entry.path().extension() == ".pack")
 			{
-				if (entry.path().stem().string().starts_with(chunkPrefix))
+				const std::string stem = entry.path().stem().string();
+				if (stem.starts_with(chunkPrefix))
 				{
-					fs::remove(entry.path(), ec);
+					try
+					{
+						size_t chunkIdx = std::stoull(stem.substr(chunkPrefix.length()));
+						if (chunkIdx >= validChunkCount)
+						{
+							fs::remove(entry.path(), ec);
+						}
+					} catch (...)
+					{
+						fs::remove(entry.path(), ec);
+					}
 				}
 			}
 		}
@@ -132,140 +930,211 @@ namespace Chained
 	bool ResourcePacker::Pack(const fs::path& packPath, const std::string& packBaseName,
 							  const std::vector<PackItem>& items, uint32_t dataVersion, float zipThreshold,
 							  bool preferSpeed, uint32_t splitSizeMB, ExportProgressCallback onProgress,
-							  const std::atomic<bool>* cancelFlag, std::string& outError)
+							  const std::atomic<bool>* cancelFlag, std::string& outError, const ParallelPackConfig* cfg)
 	{
 		const fs::path exportDir = packPath.parent_path();
 
-		// Partition into chunks if splitSizeMB > 0
+		// Build effective config (use defaults when caller passes nullptr)
+		ParallelPackConfig effectiveCfg;
+		if (cfg)
+		{
+			effectiveCfg = *cfg;
+		}
+
+		// Log what we are about to do
+		{
+			const unsigned int hwThreads = std::thread::hardware_concurrency();
+			const unsigned int fileWorkers =
+				(effectiveCfg.FileWorkers > 0) ? effectiveCfg.FileWorkers : std::max(1u, hwThreads);
+			CH_CORE_INFO(
+				"ResourcePacker::Pack — {} items | {} file-workers | ZSTD level {} | LRM={} windowLog={} | zstdMT={}",
+				items.size(), fileWorkers, ZSTD_maxCLevel(), effectiveCfg.EnableLongRangeMatching ? "on" : "off",
+				effectiveCfg.ZstdWindowLog, effectiveCfg.ZstdWorkers);
+		}
+
 		struct Chunk
 		{
 			std::vector<PackItem> items;
+			float threshold;
+			bool speedFlag;
 		};
 		std::vector<Chunk> chunks;
 
-		if (splitSizeMB > 0)
-		{
-			uint64_t limitBytes = static_cast<uint64_t>(splitSizeMB) * 1024 * 1024;
-			chunks.emplace_back();
-			uint64_t currentBytes = 0;
-
-			for (const auto& item : items)
+		auto PartitionItems = [&](const std::vector<PackItem>& groupItems, float threshold, bool speedFlag) {
+			if (groupItems.empty())
 			{
-				std::error_code szEc;
-				uint64_t fileBytes = static_cast<uint64_t>(fs::file_size(item.Source, szEc));
-				if (szEc)
-				{
-					fileBytes = 0;
-				}
-
-				if (currentBytes > 0 && currentBytes + fileBytes > limitBytes)
-				{
-					chunks.emplace_back();
-					currentBytes = 0;
-				}
-
-				chunks.back().items.push_back(item);
-				currentBytes += fileBytes;
+				return;
 			}
-		}
-		else
+
+			if (splitSizeMB > 0)
+			{
+				uint64_t limitBytes = static_cast<uint64_t>(splitSizeMB) * 1024 * 1024;
+				chunks.push_back({{}, threshold, speedFlag});
+				uint64_t currentBytes = 0;
+
+				for (const auto& item : groupItems)
+				{
+					std::error_code szEc;
+					uint64_t fileBytes = static_cast<uint64_t>(fs::file_size(item.Source, szEc));
+					if (szEc)
+					{
+						fileBytes = 0;
+					}
+
+					if (currentBytes > 0 && currentBytes + fileBytes > limitBytes)
+					{
+						chunks.push_back({{}, threshold, speedFlag});
+						currentBytes = 0;
+					}
+
+					chunks.back().items.push_back(item);
+					currentBytes += fileBytes;
+				}
+			}
+			else
+			{
+				chunks.push_back({groupItems, threshold, speedFlag});
+			}
+		};
+
+		// Partition all items into unified pack chunk(s) (1 single .pack if splitSizeMB == 0)
+		PartitionItems(items, zipThreshold, preferSpeed);
+
+		if (chunks.empty())
 		{
-			chunks.emplace_back();
-			chunks.back().items = items;
+			CH_CORE_WARN("ResourcePacker: No items to pack.");
+			return true;
 		}
 
 		std::atomic<uint64_t> globalPacked{0};
 		std::atomic<bool> aborted{false};
 		std::mutex progressMutex;
+		std::mutex errorMutex;
+
+		bool allSuccess = true;
 
 		for (size_t chunkIdx = 0; chunkIdx < chunks.size(); ++chunkIdx)
 		{
 			if (aborted.load(std::memory_order_relaxed) || IsCancelled(cancelFlag))
 			{
-				return false;
+				allSuccess = false;
+				break;
 			}
 
-			const auto& chunk = chunks[chunkIdx];
+			const Chunk& chunk = chunks[chunkIdx];
 			if (chunk.items.empty())
 			{
 				continue;
 			}
 
-			fs::path chunkPath =
+			const fs::path chunkPath =
 				(chunkIdx == 0) ? packPath : exportDir / (packBaseName + "_" + std::to_string(chunkIdx) + ".pack");
 
-			std::vector<std::string> sourceStrings;
-			std::vector<std::string> keyStrings;
-			sourceStrings.reserve(chunk.items.size());
-			keyStrings.reserve(chunk.items.size());
-			for (const auto& item : chunk.items)
+			CH_CORE_INFO("ResourcePacker: Packing '{}' ({} items, threshold: {:.2f}, speed: {})",
+						 chunkPath.filename().string(), chunk.items.size(), chunk.threshold,
+						 chunk.speedFlag ? "LZ4HC" : "ZSTD-MT");
+
+			if (!chunk.speedFlag)
 			{
-				sourceStrings.push_back(item.Source.generic_string());
-				keyStrings.push_back(item.PackKey.generic_string());
-			}
+				// ---------------------------------------------------------------
+				// ZSTD path: fully parallel compress + write via ParallelPackChunk
+				// ---------------------------------------------------------------
+				std::string chunkError;
+				const bool ok =
+					ParallelPackChunk(chunkPath, chunk.items, dataVersion, chunk.threshold, effectiveCfg, globalPacked,
+									  items.size(), progressMutex, onProgress, cancelFlag, aborted, chunkError);
 
-			std::vector<const char*> rawPaths;
-			rawPaths.reserve(chunk.items.size() * 2);
-			for (size_t i = 0; i < chunk.items.size(); ++i)
-			{
-				rawPaths.push_back(sourceStrings[i].c_str());
-				rawPaths.push_back(keyStrings[i].c_str());
-			}
-
-			struct Context
-			{
-				const std::vector<PackItem>& chunkItems;
-				uint64_t totalCount;
-				std::atomic<uint64_t>& packedCount;
-				std::mutex& mtx;
-				ExportProgressCallback cb;
-				const std::atomic<bool>* cancel;
-				std::atomic<bool>& abortedRef;
-			};
-
-			Context ctx{chunk.items, items.size(), globalPacked, progressMutex, onProgress, cancelFlag, aborted};
-
-			OnPackFile callback = [](uint64_t itemIndex, void* arg) {
-				auto* c = static_cast<Context*>(arg);
-				if (c->abortedRef.load(std::memory_order_relaxed) || IsCancelled(c->cancel))
+				if (!ok)
 				{
-					c->abortedRef.store(true);
-					throw CancelException();
+					allSuccess = false;
+					aborted.store(true);
+					if (!chunkError.empty())
+					{
+						std::lock_guard<std::mutex> lk(errorMutex);
+						outError = "Pack error in '" + chunkPath.filename().string() + "': " + chunkError;
+						CH_CORE_ERROR("ResourcePacker: {}", outError);
+					}
+					break;
+				}
+			}
+			else
+			{
+				// ---------------------------------------------------------------
+				// LZ4HC / precompressed path: delegate to original pack::Writer
+				// (fast dev builds and already-compressed assets stay unchanged)
+				// ---------------------------------------------------------------
+				std::vector<std::string> sourceStrings, keyStrings;
+				sourceStrings.reserve(chunk.items.size());
+				keyStrings.reserve(chunk.items.size());
+				for (const auto& item : chunk.items)
+				{
+					sourceStrings.push_back(item.Source.generic_string());
+					keyStrings.push_back(item.PackKey.generic_string());
 				}
 
-				uint64_t done = ++c->packedCount;
-				if (c->cb)
+				std::vector<const char*> rawPaths;
+				rawPaths.reserve(chunk.items.size() * 2);
+				for (size_t i = 0; i < chunk.items.size(); ++i)
 				{
-					std::lock_guard<std::mutex> lock(c->mtx);
-					c->cb(done, c->totalCount, c->chunkItems[itemIndex].PackKey.generic_string());
+					rawPaths.push_back(sourceStrings[i].c_str());
+					rawPaths.push_back(keyStrings[i].c_str());
 				}
-			};
 
-			try
-			{
-				CH_CORE_INFO("ResourcePacker: Packing '{}' ({} items)", chunkPath.filename().string(),
-							 chunk.items.size());
+				struct LZ4Context
+				{
+					const std::vector<PackItem>& chunkItems;
+					uint64_t totalCount;
+					std::atomic<uint64_t>& packedCount;
+					std::mutex& mtx;
+					ExportProgressCallback cb;
+					const std::atomic<bool>* cancel;
+					std::atomic<bool>& abortedRef;
+				};
 
-				pack::Writer::pack(chunkPath, chunk.items.size(), rawPaths.data(), dataVersion, zipThreshold,
-								   preferSpeed, false, callback, &ctx);
-			} catch (const CancelException&)
-			{
-				aborted.store(true);
-				return false;
-			} catch (const std::exception& err)
-			{
-				aborted.store(true);
-				outError = "Pack error: " + std::string(err.what());
-				CH_CORE_ERROR("ResourcePacker: {}", outError);
-				return false;
+				LZ4Context ctx{chunk.items, items.size(), globalPacked, progressMutex, onProgress, cancelFlag, aborted};
+
+				OnPackFile callback = [](uint64_t itemIndex, void* arg) {
+					auto* c = static_cast<LZ4Context*>(arg);
+					if (c->abortedRef.load(std::memory_order_relaxed) || IsCancelled(c->cancel))
+					{
+						c->abortedRef.store(true);
+						throw CancelException();
+					}
+					uint64_t done = ++c->packedCount;
+					if (c->cb)
+					{
+						std::lock_guard<std::mutex> lock(c->mtx);
+						c->cb(done, c->totalCount, c->chunkItems[itemIndex].PackKey.generic_string());
+					}
+				};
+
+				try
+				{
+					pack::Writer::pack(chunkPath, chunk.items.size(), rawPaths.data(), dataVersion, chunk.threshold,
+									   chunk.speedFlag, false, callback, &ctx);
+				} catch (const CancelException&)
+				{
+					aborted.store(true);
+					allSuccess = false;
+					break;
+				} catch (const std::exception& err)
+				{
+					aborted.store(true);
+					std::lock_guard<std::mutex> lock(errorMutex);
+					outError = "Pack error in '" + chunkPath.filename().string() + "': " + std::string(err.what());
+					CH_CORE_ERROR("ResourcePacker: {}", outError);
+					allSuccess = false;
+					break;
+				}
 			}
 		}
 
-		if (splitSizeMB == 0)
+		if (!allSuccess)
 		{
-			CleanupStaleChunks(exportDir, packBaseName);
+			return false;
 		}
 
+		CleanupStaleChunks(exportDir, packBaseName, chunks.size());
 		return true;
 	}
 } // namespace Chained

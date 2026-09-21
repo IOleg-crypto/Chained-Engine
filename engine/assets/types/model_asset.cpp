@@ -8,6 +8,7 @@
 #include <cstring>
 #include <unordered_map>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <stb_image.h>
 
 namespace Chained
 {
@@ -95,6 +96,7 @@ namespace Chained
 						}
 					} catch (...)
 					{
+						CH_CORE_ERROR("ModelAsset: Invalid embedded texture key: {0}", name);
 					}
 				}
 			}
@@ -111,17 +113,39 @@ namespace Chained
 				{
 					size_t idx = std::stoul(name.substr(1));
 
-					if (embedded.data.empty() || embedded.width <= 0 || embedded.height <= 0 || embedded.isHDR)
+					if (embedded.data.empty() || embedded.isHDR)
 					{
 						continue;
 					}
 
-					auto texture =
-						Texture::Create((uint32_t)embedded.width, (uint32_t)embedded.height, TextureFormat::RGBA8);
-					if (texture)
+					if (embedded.width > 0 && embedded.height > 0)
 					{
-						texture->SetData((void*)embedded.data.data(), 0);
-						m_EmbeddedTextures[idx] = texture;
+						// Legacy uncompressed RGBA8 data
+						auto texture =
+							Texture::Create((uint32_t)embedded.width, (uint32_t)embedded.height, TextureFormat::RGBA8);
+						if (texture)
+						{
+							texture->SetData((void*)embedded.data.data(), 0);
+							m_EmbeddedTextures[idx] = texture;
+						}
+					}
+					else
+					{
+						// Optimized compressed PNG/JPEG buffer: decode on the fly for GPU upload
+						int w = 0, h = 0, ch = 0;
+						unsigned char* pixels = stbi_load_from_memory(
+							embedded.data.data(), static_cast<int>(embedded.data.size()), &w, &h, &ch, 4);
+						if (pixels && w > 0 && h > 0)
+						{
+							auto texture = Texture::Create(static_cast<uint32_t>(w), static_cast<uint32_t>(h),
+														   TextureFormat::RGBA8);
+							if (texture)
+							{
+								texture->SetData((void*)pixels, 0);
+								m_EmbeddedTextures[idx] = texture;
+							}
+							stbi_image_free(pixels);
+						}
 					}
 				} catch (...)
 				{

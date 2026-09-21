@@ -1,6 +1,5 @@
 #include "network_panel.h"
 #include "engine/networking/network_service.h"
-#include "engine/scene/systems/network_system.h"
 #include "engine/core/service_locator.h"
 #include "imgui.h"
 #include <cstdint>
@@ -320,7 +319,7 @@ namespace Chained
 
 				if (net)
 				{
-					ServiceLocator::Get<NetworkSystem>()->SetPlayerPrefab("prefab/player.chprefab");
+					net->SetPlayerPrefab("prefab/player.chprefab");
 					net->HostGame(port, m_MaxClients);
 					// Auto-fetch public IP when server starts
 					m_PublicIP.clear();
@@ -398,7 +397,7 @@ namespace Chained
 
 				if (net)
 				{
-					ServiceLocator::Get<NetworkSystem>()->SetPlayerPrefab("prefab/player.chprefab");
+					net->SetPlayerPrefab("prefab/player.chprefab");
 					net->ConnectTo(m_ConnectIP, port);
 					m_StatusMessage =
 						"Connecting to " + std::string(m_ConnectIP) + ":" + std::string(m_ConnectPort) + "...";

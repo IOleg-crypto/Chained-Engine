@@ -1,6 +1,6 @@
 #include "project_selector_ui.h"
 #include "editor/editor_colors.h"
-#include "editor/layer.h"
+#include "editor/types.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/texture_asset.h"
 #include "engine/core/service_locator.h"
@@ -36,8 +36,9 @@ namespace Chained
 		constexpr size_t kLocationBufSize = 256;
 	} // namespace
 
-	ProjectSelectorUI::ProjectSelectorUI(EditorProjectManager& projectManager)
-		: m_ProjectManager(projectManager)
+	ProjectSelectorUI::ProjectSelectorUI(EditorProjectManager& projectManager, const EditorConfig& config)
+		: m_ProjectManager(projectManager),
+		  m_Config(config)
 	{
 	}
 
@@ -105,7 +106,7 @@ namespace Chained
 		ImGui::TextDisabled("   RECENT PROJECTS");
 		ImGui::Dummy(ImVec2(0, 10));
 
-		const auto& config = EditorLayer::Get().GetConfig();
+		const auto& config = m_Config;
 		if (config.RecentProjects.empty())
 		{
 			ImGui::TextDisabled("   No recent projects.");

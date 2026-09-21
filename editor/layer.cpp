@@ -45,8 +45,7 @@ namespace Chained
 
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
 								 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking |
-								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
-								 ImGuiWindowFlags_NoInputs;
+								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, EditorColors::LoadingOverlayBg);
@@ -105,16 +104,20 @@ namespace Chained
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
-		s_Instance = this;
-
 		m_ProjectManager = std::make_unique<EditorProjectManager>();
 		m_SceneManager = std::make_unique<EditorSceneManager>();
-
 		m_Menu = std::make_unique<EditorMenu>();
 		m_Panels = std::make_unique<EditorPanels>();
 
-		m_Layout = std::make_unique<EditorLayout>(*m_Panels);
-		m_ProjectSelectorUI = std::make_unique<ProjectSelectorUI>(*m_ProjectManager);
+		m_SceneManager->SetDependencies(&m_Config, &m_EditorState, m_ProjectManager.get(), [this]() { SaveConfig(); });
+		m_ProjectManager->SetDependencies(
+			&m_Config, m_SceneManager.get(), [this]() { ReloadEditorFonts(); }, [this]() { SaveConfig(); });
+		m_Menu->SetDependencies(
+			m_SceneManager.get(), m_ProjectManager.get(), &m_Config, [this]() { SaveConfig(); },
+			[this]() { ReloadEditorFonts(); });
+
+		m_Layout = std::make_unique<EditorLayout>(*m_Panels, *m_Menu, *m_SceneManager);
+		m_ProjectSelectorUI = std::make_unique<ProjectSelectorUI>(*m_ProjectManager, m_Config);
 		m_FontManager = std::make_unique<FontManager>(m_Config);
 
 		LoadConfig();
@@ -123,7 +126,6 @@ namespace Chained
 	EditorLayer::~EditorLayer()
 	{
 		SetSelectedEntity({});
-		s_Instance = nullptr;
 	}
 
 	template <typename T> static void LoadYAMLField(const YAML::Node& node, const char* key, T& target)
@@ -241,9 +243,9 @@ namespace Chained
 
 		// SetTraceLogCallback removed - now using engine logging
 
-		EditorGUI::ApplyTheme();
-		PropertyEditor::Init();
-		m_Panels->Init();
+		EditorGUI::ApplyTheme(m_Config.FontSize);
+		PropertyEditor::Init(&m_CommandHistory);
+		m_Panels->Init(m_SceneManager.get(), &m_EditorState, &m_Config, &m_ViewportSize, &m_CommandHistory);
 
 		// Load editor fonts BEFORE project auto-load.
 		// OnProjectOpened will clear + rebuild the atlas (editor + project fonts together).
@@ -483,7 +485,12 @@ namespace Chained
 		if (m_SceneManager->IsLoading())
 		{
 			DrawLoadingOverlay("Editor Busy", m_SceneManager->GetLoadingStatus().c_str());
+			// m_Panels->OnImGuiRender(true);
 		}
+		// else
+		// {
+		// 	m_Panels->OnImGuiRender(false);
+		// }
 	}
 
 	void EditorLayer::ResetLayout()
@@ -500,6 +507,11 @@ namespace Chained
 
 	void EditorLayer::OnEvent(Event& e)
 	{
+		if (m_SceneManager->IsLoading())
+		{
+			return;
+		}
+
 		if (auto scene = GetActiveScene())
 		{
 			scene->OnEvent(e);

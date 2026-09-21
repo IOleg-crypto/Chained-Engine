@@ -18,6 +18,12 @@ namespace Chained
 		bool DrawLights = true;
 		bool DrawSpawnZones = true;
 		int SetCollisionWireframeMode = 0;
+		// When true, Mesh-type colliders are drawn as their axis-aligned bounding box
+		// instead of the full triangle mesh, preventing the viewport from being flooded
+		// with dense green wireframes on large terrain/island models.
+		bool MeshColliderAsBBox = true;
+		// Master alpha for all collider overlays [0..1].
+		float ColliderAlpha = 0.6f;
 	};
 
 	enum class BackgroundMode

@@ -12,6 +12,7 @@
 #include "engine/graphics/api/vertex_array.h"
 #include "engine/assets/types/environment_asset.h"
 #include "engine/assets/types/shader_asset.h"
+#include "engine/scene/systems/nametag_system.h"
 
 #include <variant> // Added for type-safe variant visitation
 
@@ -58,6 +59,9 @@ namespace Chained
 		shaders.LoadOrGet("Skinned");
 		shaders.LoadOrGet("Unlit");
 		shaders.LoadOrGet("Billboard");
+		shaders.LoadOrGet("Nametag");
+
+		NametagSystem::Init();
 
 		m_ResourcesLoaded = true;
 		CH_CORE_INFO("[Renderer] LoadEngineResources done. {} shader(s) loaded.", shaders.GetNames().size());
@@ -72,6 +76,7 @@ namespace Chained
 			return;
 		}
 
+		NametagSystem::Shutdown();
 		CleanupSkybox();
 
 		m_LightingManager.Shutdown();
@@ -83,6 +88,7 @@ namespace Chained
 		m_Data->Instancing.Capacity = 0;
 
 		GraphicsDevice::Get().Shutdown();
+		GraphicsDevice::Destroy();
 	}
 
 	Renderer::Renderer()

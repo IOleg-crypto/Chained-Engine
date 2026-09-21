@@ -31,6 +31,7 @@ ChainedEngine is a modular C++23 game engine with editor tooling, runtime packag
 - [Project Structure](#project-structure)
 - [Dependencies](#dependencies)
 - [Testing](#testing)
+- [Networking & Multiplayer](#networking--multiplayer)
 - [CI/CD](#cicd)
 - [Documentation](#documentation)
 - [Troubleshooting](#troubleshooting)
@@ -136,6 +137,8 @@ git config lfs.concurrenttransfers 16
 Key CMake configuration options:
 - `-DCH_ACTIVE_GAME=chaineddecos` (default) or `-DCH_ACTIVE_GAME=testproject`
 - `-DBUILD_TESTS=ON` (enabled by default)
+- `-DCH_ENABLE_UPNP=ON` (UPnP automatic port forwarding, default ON)
+- `-DCH_ENABLE_STUN=ON` (STUN public endpoint discovery, default ON)
 - `-DCH_ENGINE_SHARED=OFF` (static engine build)
 
 For detailed project setup and creating new games, refer to the [User Guide](docs/USER_GUIDE.md).
@@ -199,6 +202,44 @@ dotnet test "tests/managed/Chained.Managed.Tests.csproj"
 
 ---
 
+## Networking & Multiplayer
+
+ChainedEngine provides an authoritative host-client networking model built on multi-channel threaded **ENet (UDP)**:
+
+- **Channels:**
+  - `SYSTEM` (Ch 0, Reliable): Session lifecycle, entity replication, player assignment, scene switching.
+  - `SYNC` (Ch 1, Unreliable): High-frequency player input and position snapshot sync at 64 Hz.
+  - `EVENT` (Ch 2, Reliable): Chat messages and discrete gameplay events.
+  - `SCRIPT` (Ch 3, Reliable): Custom C# script RPCs.
+
+### Connection Modes
+
+1. **Virtual LAN & Local Networks (Radmin VPN, Hamachi, Tailscale, Local LAN):**
+   - Direct connection over virtual subnet IPs (e.g. `26.*.*.*` for Radmin VPN, `25.*.*.*` for Hamachi, `100.*.*.*` for Tailscale, or `192.168.*.*` for LAN).
+   - Zero configuration: players enter the host's virtual IP and click **Connect**.
+   - No router configuration or port forwarding needed.
+
+2. **Public Internet (WAN):**
+   - **UPnP (`CH_ENABLE_UPNP`):** Automatically forwards the hosting UDP port on UPnP-enabled routers.
+   - **STUN (`CH_ENABLE_STUN`):** Automatically discovers the host's public WAN IP and mapped port via STUN servers.
+   - **Manual Port Forwarding:** Forward UDP port `7777` (or custom port) on your router if UPnP is unavailable.
+
+### Build Macros & CMake Options
+
+You can toggle NAT traversal features via CMake:
+
+```bash
+# Build lightweight binary without UPnP and STUN (ideal for LAN / Radmin VPN):
+cmake -B build/windows-clang -DCH_ENABLE_UPNP=OFF -DCH_ENABLE_STUN=OFF
+```
+
+| CMake Option | C++ Macro | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `CH_ENABLE_UPNP` | `CH_ENABLE_UPNP` | `ON` | Enables miniupnpc for automatic router port mapping |
+| `CH_ENABLE_STUN` | `CH_ENABLE_STUN` | `ON` | Enables RFC 5389 STUN client for public endpoint resolution |
+
+---
+
 ## CI/CD
 
 Continuous Integration runs on every push and PR via GitHub Actions (`.github/workflows/`):
@@ -232,7 +273,7 @@ For in-depth guides and references, check the [`docs/`](docs/) directory:
 - **Clang not found on Windows:** Add LLVM bin path (`C:\Program Files\LLVM\bin`) to your system `PATH`.
 - **Submodules Missing:** Run `git submodule update --init --recursive`.
 - **LFS Assets Missing:** Run `git lfs pull` to fetch binary models, skyboxes, and textures.
-- **Multiplayer Port Forwarding:** Ensure UDP port 4588 is open in your firewall or UPnP is enabled on your router.
+- **Multiplayer Connection:** For public internet (WAN), ensure UDP port `7777` (or configured port) is open in your firewall or UPnP is enabled. For virtual LANs (Radmin VPN, Hamachi, Tailscale), simply enter the host's VPN IP directly.
 
 ---
 

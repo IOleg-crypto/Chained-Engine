@@ -26,14 +26,11 @@ namespace Chained
 			return node[key].as<T>(fallback);
 		}
 
-		namespace
+		std::string ToProjectRelativePath(const std::string& absPath)
 		{
-			static std::string ToProjectRelativePath(const std::string& absPath)
-			{
-				auto project = Project::GetActive();
-				return project ? project->GetRelativePath(absPath) : absPath;
-			}
-		} // namespace
+			auto project = Project::GetActive();
+			return project ? project->GetRelativePath(absPath) : absPath;
+		}
 
 		static void SerializeBackgroundSettings(YAML::Emitter& out, const SceneSettings& settings)
 		{
@@ -105,6 +102,8 @@ namespace Chained
 			out << YAML::Key << "DrawSpawnZones" << YAML::Value << settings.DebugFlags.DrawSpawnZones;
 			out << YAML::Key << "CollisionWireframeMode" << YAML::Value
 				<< settings.DebugFlags.SetCollisionWireframeMode;
+			out << YAML::Key << "MeshColliderAsBBox" << YAML::Value << settings.DebugFlags.MeshColliderAsBBox;
+			out << YAML::Key << "ColliderAlpha" << YAML::Value << settings.DebugFlags.ColliderAlpha;
 			out << YAML::EndMap;
 		}
 
@@ -176,6 +175,8 @@ namespace Chained
 			settings.DebugFlags.DrawLights = ReadYamlValue(debugNode, "DrawLights", true);
 			settings.DebugFlags.DrawSpawnZones = ReadYamlValue(debugNode, "DrawSpawnZones", true);
 			settings.DebugFlags.SetCollisionWireframeMode = ReadYamlValue(debugNode, "CollisionWireframeMode", 0);
+			settings.DebugFlags.MeshColliderAsBBox = ReadYamlValue(debugNode, "MeshColliderAsBBox", true);
+			settings.DebugFlags.ColliderAlpha = ReadYamlValue(debugNode, "ColliderAlpha", 0.6f);
 		}
 
 		static void DeserializeGridSettings(const YAML::Node& sceneRoot, GridSettings& grid)

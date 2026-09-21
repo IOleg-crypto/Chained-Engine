@@ -1,5 +1,5 @@
 #include "world_panel.h"
-#include "editor/layer.h"
+#include "editor/scene_manager.h"
 #include "editor/project/project_serializer.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/environment_asset.h"
@@ -52,7 +52,8 @@ namespace Chained
 		}
 	}
 
-	WorldPanel::WorldPanel()
+	WorldPanel::WorldPanel(EditorSceneManager* sceneManager)
+		: m_SceneManager(sceneManager)
 	{
 		m_Name = "World Settings";
 	}
@@ -262,7 +263,7 @@ namespace Chained
 
 			if (ImGui::IsItemDeactivatedAfterEdit())
 			{
-				SceneState state = EditorLayer::Get().GetSceneState();
+				SceneState state = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
 				if (state == SceneState::Play || state == SceneState::Simulate)
 				{
 					if (auto* physics = ServiceLocator::TryGet<Physics>())

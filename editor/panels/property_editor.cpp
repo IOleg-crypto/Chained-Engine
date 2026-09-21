@@ -1,9 +1,11 @@
 #include "property_editor.h"
+#include "engine/scene/components/core/tag_component.h"
+#include "engine/scene/components/core/transform_component.h"
 #include "engine/reflection/reflection_rfl.h"
 #include "engine/reflection/reflection_rfl_impl.h"
 #include "engine/scene/component_registry.h"
 #include "thirdparty/IconsFontAwesome6.h"
-#include "editor/layer.h"
+#include "editor/undo/command_history.h"
 #include "editor/undo/component_commands.h"
 #include "editor/undo/modify_component_command.h"
 #include "engine/core/service_locator.h"
@@ -29,6 +31,10 @@
 #include "engine/ui/ui_font_registry.h"
 #include "engine/ui/widget_renderer.h"
 
+namespace
+{
+	static Chained::CommandHistory* s_CommandHistory = nullptr;
+}
 namespace Chained
 {
 
@@ -360,8 +366,11 @@ namespace Chained
 					auto oldState = s_InitialStates[e];
 					auto newState = comp;
 
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<ModifyComponentCommand<T>>(entity, oldState, newState, "Modify " + name));
+					if (s_CommandHistory)
+					{
+						s_CommandHistory->PushCommand(
+							std::make_unique<ModifyComponentCommand<T>>(entity, oldState, newState, "Modify " + name));
+					}
 
 					s_InitialStates.erase(e);
 				}
@@ -391,8 +400,14 @@ namespace Chained
 					return false;
 				},
 				[&]() {
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<RemoveComponentCommand<T>>(entity));
+					if (s_CommandHistory)
+					{
+						s_CommandHistory->PushCommand(std::make_unique<RemoveComponentCommand<T>>(entity));
+					}
+					else
+					{
+						entity.RemoveComponent<T>();
+					}
 				});
 		}
 	}
@@ -449,11 +464,25 @@ namespace Chained
 		override.Add = [](Entity e) {
 			if (!e.HasComponent<T>())
 			{
-				EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<AddComponentCommand<T>>(e));
+				if (s_CommandHistory)
+				{
+					s_CommandHistory->PushCommand(std::make_unique<AddComponentCommand<T>>(e));
+				}
+				else
+				{
+					e.AddComponent<T>();
+				}
 			}
 		};
 		override.Remove = [](Entity e) {
-			EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<RemoveComponentCommand<T>>(e));
+			if (s_CommandHistory)
+			{
+				s_CommandHistory->PushCommand(std::make_unique<RemoveComponentCommand<T>>(e));
+			}
+			else
+			{
+				e.RemoveComponent<T>();
+			}
 		};
 		ComponentRegistry::OverrideMetadata(typeId, override);
 	}
@@ -473,8 +502,18 @@ namespace Chained
 
 	// --- Implementation ---
 
-	void PropertyEditor::Init()
+	void PropertyEditor::SetCommandHistory(CommandHistory* commandHistory)
 	{
+		if (commandHistory == nullptr)
+		{
+			CH_CORE_WARN("PropertyEditor::SetCommandHistory — commandHistory is nullptr. Undo/Redo will be disabled.");
+		}
+		s_CommandHistory = commandHistory;
+	}
+
+	void PropertyEditor::Init(CommandHistory* commandHistory)
+	{
+		s_CommandHistory = commandHistory;
 		// --- Core Components ---
 		ComponentRegistry::SetAllowAdd(entt::type_hash<TransformComponent>::value(), false);
 
@@ -1525,25 +1564,34 @@ namespace Chained
 		ImGui::PopStyleColor(3);
 		ImGui::PopStyleVar();
 
-		// Right-aligned settings button
-		ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.7f);
-		ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
-		if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
+		bool canRemove =
+			typeId != entt::type_hash<TagComponent>::value() && typeId != entt::type_hash<TransformComponent>::value();
+
+		if (canRemove)
 		{
-			ImGui::OpenPopup("ComponentSettings");
+			// Right-aligned settings button
+			ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.7f);
+			ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+			if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
+			{
+				ImGui::OpenPopup("ComponentSettings");
+			}
+			ImGui::PopStyleColor();
 		}
-		ImGui::PopStyleColor();
 
 		bool removed = false;
-		if (ImGui::BeginPopup("ComponentSettings"))
+		if (canRemove)
 		{
-			if (ImGui::MenuItem("Remove Component"))
+			if (ImGui::BeginPopup("ComponentSettings"))
 			{
-				remover();
-				removed = true;
-			}
+				if (ImGui::MenuItem("Remove Component"))
+				{
+					remover();
+					removed = true;
+				}
 
-			ImGui::EndPopup();
+				ImGui::EndPopup();
+			}
 		}
 
 		if (open)

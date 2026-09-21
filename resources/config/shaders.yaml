@@ -11,3 +11,4 @@ Shaders:
   ColliderDebug: "engine/resources/shaders/debug/collider_debug.chshader"
   Grid: "engine/resources/shaders/debug/grid.chshader"
   PostProcess: "engine/resources/shaders/postfx/post_process.chshader"
+  Nametag: "engine/resources/shaders/materials/nametag.chshader"
