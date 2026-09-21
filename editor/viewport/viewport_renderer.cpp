@@ -168,6 +168,8 @@ namespace Chained
 		options.ShowDebugColliders = currentDebugFlags.DrawColliders;
 		options.ShowDebugSpawnZones = currentDebugFlags.DrawSpawnZones;
 		options.SetCollisionWireframeMode = currentDebugFlags.SetCollisionWireframeMode;
+		options.MeshColliderAsBBox = currentDebugFlags.MeshColliderAsBBox;
+		options.ColliderAlpha = currentDebugFlags.ColliderAlpha;
 		m_SceneRenderer->RenderScene(scene->GetRegistry(), scene->GetSettings(), cam, options);
 
 		if (showEditorIcons)

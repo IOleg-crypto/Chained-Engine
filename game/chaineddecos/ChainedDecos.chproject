@@ -22,9 +22,9 @@ Project:
     Height: 1080
     VSync: false
   Audio:
-    MasterVolume: 1
-    MusicVolume: 1
-    SFXVolume: 1
+    MasterVolume: 0
+    MusicVolume: 0
+    SFXVolume: 0
   Runtime:
     Fullscreen: false
     ShowStats: true

@@ -45,8 +45,7 @@ namespace Chained
 
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
 								 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking |
-								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
-								 ImGuiWindowFlags_NoInputs;
+								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, EditorColors::LoadingOverlayBg);
@@ -508,6 +507,11 @@ namespace Chained
 
 	void EditorLayer::OnEvent(Event& e)
 	{
+		if (m_SceneManager->IsLoading())
+		{
+			return;
+		}
+
 		if (auto scene = GetActiveScene())
 		{
 			scene->OnEvent(e);

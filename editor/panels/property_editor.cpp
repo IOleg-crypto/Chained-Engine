@@ -1,4 +1,6 @@
 #include "property_editor.h"
+#include "engine/scene/components/core/tag_component.h"
+#include "engine/scene/components/core/transform_component.h"
 #include "engine/reflection/reflection_rfl.h"
 #include "engine/reflection/reflection_rfl_impl.h"
 #include "engine/scene/component_registry.h"
@@ -8,11 +10,6 @@
 #include "editor/undo/modify_component_command.h"
 #include "engine/core/service_locator.h"
 #include "gui.h"
-
-namespace
-{
-	static Chained::CommandHistory* s_CommandHistory = nullptr;
-}
 
 #include "engine/physics/physics.h"
 #include "engine/scene/scene_settings.h"
@@ -34,6 +31,10 @@ namespace
 #include "engine/ui/ui_font_registry.h"
 #include "engine/ui/widget_renderer.h"
 
+namespace
+{
+	static Chained::CommandHistory* s_CommandHistory = nullptr;
+}
 namespace Chained
 {
 
@@ -503,6 +504,10 @@ namespace Chained
 
 	void PropertyEditor::SetCommandHistory(CommandHistory* commandHistory)
 	{
+		if (commandHistory == nullptr)
+		{
+			CH_CORE_WARN("PropertyEditor::SetCommandHistory — commandHistory is nullptr. Undo/Redo will be disabled.");
+		}
 		s_CommandHistory = commandHistory;
 	}
 
@@ -1559,25 +1564,34 @@ namespace Chained
 		ImGui::PopStyleColor(3);
 		ImGui::PopStyleVar();
 
-		// Right-aligned settings button
-		ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.7f);
-		ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
-		if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
+		bool canRemove =
+			typeId != entt::type_hash<TagComponent>::value() && typeId != entt::type_hash<TransformComponent>::value();
+
+		if (canRemove)
 		{
-			ImGui::OpenPopup("ComponentSettings");
+			// Right-aligned settings button
+			ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.7f);
+			ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+			if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
+			{
+				ImGui::OpenPopup("ComponentSettings");
+			}
+			ImGui::PopStyleColor();
 		}
-		ImGui::PopStyleColor();
 
 		bool removed = false;
-		if (ImGui::BeginPopup("ComponentSettings"))
+		if (canRemove)
 		{
-			if (ImGui::MenuItem("Remove Component"))
+			if (ImGui::BeginPopup("ComponentSettings"))
 			{
-				remover();
-				removed = true;
-			}
+				if (ImGui::MenuItem("Remove Component"))
+				{
+					remover();
+					removed = true;
+				}
 
-			ImGui::EndPopup();
+				ImGui::EndPopup();
+			}
 		}
 
 		if (open)

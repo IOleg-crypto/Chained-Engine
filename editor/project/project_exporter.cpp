@@ -180,16 +180,22 @@ namespace Chained
 		}
 		else
 		{
-			const float threshold = (exp.Mode == PackMode::Max) ? 0.0f : exp.ZipThreshold;
+			const float threshold = (exp.Mode == PackMode::Max) ? 0.05f : exp.ZipThreshold;
 			const bool preferSpeed = (exp.Mode == PackMode::Fast);
 			std::string packError;
 
 			ParallelPackConfig customCfg;
 			if (exp.Mode == PackMode::Max)
 			{
-				customCfg.ZstdWindowLog = 27; // 128MB LRM window for maximum compression
+				const unsigned int hw = std::max(1u, std::thread::hardware_concurrency());
+				// Compress hw files simultaneously, each on a single ZSTD thread.
+				// Optimal for many files (1000+ textures): parallel file throughput >> ZSTDMT gain per file.
+				// ZstdWorkers=0 avoids thread oversubscription.
+				// ZstdWindowLog left at default (23 = 8MB) — keeps RAM at ~16MB per thread,
+				// preventing OOM with 16+ workers while maintaining excellent ratio for typical assets.
+				customCfg.FileWorkers = hw;
+				customCfg.ZstdWorkers = 0;
 				customCfg.EnableLongRangeMatching = true;
-				customCfg.FileWorkers = 4; // Capped to 4 workers to prevent RAM exhaustion during 128MB LRM
 			}
 
 			packSuccess = ResourcePacker::Pack(packPath, packBaseName, items, exp.DataVersion, threshold, preferSpeed,

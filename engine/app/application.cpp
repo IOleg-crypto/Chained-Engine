@@ -83,7 +83,7 @@ namespace Chained
 		}
 	}
 
-	void Application::RegisterCoreServices()
+	void Application::RegisterCoreServices() const
 	{
 		unsigned int threads = std::thread::hardware_concurrency();
 		if (threads == 0)

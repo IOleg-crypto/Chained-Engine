@@ -77,6 +77,16 @@ namespace Chained
 			out << YAML::Key << "DataVersion" << YAML::Value << config.Export.DataVersion;
 			out << YAML::Key << "SplitSizeMB" << YAML::Value << config.Export.SplitSizeMB;
 			out << YAML::Key << "PackName" << YAML::Value << config.Export.PackName;
+
+			if (!config.Export.ExcludedScenes.empty())
+			{
+				out << YAML::Key << "ExcludedScenes" << YAML::Value << YAML::BeginSeq;
+				for (const auto& scene : config.Export.ExcludedScenes)
+				{
+					out << scene;
+				}
+				out << YAML::EndSeq;
+			}
 			out << YAML::EndMap;
 
 			out << YAML::Key << "BuildConfig" << YAML::Value << static_cast<int>(config.BuildConfig);
@@ -219,6 +229,16 @@ namespace Chained
 			if (config.Export.PackName.empty())
 			{
 				config.Export.PackName = "resources";
+			}
+			if (auto exclusions = exportNode["ExcludedScenes"])
+			{
+				if (exclusions.IsSequence())
+				{
+					for (auto it = exclusions.begin(); it != exclusions.end(); ++it)
+					{
+						config.Export.ExcludedScenes.push_back(it->as<std::string>());
+					}
+				}
 			}
 		}
 

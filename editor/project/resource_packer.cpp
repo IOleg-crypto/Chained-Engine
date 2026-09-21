@@ -9,6 +9,8 @@
 // ZSTD C API — used directly to control LRM and ZSTDMT without modifying thirdparty/.
 // zstd.h wraps itself in extern "C" when compiled as C++, so no wrapper needed.
 #include "zstd.h"
+// zdict.h — ZSTD dictionary training API (ZSTD_trainFromBuffer, ZSTD_createCDict)
+#include "zdict.h"
 // lz4hc.h — fallback compressor for preferSpeed chunks (already compiled into lz4_static)
 #include "lz4hc.h"
 
@@ -24,6 +26,10 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include "engine/assets/loaders/model_loader.h"
+#include <cereal/archives/binary.hpp>
+#include "engine/common/zstd_compression.h"
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -76,15 +82,41 @@ namespace Chained
 			std::string itemPath;		  // pack key (used as path in header)
 			std::vector<uint8_t> rawData; // original file bytes (kept for dedup compare)
 			std::vector<uint8_t> zipData; // compressed bytes (empty → store raw)
-			uint32_t dataSize = 0;		  // uncompressed size
-			uint32_t zipSize = 0;		  // compressed size (0 → stored uncompressed)
-			uint64_t xxh3 = 0;			  // XX_H3 hash of the data written to disk
+			// Backup of rawData before chasset decompression — restored if ZSTD fails so we
+			// never write more bytes to the pack than the file originally occupied on disk.
+			std::vector<uint8_t> originalRawData;
+			uint32_t dataSize = 0; // uncompressed size
+			uint32_t zipSize = 0;  // compressed size (0 → stored uncompressed)
+			uint64_t xxh3 = 0;	   // XX_H3 hash of the data written to disk
 			bool ok = true;
 			std::string error;
 		};
 
-		/// @brief Compress a single file with ZSTD (level max, optional LRM/MT).
-		static CompressedEntry CompressOneFile(const PackItem& item, float zipThreshold, const ParallelPackConfig& cfg)
+		/// @brief Returns true for formats that are already compressed and gain nothing (or grow) from ZSTD.
+		static bool IsAlreadyCompressedFormat(const fs::path& ext)
+		{
+			// Texture formats with internal compression
+			if (ext == ".ktx2" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp")
+			{
+				return true;
+			}
+			// Audio formats
+			if (ext == ".ogg" || ext == ".mp3" || ext == ".opus" || ext == ".flac")
+			{
+				return true;
+			}
+			// Archive / already-compressed containers
+			if (ext == ".zip" || ext == ".gz" || ext == ".zst" || ext == ".br")
+			{
+				return true;
+			}
+			return false;
+		}
+
+		/// @brief Compress a single file with ZSTD (level max, optional LRM, optional shared CDict).
+		/// @param dict Pre-trained ZSTD dictionary shared across all parallel workers. May be nullptr.
+		static CompressedEntry CompressOneFile(const PackItem& item, float zipThreshold, const ParallelPackConfig& cfg,
+											   const ZSTD_CDict* dict)
 		{
 			CompressedEntry entry;
 			entry.itemPath = item.PackKey.generic_string();
@@ -126,9 +158,166 @@ namespace Chained
 
 			entry.dataSize = static_cast<uint32_t>(fileSize);
 
+			// Fast path: already-compressed formats gain nothing from ZSTD and may even grow.
+			// Store them raw immediately — no need to attempt compression at all.
+			if (IsAlreadyCompressedFormat(item.Source.extension()))
+			{
+				entry.zipSize = 0; // sentinel: stored uncompressed
+				entry.xxh3 = XXH64(entry.rawData.data(), entry.dataSize, 0);
+				return entry;
+			}
+
+			// Unpack .chasset / .chmesh payload before passing to ZSTD LRM to avoid double-compression
+			bool isModelAsset = (item.Source.extension() == ".chasset" || item.Source.extension() == ".chmesh");
+
+			if (isModelAsset && entry.rawData.size() > sizeof(ChainedAssetHeader))
+			{
+				try
+				{
+					struct MemStreamBuf : public std::streambuf
+					{
+						MemStreamBuf(char* base, size_t size)
+						{
+							setg(base, base, base + size);
+						}
+
+						size_t Tell() const
+						{
+							return static_cast<size_t>(gptr() - eback());
+						}
+
+					protected:
+						pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+										 std::ios_base::openmode which = std::ios_base::in) override
+						{
+							if (dir == std::ios_base::cur)
+							{
+								gbump(static_cast<int>(off));
+							}
+							else if (dir == std::ios_base::end)
+							{
+								setg(eback(), egptr() + off, egptr());
+							}
+							else if (dir == std::ios_base::beg)
+							{
+								setg(eback(), eback() + off, egptr());
+							}
+							return gptr() - eback();
+						}
+						pos_type seekpos(pos_type sp, std::ios_base::openmode which = std::ios_base::in) override
+						{
+							return seekoff(sp - pos_type(0), std::ios_base::beg, which);
+						}
+					};
+					MemStreamBuf msb(reinterpret_cast<char*>(entry.rawData.data()), entry.rawData.size());
+					std::istream is(&msb);
+					ChainedAssetHeader header;
+					{
+						cereal::BinaryInputArchive archive(is);
+						archive(header);
+					}
+
+					if (header.compressed && header.compressedSize > 0)
+					{
+						// Guard: if the uncompressed payload exceeds the ZSTD window size,
+						// decompressing it just to hand it to ZSTD is pointless — ZSTD can't
+						// reference data outside the window anyway, so ratio won't improve.
+						// More importantly, on huge models (200MB+) the ZSTD context itself
+						// requires ~windowSize of RAM per worker thread, causing OOM.
+						const uint64_t windowBytes =
+							cfg.ZstdWindowLog > 0 ? (1ULL << cfg.ZstdWindowLog) : (128ULL * 1024 * 1024);
+						if (static_cast<uint64_t>(header.uncompressedSize) > windowBytes)
+						{
+							CH_CORE_TRACE("ResourcePacker: Skipping unpack of '{}' — uncompressed {} MB > window {} "
+										  "MB, keeping internal compression",
+										  item.PackKey.generic_string(), header.uncompressedSize / (1024 * 1024),
+										  windowBytes / (1024 * 1024));
+						}
+						else
+						{
+							size_t headerSize = msb.Tell();
+							if (headerSize + header.compressedSize <= entry.rawData.size())
+							{
+								auto decompressed = Zstd::Decompress(entry.rawData.data() + headerSize,
+																	 static_cast<size_t>(header.compressedSize),
+																	 static_cast<size_t>(header.uncompressedSize));
+								if (!decompressed.empty())
+								{
+									header.compressed = false;
+									header.compressedSize = 0;
+
+									std::stringstream ss;
+									{
+										cereal::BinaryOutputArchive archive(ss);
+										archive(header);
+									}
+									std::string newHeaderStr = ss.str();
+
+									std::vector<uint8_t> newRawData(newHeaderStr.size() + decompressed.size());
+									std::memcpy(newRawData.data(), newHeaderStr.data(), newHeaderStr.size());
+									std::memcpy(newRawData.data() + newHeaderStr.size(), decompressed.data(),
+												decompressed.size());
+
+									// Remember original in case ZSTD OOMs on this file —
+									// we restore it so we never store MORE bytes than the file on disk.
+									entry.originalRawData = entry.rawData;
+									entry.rawData = std::move(newRawData);
+									entry.dataSize = static_cast<uint32_t>(entry.rawData.size());
+									CH_CORE_INFO(
+										"ResourcePacker: Unpacked .chasset '{}' for LRM compression ({} -> {} bytes)",
+										item.PackKey.generic_string(), fileSize, entry.dataSize);
+								}
+								else
+								{
+									CH_CORE_WARN("ResourcePacker: Failed to unpack .chasset '{}'",
+												 item.PackKey.generic_string());
+								}
+							}
+							else
+							{
+								CH_CORE_WARN("ResourcePacker: Invalid sizes for .chasset '{}' (headerSize={}, "
+											 "compSize={}, rawSize={})",
+											 item.PackKey.generic_string(), headerSize, header.compressedSize,
+											 entry.rawData.size());
+							}
+						}
+					}
+				} catch (const std::exception& e)
+				{
+					CH_CORE_WARN("ResourcePacker: Exception unpacking .chasset '{}': {}", item.PackKey.generic_string(),
+								 e.what());
+				} catch (...)
+				{
+					CH_CORE_WARN("ResourcePacker: Unknown exception unpacking .chasset '{}'",
+								 item.PackKey.generic_string());
+				}
+			}
+
 			// Compression threshold: max compressed bytes allowed before we store raw
 			const uint32_t maxZipSize =
 				entry.dataSize - static_cast<uint32_t>(static_cast<double>(entry.dataSize) * zipThreshold);
+
+			// Large-file guard: if the payload exceeds 4× the ZSTD window, compressing it in
+			// parallel would require enormous RAM (input + output + context per thread) and yield
+			// almost no benefit — the file is already internally compressed by the chasset pipeline.
+			// Store raw immediately; the chasset internal ZSTD is the best we can do here.
+			const uint64_t windowBytes = cfg.ZstdWindowLog > 0 ? (1ULL << cfg.ZstdWindowLog) : (8ULL * 1024 * 1024);
+			if (static_cast<uint64_t>(entry.dataSize) > windowBytes * 4)
+			{
+				// Restore original if we had decompressed it (uncompressed > disk size)
+				if (!entry.originalRawData.empty())
+				{
+					entry.rawData = std::move(entry.originalRawData);
+					entry.dataSize = static_cast<uint32_t>(entry.rawData.size());
+				}
+				entry.zipSize = 0;
+				entry.zipData.clear();
+				entry.zipData.shrink_to_fit();
+				entry.xxh3 = XXH64(entry.rawData.data(), entry.dataSize, 0);
+				CH_CORE_TRACE("ResourcePacker: Skipping ZSTD for large file '{}' ({} MB > 4× window)",
+							  item.PackKey.generic_string(), entry.dataSize / (1024 * 1024));
+				return entry;
+			}
 
 			// Create per-thread ZSTD context
 			ZSTD_CCtx* cctx = ZSTD_createCCtx();
@@ -145,11 +334,28 @@ namespace Chained
 			if (cfg.ZstdWindowLog > 0)
 			{
 				ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, static_cast<int>(cfg.ZstdWindowLog));
+				// CRITICAL: Level 22 (btultra2) defaults to hashLog=25 (32MB) and chainLog=28
+				// (256MB) regardless of windowLog — wasting ~288MB per CCtx when window is only
+				// 8MB. Cap both to windowLog+1 so hash/chain tables match the actual window.
+				// 16 threads: 32MB each instead of 288MB each (512MB total vs 4.6GB).
+				const int capLog = static_cast<int>(cfg.ZstdWindowLog) + 1;
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, std::min(capLog, 25));
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_chainLog, std::min(capLog, 28));
 			}
 
 			if (cfg.EnableLongRangeMatching)
 			{
 				ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1);
+				// ldmHashLog=20: ~1MB hash table, well-matched to 8MB window (windowLog=23)
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashLog, 20);
+				// ldmMinMatch=32: catches shorter repeating patterns (mesh vertices, UV coords)
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmMinMatch, 32);
+				// ldmHashRateLog=5: sample every 32 bytes — dense enough for small-window LRM
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashRateLog, 5);
+				// ldmBucketSizeLog=3: 8 entries per bucket, reduces collision evictions
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmBucketSizeLog, 3);
+				// overlapLog=9: carry maximum block history forward for cross-block matches
+				ZSTD_CCtx_setParameter(cctx, ZSTD_c_overlapLog, 9);
 			}
 
 			if (cfg.ZstdWorkers > 0)
@@ -162,12 +368,27 @@ namespace Chained
 			entry.zipData.resize(bound);
 
 			// Execute single-shot compression.
-			// ZSTD_compressCCtx automatically honors all parameters set on cctx,
-			// including ZSTD_c_nbWorkers and ZSTD_c_enableLongDistanceMatching.
-			size_t result = ZSTD_compressCCtx(cctx, entry.zipData.data(), bound, entry.rawData.data(), entry.dataSize,
-											  ZSTD_maxCLevel());
+			// When a pre-trained dictionary is available, use it — it substitutes for the cross-file
+			// sliding-window history that single-threaded streaming used to provide, recovering ratio.
+			// Fall back to ZSTD_compress2 (plain CCtx parameters only) when no dictionary was built.
+			size_t result;
+			if (dict)
+			{
+				result = ZSTD_compress_usingCDict(cctx, entry.zipData.data(), bound, entry.rawData.data(),
+												  entry.dataSize, dict);
+			}
+			else
+			{
+				result = ZSTD_compress2(cctx, entry.zipData.data(), bound, entry.rawData.data(), entry.dataSize);
+			}
 
 			ZSTD_freeCCtx(cctx);
+
+			if (ZSTD_isError(result))
+			{
+				CH_CORE_WARN("ResourcePacker: ZSTD_compressCCtx failed for '{}': {}", item.PackKey.generic_string(),
+							 ZSTD_getErrorName(result));
+			}
 
 			if (!ZSTD_isError(result) && static_cast<uint32_t>(result) <= maxZipSize)
 			{
@@ -176,13 +397,25 @@ namespace Chained
 				entry.zipData.resize(entry.zipSize);
 				entry.xxh3 = XXH64(entry.zipData.data(), entry.zipSize, 0);
 
-				// Immediately free rawData to prevent peak RAM explosion
+				// Free rawData and backup to prevent peak RAM explosion
 				entry.rawData.clear();
 				entry.rawData.shrink_to_fit();
+				entry.originalRawData.clear();
+				entry.originalRawData.shrink_to_fit();
 			}
 			else
 			{
-				// Store raw: zipSize == 0 signals "uncompressed" to the writer below
+				// Store raw: zipSize == 0 signals "uncompressed" to the writer below.
+				// If we had decompressed a chasset and ZSTD then failed (OOM) or couldn't
+				// beat the threshold, restore the original compressed bytes — they are
+				// smaller than the expanded payload, avoiding pack inflation.
+				if (!entry.originalRawData.empty())
+				{
+					entry.rawData = std::move(entry.originalRawData);
+					entry.dataSize = static_cast<uint32_t>(entry.rawData.size());
+					CH_CORE_TRACE("ResourcePacker: ZSTD failed for '{}', reverted to original {} bytes",
+								  item.PackKey.generic_string(), entry.dataSize);
+				}
 				entry.zipSize = 0;
 				entry.zipData.clear();
 				entry.zipData.shrink_to_fit();
@@ -218,14 +451,93 @@ namespace Chained
 			}
 
 			// ---------------------------------------------------------------
-			// Phase 1: Parallel compression
+			// Phase 0: ZSTD Dictionary Training
+			// Build a shared CDict from samples of all files so that each
+			// per-thread CCtx benefits from cross-file pattern knowledge —
+			// recovering the compression ratio that single-threaded streaming
+			// provided via a shared sliding-window context.
 			// ---------------------------------------------------------------
 			const unsigned int hwThreads = std::thread::hardware_concurrency();
-			const unsigned int fileWorkers =
-				(cfg.FileWorkers > 0) ? cfg.FileWorkers : std::min(4u, std::max(1u, hwThreads));
+			const unsigned int fileWorkers = (cfg.FileWorkers > 0) ? cfg.FileWorkers : std::max(1u, hwThreads);
 
 			std::vector<CompressedEntry> entries(chunkItems.size());
 			std::atomic<size_t> nextJob{0};
+
+			ZSTD_CDict* cdict = nullptr;
+			if (cfg.DictionarySize > 0 && !chunkItems.empty())
+			{
+				// Collect training samples: up to DictSampleSizePerFile bytes from each file.
+				std::vector<uint8_t> trainBuf;
+				std::vector<size_t> sampleSizes;
+				trainBuf.reserve(cfg.DictSampleSizePerFile * chunkItems.size());
+
+				for (const auto& item : chunkItems)
+				{
+					if (IsAlreadyCompressedFormat(item.Source.extension()))
+					{
+						continue; // skip already-compressed — they won't use the dict anyway
+					}
+
+					std::error_code ec;
+					const uint64_t fsz = fs::file_size(item.Source, ec);
+					if (ec || fsz == 0)
+					{
+						continue;
+					}
+
+					const size_t sampleSz =
+						static_cast<size_t>(std::min<uint64_t>(fsz, static_cast<uint64_t>(cfg.DictSampleSizePerFile)));
+
+					FILE* f =
+#if defined(_WIN32)
+						_wfopen(item.Source.wstring().c_str(), L"rb");
+#else
+						fopen(item.Source.string().c_str(), "rb");
+#endif
+					if (!f)
+					{
+						continue;
+					}
+
+					const size_t before = trainBuf.size();
+					trainBuf.resize(before + sampleSz);
+					const size_t rd = fread(trainBuf.data() + before, 1, sampleSz, f);
+					fclose(f);
+
+					if (rd > 0)
+					{
+						trainBuf.resize(before + rd);
+						sampleSizes.push_back(rd);
+					}
+					else
+					{
+						trainBuf.resize(before);
+					}
+				}
+
+				if (!sampleSizes.empty())
+				{
+					std::vector<uint8_t> dictBuf(cfg.DictionarySize);
+					const size_t dictSz = ZDICT_trainFromBuffer(dictBuf.data(), dictBuf.size(), trainBuf.data(),
+																sampleSizes.data(), sampleSizes.size());
+
+					if (!ZDICT_isError(dictSz))
+					{
+						dictBuf.resize(dictSz);
+						cdict = ZSTD_createCDict(dictBuf.data(), dictSz, ZSTD_maxCLevel());
+						if (cdict)
+						{
+							CH_CORE_INFO(
+								"ResourcePacker: ZSTD dict trained — {} bytes from {} samples, {} file workers", dictSz,
+								sampleSizes.size(), fileWorkers);
+						}
+					}
+					else
+					{
+						CH_CORE_WARN("ResourcePacker: ZSTD dict training failed: {}", ZDICT_getErrorName(dictSz));
+					}
+				}
+			}
 
 			// Worker lambda: each thread picks the next unprocessed file
 			auto worker = [&]() {
@@ -244,7 +556,7 @@ namespace Chained
 
 					try
 					{
-						entries[idx] = CompressOneFile(chunkItems[idx], zipThreshold, cfg);
+						entries[idx] = CompressOneFile(chunkItems[idx], zipThreshold, cfg, cdict);
 					} catch (const std::bad_alloc&)
 					{
 						aborted.store(true);
@@ -278,6 +590,9 @@ namespace Chained
 				}
 			};
 
+			// ---------------------------------------------------------------
+			// Phase 1: Parallel compression
+			// ---------------------------------------------------------------
 			// Launch fileWorkers - 1 extra threads; current thread is the Nth worker
 			std::vector<std::future<void>> futures;
 			futures.reserve(fileWorkers > 1 ? fileWorkers - 1 : 0);
@@ -289,6 +604,13 @@ namespace Chained
 			for (auto& f : futures)
 			{
 				f.get();
+			}
+
+			// Dictionary is only needed during compression — free it now
+			if (cdict)
+			{
+				ZSTD_freeCDict(cdict);
+				cdict = nullptr;
 			}
 
 			if (aborted.load(std::memory_order_relaxed) || IsCancelled(cancelFlag))
@@ -623,7 +945,7 @@ namespace Chained
 		{
 			const unsigned int hwThreads = std::thread::hardware_concurrency();
 			const unsigned int fileWorkers =
-				(effectiveCfg.FileWorkers > 0) ? effectiveCfg.FileWorkers : std::min(4u, std::max(1u, hwThreads));
+				(effectiveCfg.FileWorkers > 0) ? effectiveCfg.FileWorkers : std::max(1u, hwThreads);
 			CH_CORE_INFO(
 				"ResourcePacker::Pack — {} items | {} file-workers | ZSTD level {} | LRM={} windowLog={} | zstdMT={}",
 				items.size(), fileWorkers, ZSTD_maxCLevel(), effectiveCfg.EnableLongRangeMatching ? "on" : "off",

@@ -79,6 +79,12 @@ namespace Chained
 
 	void EditorPanels::SetContext(const std::shared_ptr<Scene>& context)
 	{
+		if (!context || m_Context == context)
+		{
+			return;
+		}
+
+		m_Context = context;
 		for (auto& panel : m_Panels)
 		{
 			panel->SetContext(context);

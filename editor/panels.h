@@ -77,6 +77,7 @@ namespace Chained
 
 	private:
 		std::vector<std::shared_ptr<Panel>> m_Panels;
+		std::shared_ptr<Scene> m_Context;
 	};
 
 } // namespace Chained

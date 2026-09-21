@@ -766,7 +766,7 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     TagComponent:
-      Tag: Static Collider
+      Tag: EndGameZone
     IDComponent:
       {}
     ColliderComponent:
@@ -777,9 +777,9 @@ Entities:
       Height: 1
       Friction: 0.5
       Restitution: 0
-      IsTrigger: false
+      IsTrigger: true
       Enabled: true
-      AutoCalculate: true
+      AutoCalculate: false
       UseFastBuildQuality: true
       ModelPath: ""
       ModelUUID: 0

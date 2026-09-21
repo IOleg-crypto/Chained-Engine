@@ -1,5 +1,9 @@
 #include "asset_dependency_collector.h"
+#include "project_serializer.h"
 #include "engine/core/log.h"
+#include "engine/project/project.h"
+#include "engine/assets/loaders/model_loader.h"
+#include <memory>
 
 #include <algorithm>
 #include <cctype>
@@ -51,10 +55,10 @@ namespace Chained
 			return true;
 		}
 
-		// Exclude source code, IDE, VCS, build output directories
-		static const std::vector<std::string> kIgnoredPathTokens = {"scripts/", ".idea/", ".vs/",		  ".vscode/",
-																	".git/",	"obj/",	  "bin/",		  "debug/",
-																	"release/", "x64/",	  "__pycache__/", "tests/"};
+		// Exclude source code, IDE, VCS, build output directories, and editor-only folders
+		static const std::vector<std::string> kIgnoredPathTokens = {
+			"scripts/", ".idea/",	".vs/", ".vscode/",		".git/",  "obj/",		  "bin/",
+			"debug/",	"release/", "x64/", "__pycache__/", "tests/", "map_previews/"};
 		for (const auto& token : kIgnoredPathTokens)
 		{
 			if (lower.find(token) != std::string::npos)
@@ -68,13 +72,6 @@ namespace Chained
 			".cs",	".csproj", ".sln",	".user", ".pdb", ".ilk",  ".obj",	   ".meta",	  ".chmeta", ".tmp",
 			".bak", ".log",	   ".tlog", ".txt",	 ".md",	 ".orig", ".autosave", ".blend1", ".blend2"};
 		if (kIgnoredExts.count(ext) > 0)
-		{
-			return true;
-		}
-
-		// Exclude test files and test scenes from pack
-		std::string stem = StringToLower(relPath.stem().string());
-		if (stem.find("test") != std::string::npos)
 		{
 			return true;
 		}
@@ -121,7 +118,8 @@ namespace Chained
 
 	void AssetDependencyCollector::ScanTextForReferences(
 		const fs::path& fullPath, const std::unordered_map<std::string, fs::path>& allAssetsLower,
-		std::unordered_set<std::string>& referencedLower, std::vector<fs::path>& newReferences)
+		std::unordered_set<std::string>& referencedLower, std::vector<fs::path>& newReferences,
+		const std::unordered_set<std::string>& excludedKeys)
 	{
 		std::ifstream f(fullPath, std::ios::binary);
 		if (!f.is_open())
@@ -129,42 +127,24 @@ namespace Chained
 			return;
 		}
 
-		std::string line;
-		while (std::getline(f, line))
-		{
-			// Extract potential candidate path after ':' or '-'
-			std::string candidate;
-			auto colonPos = line.find(':');
-			if (colonPos != std::string::npos)
-			{
-				candidate = line.substr(colonPos + 1);
-			}
-			else
-			{
-				auto dashPos = line.find("- ");
-				if (dashPos != std::string::npos)
-				{
-					candidate = line.substr(dashPos + 2);
-				}
-			}
-
+		auto tryAddCandidate = [&](std::string candidate) {
 			if (candidate.empty())
 			{
-				continue;
+				return;
 			}
 
 			// Trim quotes, spaces, brackets
 			size_t start = candidate.find_first_not_of(" \t\"'{}\r\n[]");
 			if (start == std::string::npos)
 			{
-				continue;
+				return;
 			}
 			size_t end = candidate.find_last_not_of(" \t\"'{}\r\n[]");
 			candidate = candidate.substr(start, end - start + 1);
 
 			if (candidate.empty() || candidate == "\"\"" || candidate == "{}")
 			{
-				continue;
+				return;
 			}
 
 			std::string key = NormalizeKey(fs::path(candidate));
@@ -175,12 +155,53 @@ namespace Chained
 				key = key.substr(7);
 			}
 
+			if (excludedKeys.count(key))
+			{
+				return;
+			}
+
 			auto it = allAssetsLower.find(key);
 			if (it != allAssetsLower.end())
 			{
 				if (referencedLower.insert(key).second)
 				{
 					newReferences.push_back(it->second);
+				}
+			}
+		};
+
+		std::string line;
+		while (std::getline(f, line))
+		{
+			// 1. Extract potential candidate path after ':' or '-'
+			auto colonPos = line.find(':');
+			if (colonPos != std::string::npos)
+			{
+				tryAddCandidate(line.substr(colonPos + 1));
+			}
+			else
+			{
+				auto dashPos = line.find("- ");
+				if (dashPos != std::string::npos)
+				{
+					tryAddCandidate(line.substr(dashPos + 2));
+				}
+			}
+
+			// 2. Also extract all quoted string literals ("path" or 'path') in the line (handles C# scripts, JSON,
+			// YAML)
+			for (char quote : {'"', '\''})
+			{
+				size_t qStart = 0;
+				while ((qStart = line.find(quote, qStart)) != std::string::npos)
+				{
+					size_t qEnd = line.find(quote, qStart + 1);
+					if (qEnd == std::string::npos)
+					{
+						break;
+					}
+					tryAddCandidate(line.substr(qStart + 1, qEnd - qStart - 1));
+					qStart = qEnd + 1;
 				}
 			}
 		}
@@ -211,21 +232,98 @@ namespace Chained
 			allAssetsLower.emplace(NormalizeKey(rel), rel);
 		}
 
-		// 3. Seed roots: all game scenes in scenes/ + shaders + icons
+		// 3. Seed roots:
 		std::unordered_set<std::string> referencedLower;
 		std::vector<fs::path> workQueue;
 
+		std::shared_ptr<Project> dummyProject = std::make_shared<Project>();
+		EditorProjectSerializer::Deserialize(dummyProject, chprojectFile);
+		const auto& projConfig = dummyProject->GetConfig();
+
+		std::unordered_set<std::string> excludedScenesLower;
+		for (const auto& exc : projConfig.Export.ExcludedScenes)
+		{
+			std::string key = NormalizeKey(fs::path(exc));
+			if (key.starts_with("assets/"))
+			{
+				key = key.substr(7);
+			}
+			excludedScenesLower.insert(key);
+		}
+
+		// A. Seed from StartScene only (not ActiveScene — that is the editor's last open scene,
+		//    not necessarily part of the game's reachable graph).
+		{
+			std::ifstream f(chprojectFile);
+			std::string line;
+			while (std::getline(f, line))
+			{
+				const std::string trimmed = [&line]() {
+					size_t s = line.find_first_not_of(" \t");
+					return s == std::string::npos ? std::string{} : line.substr(s);
+				}();
+				if (trimmed.rfind("StartScene:", 0) == 0)
+				{
+					const std::string val = trimmed.substr(11);
+					std::vector<fs::path> refs;
+					// Re-use the single-candidate path via a tiny helper:
+					auto tryOne = [&](std::string candidate) {
+						size_t s = candidate.find_first_not_of(" \t\"'");
+						if (s == std::string::npos)
+						{
+							return;
+						}
+						size_t e = candidate.find_last_not_of(" \t\"'\r\n");
+						candidate = candidate.substr(s, e - s + 1);
+						if (candidate.empty())
+						{
+							return;
+						}
+						std::string key = NormalizeKey(fs::path(candidate));
+						if (key.starts_with("assets/"))
+						{
+							key = key.substr(7);
+						}
+						if (excludedScenesLower.count(key))
+						{
+							return;
+						}
+						auto it2 = allAssetsLower.find(key);
+						if (it2 != allAssetsLower.end() && referencedLower.insert(key).second)
+						{
+							workQueue.push_back(it2->second);
+						}
+					};
+					tryOne(val);
+					break;
+				}
+			}
+		}
+
+		// B. Seed from all C# scripts in assets/
+		//    Only non-scene assets (textures, models, audio, etc.) are seeded from scripts.
+		//    .chscene paths in C# scripts are intentionally skipped here — scenes can only enter
+		//    the pack through the .chscene dependency graph (TargetScenePath, etc.) starting
+		//    from StartScene, preventing default-value scene fields from pulling in dead scenes.
 		for (const auto& rel : allAssetFiles)
 		{
 			const std::string lower = NormalizeKey(rel);
 			const std::string ext = StringToLower(rel.extension().string());
 
-			// All scenes under scenes/ are valid maps/menus
-			if (lower.starts_with("scenes/") && ext == ".chscene")
+			if (ext == ".cs")
 			{
-				if (referencedLower.insert(lower).second)
+				referencedLower.insert(lower);
+				std::vector<fs::path> scriptRefs;
+				ScanTextForReferences(assetDir / rel, allAssetsLower, referencedLower, scriptRefs, excludedScenesLower);
+				for (auto& ref : scriptRefs)
 				{
-					workQueue.push_back(rel);
+					// Scenes found in C# scripts are not seeded directly.
+					// They are only pulled in when a .chscene in the graph references them.
+					if (StringToLower(ref.extension().string()) == ".chscene")
+					{
+						continue;
+					}
+					workQueue.push_back(std::move(ref));
 				}
 			}
 			// All prefabs under prefab/ or prefabs/ or *.chprefab
@@ -263,18 +361,60 @@ namespace Chained
 
 			// Text-based files containing references
 			if (ext == ".chscene" || ext == ".chmat" || ext == ".chenv" || ext == ".chag" || ext == ".json" ||
-				ext == ".yaml" || ext == ".yml" || ext == ".chprefab")
+				ext == ".yaml" || ext == ".yml" || ext == ".chprefab" || ext == ".cs")
 			{
 				std::vector<fs::path> newRefs;
-				ScanTextForReferences(fullPath, allAssetsLower, referencedLower, newRefs);
+				ScanTextForReferences(fullPath, allAssetsLower, referencedLower, newRefs, excludedScenesLower);
 				for (auto& ref : newRefs)
 				{
 					workQueue.push_back(std::move(ref));
 				}
 			}
+			else if (ext == ".chasset")
+			{
+				// Binary model cache: must be deserialized to discover extracted texture references
+				auto pendingData = ModelLoader::LoadMeshDataFromDisk(fullPath);
+				if (pendingData.isValid)
+				{
+					auto tryAddTexture = [&](const std::string& texPath) {
+						if (texPath.empty() || texPath.front() == '*')
+						{
+							return;
+						}
+						std::string key = NormalizeKey(fs::path(texPath));
+						if (key.starts_with("assets/"))
+						{
+							key = key.substr(7);
+						}
+
+						// If AssimpImporter just extracted this texture, it might not be in the initial scan
+						if (allAssetsLower.find(key) == allAssetsLower.end() && fs::exists(assetDir / key))
+						{
+							fs::path relPath(key);
+							allAssetFiles.push_back(relPath);
+							allAssetsLower[key] = relPath;
+						}
+
+						auto it = allAssetsLower.find(key);
+						if (it != allAssetsLower.end() && referencedLower.insert(key).second)
+						{
+							workQueue.push_back(it->second);
+						}
+					};
+
+					for (const auto& mat : pendingData.materials)
+					{
+						tryAddTexture(mat.albedoPath);
+						tryAddTexture(mat.normalPath);
+						tryAddTexture(mat.emissivePath);
+						tryAddTexture(mat.metallicRoughnessPath);
+						tryAddTexture(mat.occlusionPath);
+					}
+				}
+			}
 
 			// Companion resolution for models
-			if (kModelExts.count(ext) > 0)
+			if (kModelExts.count(ext) > 0 && ext != ".chasset" && ext != ".chmesh")
 			{
 				// Check for binary .chasset companion
 				fs::path chassetRel = currentRel;
@@ -287,6 +427,49 @@ namespace Chained
 					if (referencedLower.insert(chassetKey).second)
 					{
 						workQueue.push_back(chassetIt->second);
+					}
+				}
+				else
+				{
+					// Force compile if .chasset is missing! This extracts textures and saves the binary cache.
+					CH_CORE_INFO("AssetDependencyCollector: Force compiling {} to generate .chasset...",
+								 currentRel.string());
+					auto data = ModelLoader::LoadMeshDataFromDisk(fullPath);
+					if (data.isValid && fs::exists(assetDir / chassetRel))
+					{
+						allAssetFiles.push_back(chassetRel);
+						allAssetsLower[chassetKey] = chassetRel;
+
+						if (referencedLower.insert(chassetKey).second)
+						{
+							workQueue.push_back(chassetRel);
+						}
+
+						// Scan for freshly-created _embtex_ companion files written during
+						// the force compile above, so step 5a can find and include them.
+						std::string chassetStem = StringToLower(chassetRel.stem().string());
+						std::string chassetParent = NormalizeKey(chassetRel.parent_path());
+						std::string embtexPrefix = chassetStem + "_embtex_";
+						std::error_code ecScan;
+						fs::path chassetDir = assetDir / chassetRel.parent_path();
+						for (const auto& de : fs::directory_iterator(chassetDir, ecScan))
+						{
+							if (!de.is_regular_file())
+							{
+								continue;
+							}
+							std::string fname = StringToLower(de.path().filename().string());
+							if (fname.rfind(embtexPrefix, 0) == 0)
+							{
+								fs::path relEmbtex = chassetRel.parent_path() / de.path().filename();
+								std::string embtexKey = NormalizeKey(relEmbtex);
+								if (!allAssetsLower.count(embtexKey))
+								{
+									allAssetFiles.push_back(relEmbtex);
+									allAssetsLower[embtexKey] = relEmbtex;
+								}
+							}
+						}
 					}
 				}
 
@@ -351,14 +534,65 @@ namespace Chained
 			}
 		}
 
+		// 5a. Include extracted embedded texture companions for referenced .chasset files.
+		//     When chasset saves extract JPEG/PNG from GLB embedded textures to _embtex_ files,
+		//     these need to be packed alongside the chasset so the runtime can load them.
+		{
+			std::vector<std::string> companionKeys;
+			for (const auto& key : referencedLower)
+			{
+				fs::path p(key);
+				if (StringToLower(p.extension().string()) != ".chasset")
+				{
+					continue;
+				}
+
+				std::string stem = StringToLower(p.stem().string());
+				std::string parentDir = NormalizeKey(p.parent_path());
+				std::string prefix = parentDir.empty() ? (stem + "_embtex_") : (parentDir + "/" + stem + "_embtex_");
+
+				for (const auto& [assetKey, assetRel] : allAssetsLower)
+				{
+					if (assetKey.size() > prefix.size() && assetKey.compare(0, prefix.size(), prefix) == 0)
+					{
+						companionKeys.push_back(assetKey);
+					}
+				}
+			}
+			for (const auto& k : companionKeys)
+			{
+				if (referencedLower.insert(k).second)
+				{
+					CH_CORE_TRACE("AssetDependencyCollector: Including companion texture '{}'", k);
+				}
+			}
+		}
+
 		// 6. Add referenced asset items (excluding stripped raw model duplicates)
 		size_t strippedBytes = 0;
+		std::unordered_set<std::string> addedCanonicalSources; // dedup by real path on disk
 		for (const auto& rel : allAssetFiles)
 		{
 			std::string key = NormalizeKey(rel);
 			if (referencedLower.count(key) && !strippedSources.count(key))
 			{
-				outItems.push_back({assetDir / rel, fs::path("assets") / rel});
+				// Canonicalise the source path so that symlinks / ".." traversals
+				// that resolve to the same physical file are not packed twice.
+				std::error_code ecCan;
+				fs::path srcPath = assetDir / rel;
+				fs::path canonical = fs::weakly_canonical(srcPath, ecCan);
+				std::string canonKey = ecCan ? srcPath.string() : canonical.string();
+
+				if (addedCanonicalSources.insert(canonKey).second)
+				{
+					outItems.push_back({srcPath, fs::path("assets") / rel});
+				}
+				else
+				{
+					CH_CORE_TRACE(
+						"AssetDependencyCollector: Skipping duplicate source '{}' (already added via different path)",
+						srcPath.string());
+				}
 			}
 			else if (strippedSources.count(key))
 			{

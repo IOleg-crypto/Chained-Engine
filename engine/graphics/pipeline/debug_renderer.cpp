@@ -241,7 +241,8 @@ namespace Chained
 		auto guard = PipelineStateGuard::Capture();
 		guard.WithDepthTest().WithBlend().WithWireframeMode();
 
-		GraphicsDevice::Get().DisableDepthTest();
+		GraphicsDevice::Get().EnableDepthTest();
+		GraphicsDevice::Get().SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
 		GraphicsDevice::Get().SetBlendEnabled(true);
 		GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
 										   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
@@ -275,6 +276,7 @@ namespace Chained
 		int mode = options.SetCollisionWireframeMode;
 		bool drawSolid = (mode == 1 || mode == 2);
 		bool drawWire = (mode == 0 || mode == 2);
+		float alphaVal = glm::clamp(options.ColliderAlpha, 0.05f, 1.0f);
 
 		auto drawPass = [&](bool isWireframe) {
 			auto view = registry.view<TransformComponent, ColliderComponent>();
@@ -286,36 +288,47 @@ namespace Chained
 					continue;
 				}
 
-				glm::vec4 color =
-					collider.IsColliding ? glm::vec4(1.0f, 0.0f, 0.0f, 0.6f) : glm::vec4(0.0f, 1.0f, 0.0f, 0.6f);
-				if (isWireframe)
+				glm::vec4 color;
+				if (collider.IsColliding)
 				{
-					color.a = 1.0f;
+					color = glm::vec4(1.0f, 0.25f, 0.25f, isWireframe ? alphaVal : alphaVal * 0.35f);
 				}
+				else if (collider.IsTrigger)
+				{
+					color = glm::vec4(1.0f, 0.75f, 0.1f, isWireframe ? alphaVal : alphaVal * 0.3f);
+				}
+				else if (collider.Type == ColliderType::Mesh)
+				{
+					color = glm::vec4(0.2f, 0.85f, 0.95f, isWireframe ? alphaVal * 0.8f : alphaVal * 0.25f);
+				}
+				else
+				{
+					color = glm::vec4(0.2f, 0.9f, 0.35f, isWireframe ? alphaVal : alphaVal * 0.35f);
+				}
+
+				glm::vec3 entityScale(glm::length(glm::vec3(transform.WorldTransform[0])),
+									  glm::length(glm::vec3(transform.WorldTransform[1])),
+									  glm::length(glm::vec3(transform.WorldTransform[2])));
+
+				glm::mat4 rotTrans = transform.WorldTransform;
+				if (entityScale.x > 0.0001f)
+				{
+					rotTrans[0] = glm::vec4(glm::vec3(rotTrans[0]) / entityScale.x, 0.0f);
+				}
+				if (entityScale.y > 0.0001f)
+				{
+					rotTrans[1] = glm::vec4(glm::vec3(rotTrans[1]) / entityScale.y, 0.0f);
+				}
+				if (entityScale.z > 0.0001f)
+				{
+					rotTrans[2] = glm::vec4(glm::vec3(rotTrans[2]) / entityScale.z, 0.0f);
+				}
+
+				glm::mat4 baseTransform = rotTrans * glm::translate(glm::mat4(1.0f), collider.Offset);
 
 				if (collider.Type == ColliderType::Box || collider.Type == ColliderType::Sphere ||
 					collider.Type == ColliderType::Capsule)
 				{
-					glm::vec3 entityScale(glm::length(glm::vec3(transform.WorldTransform[0])),
-										  glm::length(glm::vec3(transform.WorldTransform[1])),
-										  glm::length(glm::vec3(transform.WorldTransform[2])));
-
-					glm::mat4 rotTrans = transform.WorldTransform;
-					if (entityScale.x > 0.0001f)
-					{
-						rotTrans[0] = glm::vec4(glm::vec3(rotTrans[0]) / entityScale.x, 0.0f);
-					}
-					if (entityScale.y > 0.0001f)
-					{
-						rotTrans[1] = glm::vec4(glm::vec3(rotTrans[1]) / entityScale.y, 0.0f);
-					}
-					if (entityScale.z > 0.0001f)
-					{
-						rotTrans[2] = glm::vec4(glm::vec3(rotTrans[2]) / entityScale.z, 0.0f);
-					}
-
-					glm::mat4 baseTransform = rotTrans * glm::translate(glm::mat4(1.0f), collider.Offset);
-
 					if (collider.Type == ColliderType::Box)
 					{
 						DrawCubeWires(baseTransform, collider.Size * entityScale, color, renderer, isWireframe);
@@ -334,19 +347,26 @@ namespace Chained
 				}
 				else if (collider.Type == ColliderType::Mesh && !collider.ModelPath.empty())
 				{
-					auto* am = ServiceLocator::TryGet<AssetManager>();
-					auto modelAsset = am ? am->Get<ModelAsset>(collider.ModelPath) : nullptr;
-					if (modelAsset && modelAsset->IsReady())
+					if (options.MeshColliderAsBBox && glm::length(collider.Size) > 0.001f)
 					{
-						glm::mat4 meshTrans =
-							transform.WorldTransform * glm::translate(glm::mat4(1.0f), collider.Offset);
-						const auto& model = modelAsset->GetModel();
-						for (const auto& inst : modelAsset->GetInstances())
+						DrawCubeWires(baseTransform, collider.Size * entityScale, color, renderer, isWireframe);
+					}
+					else
+					{
+						auto* am = ServiceLocator::TryGet<AssetManager>();
+						auto modelAsset = am ? am->Get<ModelAsset>(collider.ModelPath) : nullptr;
+						if (modelAsset && modelAsset->IsReady())
 						{
-							glm::mat4 finalMat = meshTrans * inst.localTransform;
-							if (inst.meshIndex >= 0 && inst.meshIndex < model.Meshes.size())
+							glm::mat4 meshTrans =
+								transform.WorldTransform * glm::translate(glm::mat4(1.0f), collider.Offset);
+							const auto& model = modelAsset->GetModel();
+							for (const auto& inst : modelAsset->GetInstances())
 							{
-								DrawMeshWire(model.Meshes[inst.meshIndex], color, finalMat, renderer, isWireframe);
+								glm::mat4 finalMat = meshTrans * inst.localTransform;
+								if (inst.meshIndex >= 0 && inst.meshIndex < model.Meshes.size())
+								{
+									DrawMeshWire(model.Meshes[inst.meshIndex], color, finalMat, renderer, isWireframe);
+								}
 							}
 						}
 					}
