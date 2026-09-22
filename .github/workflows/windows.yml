@@ -43,6 +43,9 @@ jobs:
 
     steps:
       - name: Checkout
+        # For pull_request events actions/checkout defaults to the merge commit
+        # (refs/pull/N/merge) — we test the PR merged into the base branch, never
+        # the raw feature branch head. Do NOT set ref to github.event.pull_request.head.sha.
         uses: actions/checkout@v4
         with:
           submodules: recursive

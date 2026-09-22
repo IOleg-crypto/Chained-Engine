@@ -1,0 +1,18 @@
+# Valgrind memcheck suppressions for Chained Engine
+#
+# Scope: unit tests only (engine_tests_unit, engine_tests_editor).
+# Integration tests (physics/GL/.NET) are intentionally out of scope for Valgrind —
+# they are covered by ASan/UBSan on PR runs instead.
+#
+# Format: https://valgrind.org/docs/manual/manual-core.html#manual-core.suppress
+#
+# Start empty; add entries only for confirmed thirdparty/runtime noise, e.g.:
+#
+#   {
+#      coral-host-teardown-leak
+#      Memcheck:Leak
+#      match-leak-kinds: reachable,possible
+#      obj:*/libcoreclr.so
+#   }
+#
+# Do NOT suppress definite leaks in engine/ or editor/ code — those are real bugs.

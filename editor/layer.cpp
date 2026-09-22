@@ -6,6 +6,7 @@
 #include "engine/core/key_codes.h"
 #include "engine/core/service_locator.h"
 #include "engine/imgui/imgui_layer.h"
+
 #include "events.h"
 #include "gui.h"
 #include "editor_menu.h"
@@ -115,6 +116,7 @@ namespace Chained
 		m_Menu->SetDependencies(
 			m_SceneManager.get(), m_ProjectManager.get(), &m_Config, [this]() { SaveConfig(); },
 			[this]() { ReloadEditorFonts(); });
+		m_Menu->SetCommandHistory(&m_CommandHistory);
 
 		m_Layout = std::make_unique<EditorLayout>(*m_Panels, *m_Menu, *m_SceneManager);
 		m_ProjectSelectorUI = std::make_unique<ProjectSelectorUI>(*m_ProjectManager, m_Config);
@@ -602,51 +604,72 @@ namespace Chained
 
 	bool EditorLayer::HandleKeyboardShortcut(KeyPressedEvent& e)
 	{
+		// Ігноруємо автоповтор при затисканні клавіші, щоб дія виконувалася лише 1 раз за натискання
 		if (e.IsRepeat())
 		{
 			return false;
 		}
 
-		bool ctrl = Core::Input::IsKeyDown(KeyCode::LeftControl) || Core::Input::IsKeyDown(KeyCode::RightControl);
-		bool shift = Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift);
-		auto keyCode = e.GetKeyCode();
+		// Гарячі клавіші редактора працюють тільки поза режимом Play
+		if (GetSceneState() == SceneState::Play)
+		{
+			return false;
+		}
+
+		const bool ctrl = Core::Input::IsKeyDown(KeyCode::LeftControl) || Core::Input::IsKeyDown(KeyCode::RightControl);
+		const bool shift = Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift);
+		const KeyCode key = e.GetKeyCode();
 
 		if (ctrl)
 		{
-			switch (keyCode)
+			switch (key)
 			{
-			case KeyCode::N:
-				if (GetSceneState() != SceneState::Play)
-				{
-					m_SceneManager->NewScene();
-				}
-				return true;
-			case KeyCode::O:
-				if (GetSceneState() != SceneState::Play)
-				{
-					m_SceneManager->OpenScene();
-				}
-				return true;
-			case KeyCode::S:
-				if (GetSceneState() != SceneState::Play)
-				{
-					shift ? m_SceneManager->SaveSceneAs() : m_SceneManager->SaveScene();
-				}
-				return true;
-			case KeyCode::Z:
-				if (GetSceneState() != SceneState::Play)
-				{
-					m_CommandHistory.Undo();
-				}
-				return true;
-			case KeyCode::Y:
-				if (GetSceneState() != SceneState::Play)
+			// --- UNDO / REDO ---
+			case KeyCode::Z: {
+				if (shift)
 				{
 					m_CommandHistory.Redo();
+					CH_CORE_INFO("Redo command executed.");
+				}
+				else
+				{
+					m_CommandHistory.Undo();
+					CH_CORE_INFO("Undo command executed.");
 				}
 				return true;
 			}
+			case KeyCode::Y: {
+				m_CommandHistory.Redo();
+				CH_CORE_INFO("Redo command executed.");
+				return true;
+			}
+
+			// --- СЦЕНИ ТА ПРОЄКТИ ---
+			case KeyCode::S: {
+				if (shift)
+				{
+					m_SceneManager->SaveSceneAs();
+				}
+				else
+				{
+					m_SceneManager->SaveScene();
+				}
+				return true;
+			}
+			case KeyCode::N: {
+				m_SceneManager->NewScene();
+				return true;
+			}
+			case KeyCode::O: {
+				m_SceneManager->OpenScene();
+				return true;
+			}
+
+			default:
+				break;
+			}
 		}
+
 		return false;
 	}
 

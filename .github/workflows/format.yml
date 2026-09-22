@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        # For pull_request events actions/checkout defaults to the merge commit
+        # (refs/pull/N/merge) — format check runs against the merged result.
         uses: actions/checkout@v4
         with:
           submodules: false

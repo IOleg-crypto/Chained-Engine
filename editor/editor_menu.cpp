@@ -11,6 +11,7 @@
 #include "thirdparty/IconsFontAwesome6.h"
 #include "engine/scripting/scriptengine.h"
 #include "editor/scene_manager.h"
+#include "editor/undo/command_history.h"
 #include "gui.h"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -41,6 +42,7 @@ namespace Chained
 		}
 
 		DrawFileMenu();
+		DrawEditMenu();
 		DrawViewMenu(panels);
 		DrawProjectMenu(panels);
 		DrawEditorMenu();
@@ -117,6 +119,31 @@ namespace Chained
 			{
 				Application::Get().Close();
 			}
+			ImGui::EndMenu();
+		}
+	}
+
+	void EditorMenu::DrawEditMenu()
+	{
+		if (ImGui::BeginMenu("Edit"))
+		{
+			const bool canUndo = m_CommandHistory && m_CommandHistory->CanUndo();
+			const bool canRedo = m_CommandHistory && m_CommandHistory->CanRedo();
+
+			ImGui::BeginDisabled(!canUndo);
+			if (ImGui::MenuItem("Undo", "Ctrl+Z") && canUndo)
+			{
+				m_CommandHistory->Undo();
+			}
+			ImGui::EndDisabled();
+
+			ImGui::BeginDisabled(!canRedo);
+			if (ImGui::MenuItem("Redo", "Ctrl+Y") && canRedo)
+			{
+				m_CommandHistory->Redo();
+			}
+			ImGui::EndDisabled();
+
 			ImGui::EndMenu();
 		}
 	}

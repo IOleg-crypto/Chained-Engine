@@ -24,8 +24,11 @@ on:
       - ".github/workflows/format.yml"
       - ".github/workflows/linux.yml"
       - ".github/workflows/windows.yml"
+      - ".github/workflows/valgrind.yml"
+      - ".github/valgrind.supp"
+      - ".github/lsan.supp"
   pull_request:
-    branches: [main, develop, opengl]
+    branches: [main, experimental-opengl, opengl]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "**/*.cpp"
@@ -48,6 +51,9 @@ on:
       - ".github/workflows/format.yml"
       - ".github/workflows/linux.yml"
       - ".github/workflows/windows.yml"
+      - ".github/workflows/valgrind.yml"
+      - ".github/valgrind.supp"
+      - ".github/lsan.supp"
   workflow_dispatch:
 
 concurrency:

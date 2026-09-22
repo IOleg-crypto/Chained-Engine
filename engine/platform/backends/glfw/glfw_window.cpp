@@ -1,6 +1,7 @@
 #include "engine/platform/backends/glfw/glfw_window.h"
 #include "engine/common/engine_assert.h"
 #include "engine/common/platform_detection.h"
+#include "engine/core/events/input_events.h"
 #include "engine/core/events/window_events.h"
 #include "engine/core/input.h"
 
@@ -144,7 +145,23 @@ namespace Chained
 		});
 
 		glfwSetKeyCallback(m_WindowHandle, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-			Core::Input::OnKey(GlfwInputMapper::MapKey(key), action != GLFW_RELEASE);
+			const KeyCode mapped = GlfwInputMapper::MapKey(key);
+			Core::Input::OnKey(mapped, action != GLFW_RELEASE);
+
+			if (action == GLFW_PRESS || action == GLFW_REPEAT)
+			{
+				auto* userPtr = glfwGetWindowUserPointer(window);
+				if (userPtr)
+				{
+					auto& glWindow = *static_cast<GlfwWindow*>(userPtr);
+					if (glWindow.m_EventCallback)
+					{
+						KeyPressedEvent event(mapped, action == GLFW_REPEAT);
+						glWindow.m_EventCallback(event);
+					}
+				}
+			}
+
 			auto* userPtr = glfwGetWindowUserPointer(window);
 			if (userPtr && static_cast<GlfwWindow*>(userPtr)->m_ForwardToImGui)
 			{

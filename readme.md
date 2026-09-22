@@ -256,12 +256,14 @@ For in-depth guides and references, check the [`docs/`](docs/) directory:
 | Guide | Description |
 | :--- | :--- |
 | 📖 [User Guide](docs/USER_GUIDE.md) | Getting started, editor workflows, project settings, and building |
+| 🎮 [Editor Controls](docs/EDITOR_CONTROLS.md) | Viewport navigation, trackpad gestures, gizmos, and keyboard shortcuts |
 | ⚡ [Scripting API Reference](docs/SCRIPTING_API.md) | Complete C# API reference: `[Autoload]`, `[AutoAttach]`, events, input, physics |
 | 🛠️ [Scripting Interop Guide](docs/SCRIPTING_INTEROP.md) | Architecture of the C++/C# Coral interop bridge |
 | 🏗️ [Engine Architecture](docs/ARCHITECTURE.md) | Core engine initialization, main loop, and subsystem design |
 | 🧩 [Component Reference](docs/COMPONENTS.md) | Overview of all built-in ECS components |
 | 🎬 [Animation Graphs](docs/ANIMATION_GRAPHS.md) | Tutorial on visual animation graphs and state machines |
 | 🐧 [Dual-Platform Guide](docs/DUAL_PLATFORM_GUIDE.md) | Simultaneous Windows + WSL2 development workflow |
+| 🔄 [CI/CD Guide](docs/CI.md) | GitHub Actions pipelines, ASan/UBSan on PR, nightly Valgrind, merge-ref testing |
 | 📦 [Export Guide](docs/EXPORT.md) | Standalone game packaging and distribution |
 | ❓ [FAQ](docs/FAQ.md) | Common questions and troubleshooting patterns |
 
