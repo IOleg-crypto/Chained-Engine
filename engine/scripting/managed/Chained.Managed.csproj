@@ -13,6 +13,9 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
     
+    <!-- CS0649: Coral interop function-pointer fields are assigned from C++ at runtime -->
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
+
     <Authors>Oleg and Contributors</Authors>
     <Description>C# Base Class Library for Chained Engine.</Description>
     <RepositoryUrl>https://github.com/IOleg-crypto/ChainedEngine</RepositoryUrl>

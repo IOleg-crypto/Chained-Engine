@@ -59,6 +59,8 @@ set(GRAPHICS_PIPELINE
     pipeline/shader_storage.h
     pipeline/shader_storage.cpp
     pipeline/shader_uniform_utils.h
+    ${CMAKE_SOURCE_DIR}/engine/scene/systems/nametag_system.h
+    ${CMAKE_SOURCE_DIR}/engine/scene/systems/nametag_system.cpp
 )
 
 set(GRAPHICS_PASSES

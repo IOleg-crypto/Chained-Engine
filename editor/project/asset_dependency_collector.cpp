@@ -55,6 +55,13 @@ namespace Chained
 			return true;
 		}
 
+		// Exclude test/development assets (e.g. test_scene.chscene, test_prefab.chprefab)
+		const std::string filenameLower = StringToLower(filename);
+		if (filenameLower.rfind("test_", 0) == 0)
+		{
+			return true;
+		}
+
 		// Exclude source code, IDE, VCS, build output directories, and editor-only folders
 		static const std::vector<std::string> kIgnoredPathTokens = {
 			"scripts/", ".idea/",	".vs/", ".vscode/",		".git/",  "obj/",		  "bin/",
