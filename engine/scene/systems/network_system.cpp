@@ -1,5 +1,5 @@
 #include "engine/scene/systems/network_system.h"
-#include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 #include "engine/core/log.h"
 #include "engine/core/service_locator.h"
 #include "engine/scene/scene.h"
@@ -631,7 +631,7 @@ namespace Chained
 
 			CH_CORE_INFO("CheckAndPropagateSceneChange: propagating '{}' to Application", path);
 			SceneChangeRequestEvent e(path);
-			Application::Get().OnEvent(e);
+			ApplicationEventProxy::Dispatch(e);
 		}
 
 		void PollNetwork(Scene* scene, Timestep ts)

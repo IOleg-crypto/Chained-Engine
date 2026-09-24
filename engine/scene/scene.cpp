@@ -23,7 +23,7 @@
 #include "engine/scripting/scriptengine.h"
 #include "engine/scene/prefab_serializer.h"
 #include "engine/runtime/session_api.h"
-#include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 
 namespace Chained
 {
@@ -312,7 +312,7 @@ namespace Chained
 		if (auto target = SceneTransitionSystem::Update(*m_Registry))
 		{
 			SceneChangeRequestEvent ev(*target);
-			Application::Get().OnEvent(ev);
+			ApplicationEventProxy::Dispatch(ev);
 		}
 	}
 

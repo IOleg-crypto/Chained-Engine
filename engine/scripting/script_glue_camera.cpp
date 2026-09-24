@@ -1,10 +1,10 @@
 #include "script_glue_camera.h"
 
-#include "engine/app/application.h"
 #include "engine/core/service_locator.h"
 #include "engine/physics/physics.h"
 #include "engine/physics/raycast_result.h"
 #include "engine/scene/components.h"
+#include "engine/app/application.h"
 
 namespace Chained
 {

@@ -1,4 +1,5 @@
 #include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 #include "engine/graphics/api/graphics_device.h"
 #include "engine/core/profiler.h"
 #include "engine/core/platform.h"
@@ -31,6 +32,7 @@ namespace Chained
 	{
 		CH_ASSERT(!s_Instance);
 		s_Instance = this;
+		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent));
 
 		Log::Init();
 		ComponentRegistry::RegisterEngineComponents();
@@ -41,6 +43,8 @@ namespace Chained
 		}
 
 		InitializePlatform();
+		// Re-register with the now-valid Window pointer (m_Window is created inside InitializePlatform).
+		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent), m_Window.get());
 		RegisterCoreServices();
 		RegisterRuntimeServices();
 		RegisterGameplayServices();

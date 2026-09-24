@@ -1,5 +1,5 @@
 <Project>
   <PropertyGroup>
-    <CoralManagedDir>D:/gitnext/Chained Decos/build/ci-check/vendor/coral</CoralManagedDir>
+    <CoralManagedDir>$(MSBuildThisFileDirectory)..\..\..\build\windows-clang\vendor\coral</CoralManagedDir>
   </PropertyGroup>
 </Project>

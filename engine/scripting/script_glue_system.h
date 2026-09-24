@@ -1,7 +1,6 @@
 #ifndef SCRIPT_GLUE_SYSTEM_H
 #define SCRIPT_GLUE_SYSTEM_H
 #include "script_glue_internal.h"
-#include "engine/app/application.h"
 #include "engine/scene/scene.h"
 #include "engine/scripting/scriptengine.h"
 
