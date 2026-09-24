@@ -1,0 +1,150 @@
+name: Valgrind
+
+on:
+  schedule:
+    # Nightly at 03:00 UTC — intentionally NOT on every PR (Valgrind is 10-50x
+    # slower than native; ASan/UBSan on PR already covers memory-safety gating).
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+env:
+  CI: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  valgrind-unit:
+    name: valgrind (ubuntu, Release, unit tests)
+    runs-on: ubuntu-latest
+    # Phase 1: collect noise from thirdparty/.NET before making this a hard gate.
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Update submodules recursively
+        run: git submodule update --init --recursive
+
+      - name: Get CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: ccache
+          key: Valgrind-linux-clang-Release
+          max-size: 5G
+
+      - name: Setup Mold Linker
+        uses: rui314/setup-mold@v1
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install jinja2
+
+      - name: Install Linux Dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            xorg-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libasound2-dev \
+            pkg-config libgtk-3-dev libdrm-dev libgbm-dev \
+            valgrind
+
+      - name: Setup Linux Compilers
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y clang-18 clang++-18 libc++-18-dev libc++abi-18-dev lld-18 llvm-18
+          echo "CC=clang-18" >> $GITHUB_ENV
+          echo "CXX=clang++-18" >> $GITHUB_ENV
+          echo "LDFLAGS=-fuse-ld=mold" >> $GITHUB_ENV
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Configure
+        # Release without ENABLE_SANITIZERS: ASan and Valgrind are mutually exclusive.
+        run: |
+          set -euo pipefail
+          BUILD_DIR="build/linux-clang"
+          mkdir -p "$BUILD_DIR"
+          PYTHON_EXE=$(python3 -c "import sys; print(sys.executable)")
+          cmake --preset linux-clang \
+            -B "$BUILD_DIR" \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DPython_EXECUTABLE="${PYTHON_EXE}" \
+            -DPython3_EXECUTABLE="${PYTHON_EXE}" \
+            -DCH_CI=ON \
+            -DENABLE_UNITY_BUILD=OFF \
+            -DENABLE_SANITIZERS=OFF \
+            -DENABLE_LTO=OFF \
+            -DENABLE_PCH=OFF \
+            2>&1 | tee "$BUILD_DIR/configure.log"
+
+      - name: Build unit test binaries only
+        run: |
+          set -euo pipefail
+          cmake --build "build/linux-clang" --config Release --parallel \
+            --target engine_tests_unit engine_tests_editor \
+            2>&1 | tee "build/linux-clang/build_Release.log"
+
+      - name: Run unit tests under Valgrind
+        run: |
+          set -euo pipefail
+          SUPP="${{ github.workspace }}/.github/valgrind.supp"
+          BIN_DIR="build/linux-clang/bin/Release"
+          LOG_DIR="build/linux-clang/valgrind"
+          mkdir -p "$LOG_DIR"
+          FAILED=0
+
+          run_one() {
+            local exe="$1"
+            local name
+            name="$(basename "$exe" .exe)"
+            echo "==> valgrind $name"
+            valgrind \
+              --tool=memcheck \
+              --leak-check=full \
+              --show-leak-kinds=definite,indirect \
+              --errors-for-leak-kinds=definite \
+              --track-origins=yes \
+              --error-exitcode=42 \
+              --suppressions="$SUPP" \
+              "$exe" \
+              > "$LOG_DIR/${name}.log" 2>&1 || FAILED=1
+            tail -n 20 "$LOG_DIR/${name}.log" || true
+          }
+
+          run_one "$BIN_DIR/engine_tests_unit"
+          run_one "$BIN_DIR/engine_tests_editor"
+
+          exit "$FAILED"
+
+      - name: Upload Valgrind logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Valgrind-logs
+          if-no-files-found: ignore
+          path: |
+            build/linux-clang/valgrind/*.log
+            build/linux-clang/*.log
+          retention-days: 14

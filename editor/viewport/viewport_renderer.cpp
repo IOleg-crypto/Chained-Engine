@@ -1,6 +1,6 @@
 #include "viewport_renderer.h"
 #include "viewport_icons.h"
-#include "editor/layer.h"
+#include "editor/types.h"
 #include "engine/app/application.h"
 #include "engine/graphics/api/framebuffer.h"
 #include "engine/graphics/api/graphics_device.h"
@@ -138,7 +138,8 @@ namespace Chained
 		}
 	}
 
-	void ViewportRenderer::RenderScene(Scene* scene, const Camera3D& camera)
+	void ViewportRenderer::RenderScene(Scene* scene, const Camera3D& camera, bool showEditorIcons,
+									   const EditorConfig* config)
 	{
 		if (!m_HDRFramebuffer || !m_HDRFramebuffer->IsValid())
 		{
@@ -167,12 +168,13 @@ namespace Chained
 		options.ShowDebugColliders = currentDebugFlags.DrawColliders;
 		options.ShowDebugSpawnZones = currentDebugFlags.DrawSpawnZones;
 		options.SetCollisionWireframeMode = currentDebugFlags.SetCollisionWireframeMode;
+		options.MeshColliderAsBBox = currentDebugFlags.MeshColliderAsBBox;
+		options.ColliderAlpha = currentDebugFlags.ColliderAlpha;
 		m_SceneRenderer->RenderScene(scene->GetRegistry(), scene->GetSettings(), cam, options);
 
-		if (EditorLayer::Get().GetSceneManager().GetSceneState() != SceneState::Play &&
-			EditorLayer::Get().GetConfig().ShowEditorIcons)
+		if (showEditorIcons)
 		{
-			RenderEditorIcons(scene->GetRegistry(), cam);
+			RenderEditorIcons(scene->GetRegistry(), cam, config);
 		}
 
 		m_HDRFramebuffer->Unbind();
@@ -195,9 +197,10 @@ namespace Chained
 		m_ViewportFramebuffer->Unbind();
 	}
 
-	void ViewportRenderer::RenderEditorIcons(entt::registry& registry, const Camera3D& camera)
+	void ViewportRenderer::RenderEditorIcons(entt::registry& registry, const Camera3D& camera,
+											 const EditorConfig* config)
 	{
-		ViewportIcons::RenderAll(registry, camera);
+		ViewportIcons::RenderAll(registry, camera, config);
 	}
 
 	bool ViewportRenderer::IsValid() const

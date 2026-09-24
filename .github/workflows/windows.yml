@@ -43,6 +43,9 @@ jobs:
 
     steps:
       - name: Checkout
+        # For pull_request events actions/checkout defaults to the merge commit
+        # (refs/pull/N/merge) — we test the PR merged into the base branch, never
+        # the raw feature branch head. Do NOT set ref to github.event.pull_request.head.sha.
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -178,24 +181,10 @@ jobs:
           ctest --test-dir "$BUILD_DIR" -C "${{ matrix.build_type }}" --output-on-failure --timeout 300 --output-junit "$BUILD_DIR/junit_${{ matrix.build_type }}.xml" \
             2>&1 | tee "$BUILD_DIR/ctest_${{ matrix.build_type }}.log"
 
-      - name: Crash backtrace (gcc Debug only)
-        if: failure() && matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
-        env:
-          COREHOST_TRACE: 1
-          ENGINE_ROOT: ${{ github.workspace }}
+      - name: Run C# Managed Tests
         run: |
-          # The integration tests crash with an access violation on this runner
-          # but pass locally with the identical build config. Run one failing
-          # test directly under gdb to capture the faulting module and stack.
-          BIN_DIR="build/${{ matrix.preset }}/bin/${{ matrix.build_type }}"
-          cd "$BIN_DIR"
-          gdb -batch -return-child-result \
-            -ex "set pagination off" \
-            -ex run \
-            -ex "bt" \
-            -ex "info registers" \
-            -ex "info sharedlibrary" \
-            --args ./engine_tests_integration.exe --gtest_filter=RegressionTest.CopyEntityResetsUUID || true
+          dotnet test "tests/managed/Chained.Managed.Tests.csproj" --verbosity normal
+
 
       - name: Upload Artifacts
         if: always()

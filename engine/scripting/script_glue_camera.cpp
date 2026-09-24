@@ -1,10 +1,10 @@
 #include "script_glue_camera.h"
 
-#include "engine/app/application.h"
 #include "engine/core/service_locator.h"
 #include "engine/physics/physics.h"
 #include "engine/physics/raycast_result.h"
 #include "engine/scene/components.h"
+#include "engine/app/application.h"
 
 namespace Chained
 {
@@ -64,28 +64,45 @@ namespace Chained
 			auto& tc = entity.GetComponent<TransformComponent>();
 			Entity target;
 
-			// Find the player entity (networked: IsOwner, offline: by tag)
-			auto netView = scene->GetRegistry().view<NetworkIdentityComponent>();
-			for (auto e : netView)
+			// Find target entity:
+			// 1. Explicit entity ID via "ID:<id>"
+			if (camera.TargetEntityTag.rfind("ID:", 0) == 0)
 			{
-				const auto& netID = netView.get<NetworkIdentityComponent>(e);
-				if (netID.IsOwner)
+				try
 				{
-					target = Entity(e, scene->GetRegistryPtr());
-					break;
+					uint64_t targetID = std::stoull(camera.TargetEntityTag.substr(3));
+					target = GetEntity(targetID);
+				} catch (...)
+				{
 				}
 			}
-
+			// 2. Custom tag if not default "Player"
+			if (!target && !camera.TargetEntityTag.empty() && camera.TargetEntityTag != "Player")
+			{
+				target = scene->FindEntityByTag(camera.TargetEntityTag);
+			}
+			// 3. Networked local owned player
 			if (!target)
 			{
-				Entity tagged = scene->FindEntityByTag(camera.TargetEntityTag);
+				auto netView = scene->GetRegistry().view<NetworkIdentityComponent>();
+				for (auto e : netView)
+				{
+					const auto& netID = netView.get<NetworkIdentityComponent>(e);
+					if (netID.IsOwner)
+					{
+						target = Entity(e, scene->GetRegistryPtr());
+						break;
+					}
+				}
+			}
+			// 4. Fallback to tag lookup
+			if (!target)
+			{
+				std::string tagToFind = camera.TargetEntityTag.empty() ? "Player" : camera.TargetEntityTag;
+				Entity tagged = scene->FindEntityByTag(tagToFind);
 				if (tagged)
 				{
-					const auto* netID = scene->GetRegistry().try_get<NetworkIdentityComponent>(tagged);
-					if (!netID || netID->IsOwner)
-					{
-						target = tagged;
-					}
+					target = tagged;
 				}
 			}
 
@@ -152,6 +169,69 @@ namespace Chained
 
 			tc.WorldTransform =
 				glm::translate(glm::mat4(1.0f), newPos) * glm::toMat4(rotation) * glm::scale(glm::mat4(1.0f), tc.Scale);
+			tc.InverseWorldTransform = glm::inverse(tc.WorldTransform);
+			tc.TransformChanged = false;
+		}
+	}
+	void Camera_SetFreeFly(uint64_t entityID, glm::vec3* inPos, float yaw, float pitch)
+	{
+		Entity entity = GetEntity(entityID);
+		if (entity && entity.HasComponent<CameraComponent>() && entity.HasComponent<TransformComponent>() && inPos)
+		{
+			auto& tc = entity.GetComponent<TransformComponent>();
+			pitch = glm::clamp(pitch, -89.0f, 89.0f);
+
+			float yawRad = glm::radians(yaw);
+			float pitchRad = glm::radians(pitch);
+
+			glm::quat yawQuat = glm::angleAxis(yawRad, glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::quat pitchQuat = glm::angleAxis(-pitchRad, glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::quat rotation = yawQuat * pitchQuat;
+
+			TransformSystem::SetTranslation(tc, *inPos);
+			TransformSystem::SetRotationQuat(tc, rotation);
+
+			tc.WorldTransform =
+				glm::translate(glm::mat4(1.0f), *inPos) * glm::toMat4(rotation) * glm::scale(glm::mat4(1.0f), tc.Scale);
+			tc.InverseWorldTransform = glm::inverse(tc.WorldTransform);
+			tc.TransformChanged = false;
+		}
+	}
+	void Camera_UpdateFreeFly(uint64_t entityID, float forwardInput, float rightInput, float upInput, float deltaYaw,
+							  float deltaPitch, float speed, float dt)
+	{
+		Entity entity = GetEntity(entityID);
+		if (entity && entity.HasComponent<CameraComponent>() && entity.HasComponent<TransformComponent>())
+		{
+			auto& camera = entity.GetComponent<CameraComponent>();
+			auto& tc = entity.GetComponent<TransformComponent>();
+
+			camera.OrbitYaw += deltaYaw;
+			camera.OrbitPitch = glm::clamp(camera.OrbitPitch + deltaPitch, -88.0f, 88.0f);
+
+			float yawRad = glm::radians(camera.OrbitYaw);
+			float pitchRad = glm::radians(camera.OrbitPitch);
+
+			glm::quat yawQuat = glm::angleAxis(yawRad, glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::quat pitchQuat = glm::angleAxis(-pitchRad, glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::quat rotation = yawQuat * pitchQuat;
+
+			// Forward is rotation * -Z, Right is rotation * +X, Up is world +Y
+			glm::vec3 fwd = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+			glm::vec3 right = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+			glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+
+			glm::vec3 moveDir = fwd * forwardInput + right * rightInput + up * upInput;
+			if (glm::length2(moveDir) > 0.0001f)
+			{
+				tc.Translation += glm::normalize(moveDir) * speed * dt;
+			}
+
+			TransformSystem::SetTranslation(tc, tc.Translation);
+			TransformSystem::SetRotationQuat(tc, rotation);
+
+			tc.WorldTransform = glm::translate(glm::mat4(1.0f), tc.Translation) * glm::toMat4(rotation) *
+								glm::scale(glm::mat4(1.0f), tc.Scale);
 			tc.InverseWorldTransform = glm::inverse(tc.WorldTransform);
 			tc.TransformChanged = false;
 		}

@@ -1,7 +1,8 @@
 #include "editor/panels/content_browser_panel.h"
+#include "editor/scene_manager.h"
+#include "editor/project/editor_settings.h"
 #include "editor/action_commands.h"
 #include "editor/events.h"
-#include "editor/layer.h"
 #include "engine/core/log.h"
 #include "engine/project/project.h"
 #include "engine/scene/components.h"
@@ -15,7 +16,9 @@
 namespace Chained
 {
 
-	ContentBrowserPanel::ContentBrowserPanel()
+	ContentBrowserPanel::ContentBrowserPanel(EditorSceneManager* sceneManager, const EditorConfig* config)
+		: m_SceneManager(sceneManager),
+		  m_Config(config)
 	{
 		m_Name = "Content Browser";
 
@@ -28,7 +31,10 @@ namespace Chained
 			SetRoot(std::filesystem::current_path() / "assets");
 		}
 
-		m_ThumbnailSize = EditorLayer::Get().GetConfig().DefaultThumbnailSize;
+		if (m_Config)
+		{
+			m_ThumbnailSize = m_Config->DefaultThumbnailSize;
+		}
 	}
 
 	ContentBrowserPanel::~ContentBrowserPanel() = default;
@@ -375,11 +381,14 @@ namespace Chained
 
 		if (entry.type == EditorAssetType::Scene)
 		{
-			EditorLayer::Get().GetSceneManager().OpenScene(entry.path);
+			if (m_SceneManager)
+			{
+				m_SceneManager->OpenScene(entry.path);
+			}
 			return;
 		}
 
-		auto scene = EditorLayer::Get().GetSceneManager().GetActiveScene();
+		std::shared_ptr<Scene> scene = m_SceneManager ? m_SceneManager->GetActiveScene() : nullptr;
 		if (!scene)
 		{
 			return;

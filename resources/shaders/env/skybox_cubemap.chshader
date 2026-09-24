@@ -6,6 +6,9 @@ Uniforms:
   - u_Projection
   - u_View
   - u_Cubemap
+  - u_VFlipped
+  - u_HFlipped
+  - u_Rotation
   - u_Exposure
   - u_Brightness
   - u_Contrast

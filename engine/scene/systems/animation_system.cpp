@@ -71,15 +71,18 @@ namespace Chained::AnimationSystem
 			//  graphAsset->Nodes.size(), graphAsset->Transitions.size());
 		}
 
-		// Seed missing Variables from the graph's DefaultVariables.
+		// Seed missing Variables from the graph's DefaultVariables only when needed.
 		// Scripts can then override values via SetFloat/SetBool.
 		// This ensures every variable the graph references (e.g. isGrounded)
 		// exists in the map with a sane default - no hardcoding needed in C++.
-		for (const auto& [name, defaultVal] : graphAsset->DefaultVariables)
+		if (anim.Variables.empty() || anim.Variables.size() < graphAsset->DefaultVariables.size())
 		{
-			if (anim.Variables.find(name) == anim.Variables.end())
+			for (const auto& [name, defaultVal] : graphAsset->DefaultVariables)
 			{
-				anim.Variables[name] = defaultVal;
+				if (anim.Variables.find(name) == anim.Variables.end())
+				{
+					anim.Variables[name] = defaultVal;
+				}
 			}
 		}
 

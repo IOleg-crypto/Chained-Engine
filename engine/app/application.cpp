@@ -1,4 +1,5 @@
 #include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 #include "engine/graphics/api/graphics_device.h"
 #include "engine/core/profiler.h"
 #include "engine/core/platform.h"
@@ -18,7 +19,6 @@
 #include "engine/core/input.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/networking/network_service.h"
-#include "engine/scene/systems/network_system.h"
 
 namespace Chained
 {
@@ -32,6 +32,7 @@ namespace Chained
 	{
 		CH_ASSERT(!s_Instance);
 		s_Instance = this;
+		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent));
 
 		Log::Init();
 		ComponentRegistry::RegisterEngineComponents();
@@ -42,6 +43,8 @@ namespace Chained
 		}
 
 		InitializePlatform();
+		// Re-register with the now-valid Window pointer (m_Window is created inside InitializePlatform).
+		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent), m_Window.get());
 		RegisterCoreServices();
 		RegisterRuntimeServices();
 		RegisterGameplayServices();
@@ -84,7 +87,7 @@ namespace Chained
 		}
 	}
 
-	void Application::RegisterCoreServices()
+	void Application::RegisterCoreServices() const
 	{
 		unsigned int threads = std::thread::hardware_concurrency();
 		if (threads == 0)
@@ -151,7 +154,6 @@ namespace Chained
 				[=] { return std::make_unique<ScriptEngine>(m_Specification.EnableScripting); });
 		}
 		ServiceLocator::Provide<Network>([] { return std::make_unique<Network>(); });
-		ServiceLocator::Provide<NetworkSystem>([] { return std::make_unique<NetworkSystem>(); });
 	}
 
 	Application::~Application()

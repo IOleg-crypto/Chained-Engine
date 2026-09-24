@@ -30,6 +30,32 @@ uniform int useRoughnessMap;
 uniform int useOcclusionMap;
 uniform int useEmissiveTexture;
 
+uniform int u_FlipUV_Y;
+uniform int u_FlipUV_X;
+uniform vec2 u_UVScale;
+uniform vec2 u_UVOffset;
+
+// ============================================================
+// UV Transformation Helper
+// ============================================================
+vec2 ProcessUV(vec2 inUV)
+{
+    vec2 outUV = inUV;
+    if (u_FlipUV_Y == 1)
+    {
+        outUV.y = 1.0 - outUV.y;
+    }
+    if (u_FlipUV_X == 1)
+    {
+        outUV.x = 1.0 - outUV.x;
+    }
+    if (u_UVScale.x != 0.0 || u_UVScale.y != 0.0)
+    {
+        outUV = outUV * u_UVScale + u_UVOffset;
+    }
+    return outUV;
+}
+
 // ============================================================
 // Surface Representation
 // ============================================================
@@ -69,10 +95,12 @@ Surface CreateSurface(in vec3 worldPos,
                       in vec4 vertexColor,
                       in vec3 cameraPos)
 {
+    vec2 finalUV = ProcessUV(uv);
+
     Surface s;
     s.position = worldPos;
     s.viewDir  = normalize(cameraPos - worldPos);
-    s.normal   = SampleNormalMap(vertexNormal, tbn, uv, useNormalMap);
+    s.normal   = SampleNormalMap(vertexNormal, tbn, finalUV, useNormalMap);
 
     // 1. Albedo & Alpha
     vec4 baseColor = colDiffuse;
@@ -82,7 +110,7 @@ Surface CreateSurface(in vec3 worldPos,
     }
     if (useTexture == 1)
     {
-        vec4 sampled = texture(texture0, uv);
+        vec4 sampled = texture(texture0, finalUV);
         baseColor.rgb *= ToLinear(sampled.rgb);
         baseColor.a   *= sampled.a;
     }
@@ -96,7 +124,7 @@ Surface CreateSurface(in vec3 worldPos,
 
     if (useMetallicMap == 1)
     {
-        vec4 mrSample = texture(texture1, uv);
+        vec4 mrSample = texture(texture1, finalUV);
         s.metalness = clamp(s.metalness * mrSample.b, 0.0, 1.0);
         if (useRoughnessMap == 1)
         {
@@ -105,12 +133,12 @@ Surface CreateSurface(in vec3 worldPos,
     }
     else if (useRoughnessMap == 1)
     {
-        s.roughness = clamp(s.roughness * texture(texture3, uv).r, 0.04, 1.0);
+        s.roughness = clamp(s.roughness * texture(texture3, finalUV).r, 0.04, 1.0);
     }
 
     if (useOcclusionMap == 1)
     {
-        s.occlusion = texture(texture4, uv).r;
+        s.occlusion = texture(texture4, finalUV).r;
     }
 
     // 3. Diffuse, Specular and Shininess
@@ -122,7 +150,7 @@ Surface CreateSurface(in vec3 worldPos,
     s.emissive = colEmissive.rgb;
     if (useEmissiveTexture == 1)
     {
-        s.emissive *= ToLinear(texture(texture5, uv).rgb);
+        s.emissive *= ToLinear(texture(texture5, finalUV).rgb);
     }
     s.emissive *= emissiveIntensity;
 

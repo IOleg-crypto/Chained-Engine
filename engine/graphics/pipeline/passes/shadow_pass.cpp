@@ -3,6 +3,7 @@
 #include "engine/graphics/api/graphics_device.h"
 #include "engine/graphics/pipeline/renderer.h"
 #include "engine/graphics/pipeline/scene_renderer.h"
+#include "engine/graphics/pipeline/frustum.h"
 #include "engine/project/project.h"
 
 namespace Chained
@@ -117,8 +118,6 @@ namespace Chained
 		shader->Bind();
 		shader->SetMatrix("u_LightSpaceMatrix", m_LightSpaceMatrix);
 
-		// Save current FBO binding and viewport — both must be restored so the
-		// subsequent scene passes render at the camera's resolution, not the shadow map's.
 		uint32_t previousFBO = GraphicsDevice::Get().GetFramebufferBinding();
 		int prevViewport[4] = {0, 0, 0, 0};
 		GraphicsDevice::Get().GetViewport(&prevViewport[0], &prevViewport[1], &prevViewport[2], &prevViewport[3]);
@@ -131,19 +130,51 @@ namespace Chained
 		GraphicsDevice::Get().SetPolygonOffset(true, 2.0f, 1.0f);
 
 		// Render all opaque items into the depth buffer using the depth shader (with GPU instancing).
+		// Cull objects whose world AABB does not intersect the orthographic shadow volume.
+		const Frustum shadowFrustum = FromMatrix(m_LightSpaceMatrix);
+		auto isVisibleInShadow = [&](const RenderItem& item) -> bool {
+			if (!item.Asset)
+			{
+				return false;
+			}
+			const BoundingBox& bbox = item.Asset->GetBoundingBox();
+			glm::vec3 localCenter = (bbox.Max + bbox.Min) * 0.5f;
+			glm::vec3 localExtents = (bbox.Max - bbox.Min) * 0.5f;
+			const glm::mat4& wt = item.Transform;
+			glm::vec3 worldCenter = glm::vec3(wt * glm::vec4(localCenter, 1.0f));
+			glm::vec3 worldExtents = {
+				std::abs(wt[0][0]) * localExtents.x + std::abs(wt[1][0]) * localExtents.y +
+					std::abs(wt[2][0]) * localExtents.z,
+				std::abs(wt[0][1]) * localExtents.x + std::abs(wt[1][1]) * localExtents.y +
+					std::abs(wt[2][1]) * localExtents.z,
+				std::abs(wt[0][2]) * localExtents.x + std::abs(wt[1][2]) * localExtents.y +
+					std::abs(wt[2][2]) * localExtents.z,
+			};
+			return IsBoxVisible(shadowFrustum, worldCenter, worldExtents);
+		};
+
 		const auto& opaqueQueue = ctx.Renderer->GetOpaqueQueue();
 		for (size_t i = 0; i < opaqueQueue.size();)
 		{
 			const auto& firstItem = opaqueQueue[i];
+
+			if (!isVisibleInShadow(firstItem))
+			{
+				++i;
+				continue;
+			}
 
 			if (firstItem.Asset && firstItem.BoneMatrices.empty())
 			{
 				size_t j = i + 1;
 				std::vector<glm::mat4> transforms = {firstItem.Transform};
 				while (j < opaqueQueue.size() && opaqueQueue[j].Asset == firstItem.Asset &&
-					   opaqueQueue[j].BoneMatrices.empty() && opaqueQueue[j].Materials.empty())
+					   opaqueQueue[j].BoneMatrices.empty() && opaqueQueue[j].Materials == firstItem.Materials)
 				{
-					transforms.push_back(opaqueQueue[j].Transform);
+					if (isVisibleInShadow(opaqueQueue[j]))
+					{
+						transforms.push_back(opaqueQueue[j].Transform);
+					}
 					++j;
 				}
 
@@ -163,7 +194,7 @@ namespace Chained
 
 		GraphicsDevice::Get().SetPolygonOffset(false);
 
-		// Restore previous FBO binding and viewport
+		// Restore previous FBO binding and viewport without pipeline stalls
 		m_ShadowMap->Unbind();
 		GraphicsDevice::Get().BindFramebuffer(previousFBO);
 		GraphicsDevice::Get().SetViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);

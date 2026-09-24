@@ -59,6 +59,8 @@ set(GRAPHICS_PIPELINE
     pipeline/shader_storage.h
     pipeline/shader_storage.cpp
     pipeline/shader_uniform_utils.h
+    ${CMAKE_SOURCE_DIR}/engine/scene/systems/nametag_system.h
+    ${CMAKE_SOURCE_DIR}/engine/scene/systems/nametag_system.cpp
 )
 
 set(GRAPHICS_PASSES
@@ -78,8 +80,6 @@ set(GRAPHICS_MAIN
     text_renderer.cpp
     freetype_gl_atlas.h
     freetype_gl_atlas.cpp
-    nametag_system.h
-    nametag_system.cpp
 )
 
 add_library(engine_graphics STATIC

@@ -1,6 +1,5 @@
 #include "scriptengine.h"
 #include "engine/app/application.h"
-
 #include "engine/common/engine_assert.h"
 #include "engine/scene/scene.h"
 #include <exception>

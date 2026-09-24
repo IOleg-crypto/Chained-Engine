@@ -218,13 +218,13 @@ namespace Chained
 
 	void GLFramebuffer::Bind()
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glViewport(0, 0, m_Specification.Width, m_Specification.Height);
+		GraphicsDevice::Get().BindFramebuffer(m_RendererID);
+		GraphicsDevice::Get().SetViewport(0, 0, m_Specification.Width, m_Specification.Height);
 	}
 
 	void GLFramebuffer::Unbind()
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		GraphicsDevice::Get().BindFramebuffer(0);
 	}
 
 	void GLFramebuffer::Resolve()

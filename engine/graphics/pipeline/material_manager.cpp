@@ -9,12 +9,14 @@
 namespace Chained
 {
 
-	Material MaterialManager::Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
-									  ModelAsset* modelAsset) const
+	static const Material s_DefaultMaterial{};
+
+	const Material& MaterialManager::Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
+											 ModelAsset* modelAsset) const
 	{
 		if (meshIndex < 0 || meshIndex >= (int)model.Meshes.size())
 		{
-			return {};
+			return s_DefaultMaterial;
 		}
 
 		int matIdx = model.Meshes[meshIndex].MaterialIndex;
@@ -38,7 +40,7 @@ namespace Chained
 		// Tier 3: Model struct embedded materials
 		if (matIdx < 0 || matIdx >= (int)model.Materials.size())
 		{
-			return Material();
+			return s_DefaultMaterial;
 		}
 
 		return model.Materials[matIdx];
@@ -145,6 +147,11 @@ namespace Chained
 		shader->SetFloat("roughness", material.Roughness);
 		shader->SetVec4("colEmissive", material.EmissiveColor);
 		shader->SetFloat("emissiveIntensity", material.EmissiveIntensity);
+
+		shader->SetInt("u_FlipUV_Y", material.FlipUV_Y ? 1 : 0);
+		shader->SetInt("u_FlipUV_X", material.FlipUV_X ? 1 : 0);
+		shader->SetVec2("u_UVScale", material.UVScale);
+		shader->SetVec2("u_UVOffset", material.UVOffset);
 	}
 
 } // namespace Chained

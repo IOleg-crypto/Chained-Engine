@@ -113,7 +113,7 @@ namespace Chained
 		}
 		bool HasFinished() const
 		{
-			return m_Started && m_Finished;
+			return m_Finished;
 		}
 		bool HasStarted() const
 		{

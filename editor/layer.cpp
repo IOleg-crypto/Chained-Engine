@@ -6,6 +6,7 @@
 #include "engine/core/key_codes.h"
 #include "engine/core/service_locator.h"
 #include "engine/imgui/imgui_layer.h"
+
 #include "events.h"
 #include "gui.h"
 #include "editor_menu.h"
@@ -45,8 +46,7 @@ namespace Chained
 
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
 								 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking |
-								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
-								 ImGuiWindowFlags_NoInputs;
+								 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, EditorColors::LoadingOverlayBg);
@@ -105,16 +105,21 @@ namespace Chained
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
-		s_Instance = this;
-
 		m_ProjectManager = std::make_unique<EditorProjectManager>();
 		m_SceneManager = std::make_unique<EditorSceneManager>();
-
 		m_Menu = std::make_unique<EditorMenu>();
 		m_Panels = std::make_unique<EditorPanels>();
 
-		m_Layout = std::make_unique<EditorLayout>(*m_Panels);
-		m_ProjectSelectorUI = std::make_unique<ProjectSelectorUI>(*m_ProjectManager);
+		m_SceneManager->SetDependencies(&m_Config, &m_EditorState, m_ProjectManager.get(), [this]() { SaveConfig(); });
+		m_ProjectManager->SetDependencies(
+			&m_Config, m_SceneManager.get(), [this]() { ReloadEditorFonts(); }, [this]() { SaveConfig(); });
+		m_Menu->SetDependencies(
+			m_SceneManager.get(), m_ProjectManager.get(), &m_Config, [this]() { SaveConfig(); },
+			[this]() { ReloadEditorFonts(); });
+		m_Menu->SetCommandHistory(&m_CommandHistory);
+
+		m_Layout = std::make_unique<EditorLayout>(*m_Panels, *m_Menu, *m_SceneManager);
+		m_ProjectSelectorUI = std::make_unique<ProjectSelectorUI>(*m_ProjectManager, m_Config);
 		m_FontManager = std::make_unique<FontManager>(m_Config);
 
 		LoadConfig();
@@ -123,7 +128,6 @@ namespace Chained
 	EditorLayer::~EditorLayer()
 	{
 		SetSelectedEntity({});
-		s_Instance = nullptr;
 	}
 
 	template <typename T> static void LoadYAMLField(const YAML::Node& node, const char* key, T& target)
@@ -241,9 +245,9 @@ namespace Chained
 
 		// SetTraceLogCallback removed - now using engine logging
 
-		EditorGUI::ApplyTheme();
-		PropertyEditor::Init();
-		m_Panels->Init();
+		EditorGUI::ApplyTheme(m_Config.FontSize);
+		PropertyEditor::Init(&m_CommandHistory);
+		m_Panels->Init(m_SceneManager.get(), &m_EditorState, &m_Config, &m_ViewportSize, &m_CommandHistory);
 
 		// Load editor fonts BEFORE project auto-load.
 		// OnProjectOpened will clear + rebuild the atlas (editor + project fonts together).
@@ -483,7 +487,12 @@ namespace Chained
 		if (m_SceneManager->IsLoading())
 		{
 			DrawLoadingOverlay("Editor Busy", m_SceneManager->GetLoadingStatus().c_str());
+			// m_Panels->OnImGuiRender(true);
 		}
+		// else
+		// {
+		// 	m_Panels->OnImGuiRender(false);
+		// }
 	}
 
 	void EditorLayer::ResetLayout()
@@ -500,6 +509,11 @@ namespace Chained
 
 	void EditorLayer::OnEvent(Event& e)
 	{
+		if (m_SceneManager->IsLoading())
+		{
+			return;
+		}
+
 		if (auto scene = GetActiveScene())
 		{
 			scene->OnEvent(e);
@@ -590,56 +604,70 @@ namespace Chained
 
 	bool EditorLayer::HandleKeyboardShortcut(KeyPressedEvent& e)
 	{
+		// Ігноруємо автоповтор при затисканні клавіші, щоб дія виконувалася лише 1 раз за натискання
 		if (e.IsRepeat())
 		{
 			return false;
 		}
 
-		bool ctrl = Core::Input::IsKeyDown(KeyCode::LeftControl) || Core::Input::IsKeyDown(KeyCode::RightControl);
-		bool shift = Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift);
-		auto keyCode = e.GetKeyCode();
+		// Гарячі клавіші редактора працюють тільки поза режимом Play
+		if (GetSceneState() == SceneState::Play)
+		{
+			return false;
+		}
+
+		const bool ctrl = Core::Input::IsKeyDown(KeyCode::LeftControl) || Core::Input::IsKeyDown(KeyCode::RightControl);
+		const bool shift = Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift);
+		const KeyCode key = e.GetKeyCode();
 
 		if (ctrl)
 		{
-			switch (keyCode)
+			switch (key)
 			{
-			case KeyCode::N:
-				if (GetSceneState() != SceneState::Play)
-				{
-					m_SceneManager->NewScene();
-				}
-				return true;
-			case KeyCode::O:
-				if (GetSceneState() != SceneState::Play)
-				{
-					m_SceneManager->OpenScene();
-				}
-				return true;
-			case KeyCode::S:
-				if (GetSceneState() != SceneState::Play)
-				{
-					shift ? m_SceneManager->SaveSceneAs() : m_SceneManager->SaveScene();
-				}
-				return true;
-			case KeyCode::Z:
-				if (GetSceneState() != SceneState::Play)
-				{
-					m_CommandHistory.Undo();
-				}
-				return true;
-			case KeyCode::Y:
-				if (GetSceneState() != SceneState::Play)
+			// --- UNDO / REDO ---
+			case KeyCode::Z: {
+				if (shift)
 				{
 					m_CommandHistory.Redo();
+					CH_CORE_INFO("Redo command executed.");
+				}
+				else
+				{
+					m_CommandHistory.Undo();
+					CH_CORE_INFO("Undo command executed.");
 				}
 				return true;
 			}
-		}
+			case KeyCode::Y: {
+				m_CommandHistory.Redo();
+				CH_CORE_INFO("Redo command executed.");
+				return true;
+			}
 
-		if (keyCode == KeyCode::F5)
-		{
-			m_ProjectManager->LaunchStandalone(m_SceneManager->GetActiveScene());
-			return true;
+			// --- СЦЕНИ ТА ПРОЄКТИ ---
+			case KeyCode::S: {
+				if (shift)
+				{
+					m_SceneManager->SaveSceneAs();
+				}
+				else
+				{
+					m_SceneManager->SaveScene();
+				}
+				return true;
+			}
+			case KeyCode::N: {
+				m_SceneManager->NewScene();
+				return true;
+			}
+			case KeyCode::O: {
+				m_SceneManager->OpenScene();
+				return true;
+			}
+
+			default:
+				break;
+			}
 		}
 
 		return false;

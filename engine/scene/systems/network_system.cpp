@@ -1,375 +1,203 @@
-#include "network_system.h"
-#include "engine/scene/components/gameplay/network_identity_component.h"
-#include "engine/scene/components/core/transform_component.h"
-#include "engine/scene/components/core/hierarchy_component.h"
-#include "engine/scene/systems/transform_system.h"
-#include "engine/scene/components/gameplay/player_component.h"
-#include "engine/scene/components/physics/physics_component.h"
-#include "engine/scene/components/render/camera_component.h"
-#include "engine/scene/components/gameplay/spawn_component.h"
-#include "engine/networking/network_service.h"
-#include "engine/scene/scene.h"
-#include "engine/scene/prefab_serializer.h"
-#include "engine/scene/scene_events.h"
-#include "engine/app/application.h"
-#include "engine/assets/asset_manager.h"
+#include "engine/scene/systems/network_system.h"
+#include "engine/core/application_event_proxy.h"
+#include "engine/core/log.h"
 #include "engine/core/service_locator.h"
-#include "engine/core/input.h"
-#include "engine/core/key_codes.h"
-
-#include <imgui.h>
-#include <glm/gtc/quaternion.hpp>
+#include "engine/scene/scene.h"
+#include "engine/scene/scene_events.h"
+#include "engine/scene/components/core/transform_component.h"
+#include "engine/scene/components/gameplay/network_identity_component.h"
+#include "engine/scene/components/physics/physics_component.h"
+#include "engine/scene/systems/transform_system.h"
+#include <filesystem>
 #include <cstring>
-#include <unordered_set>
 
 namespace Chained
 {
-
-	NetworkSystem& NetworkSystem::GetInstance()
+	namespace NetworkSystem
 	{
-		return *ServiceLocator::Get<NetworkSystem>();
-	}
+		static Scene* s_CurrentActiveScene = nullptr;
+		static Scene* s_ActiveReplicationScene = nullptr;
+		static std::vector<EntitySpawnMessage> s_PendingSpawns;
 
-	// ---- Peer mapping ----
-
-	void NetworkSystem::SetPlayerPrefab(const std::string& path)
-	{
-		m_PlayerPrefab = path;
-	}
-
-	const std::string& NetworkSystem::GetPlayerPrefab()
-	{
-		return m_PlayerPrefab;
-	}
-
-	void NetworkSystem::RegisterPeerEntity(int peer, uint64_t networkID)
-	{
-		m_PeerToNetworkID[peer] = networkID;
-	}
-
-	void NetworkSystem::UnregisterPeer(int peer)
-	{
-		m_PeerToNetworkID.erase(peer);
-	}
-
-	// ---- Incoming message processing (client side) ----
-
-	void NetworkSystem::ProcessWorldStateMessage(WorldStateMessage* msg)
-	{
-		if (!msg)
+		static std::string NormalizeToAssetPath(const std::string& path)
 		{
-			return;
-		}
-
-		auto it = m_PendingStates.find(msg->NetworkID);
-		if (it != m_PendingStates.end() && msg->Tick < it->second.LastTick &&
-			(it->second.LastTick - msg->Tick) < 100000)
-		{
-			return; // Drop out-of-order / older state
-		}
-
-		PendingNetworkState state;
-		state.NetworkID = msg->NetworkID;
-		state.LastTick = msg->Tick;
-		state.TargetPosition = {msg->Position[0], msg->Position[1], msg->Position[2]};
-		state.TargetRotation = {msg->Rotation[0], msg->Rotation[1], msg->Rotation[2], msg->Rotation[3]};
-		state.TargetVelocity = {msg->Velocity[0], msg->Velocity[1], msg->Velocity[2]};
-		state.IsGrounded = (msg->IsGrounded != 0);
-		state.ActionFlags = msg->ActionFlags;
-
-		// Preserve render smoothing state so visual position is never hard-reset.
-		if (it != m_PendingStates.end())
-		{
-			state.RenderPosition = it->second.RenderPosition;
-			state.RenderRotation = it->second.RenderRotation;
-			state.RenderInitialized = it->second.RenderInitialized;
-		}
-
-		m_PendingStates[state.NetworkID] = state;
-	}
-
-	void NetworkSystem::ProcessSceneChangeMessage(SceneChangeMessage* msg)
-	{
-		if (!msg || msg->ScenePath[0] == '\0')
-		{
-			return;
-		}
-
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (net)
-		{
-			net->SetPendingSceneChange(std::string(msg->ScenePath));
-			CH_CORE_INFO("Network: Received scene change -> {}", msg->ScenePath);
-		}
-	}
-
-	static bool IsLobbyOrMenuScene(const Scene* scene)
-	{
-		if (!scene)
-		{
-			return true;
-		}
-		if (scene->GetSettings().Type == SceneType::UI)
-		{
-			return true;
-		}
-		std::string path = scene->GetSettings().ScenePath;
-		for (char& c : path)
-		{
-			if (c == '\\')
+			if (path.empty())
 			{
-				c = '/';
+				return "";
 			}
-			c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
-		}
-		return path.find("lobby") != std::string::npos || path.find("menu") != std::string::npos;
-	}
-
-	static bool AreScenePathsMatching(const std::string& pathA, const std::string& pathB)
-	{
-		if (pathA.empty() || pathB.empty() || pathA == pathB)
-		{
-			return true;
-		}
-
-		auto normalize = [](std::string s) {
+			std::string s = path;
 			for (char& c : s)
 			{
 				if (c == '\\')
 				{
 					c = '/';
 				}
-				c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
 			}
-			return s;
-		};
-
-		std::string normA = normalize(pathA);
-		std::string normB = normalize(pathB);
-		if (normA == normB)
-		{
-			return true;
-		}
-
-		if (normA.ends_with(normB) || normB.ends_with(normA))
-		{
-			return true;
-		}
-
-		std::filesystem::path pA(normA);
-		std::filesystem::path pB(normB);
-		return !pA.filename().empty() && pA.filename() == pB.filename();
-	}
-
-	static std::string NormalizeToAssetPath(const std::string& path)
-	{
-		if (path.empty())
-		{
-			return "";
-		}
-		std::string s = path;
-		for (char& c : s)
-		{
-			if (c == '\\')
+			size_t pos = s.rfind("scenes/");
+			if (pos != std::string::npos)
 			{
-				c = '/';
+				return s.substr(pos);
+			}
+			pos = s.rfind("assets/");
+			if (pos != std::string::npos)
+			{
+				return s.substr(pos + 7);
+			}
+			return std::filesystem::path(s).filename().string();
+		}
+
+		static bool AreScenePathsMatching(const std::string& a, const std::string& b)
+		{
+			if (a.empty() && b.empty())
+			{
+				return true;
+			}
+			std::string normA = NormalizeToAssetPath(a);
+			std::string normB = NormalizeToAssetPath(b);
+			if (normA == normB)
+			{
+				return true;
+			}
+			std::filesystem::path pA(normA);
+			std::filesystem::path pB(normB);
+			return !pA.filename().empty() && pA.filename() == pB.filename();
+		}
+
+		SceneNetworkContext& GetOrCreateContext(Scene* scene)
+		{
+			CH_ASSERT(scene, "Scene cannot be null in NetworkSystem::GetOrCreateContext");
+			entt::registry& reg = scene->GetRegistry();
+			if (!reg.ctx().contains<SceneNetworkContext>())
+			{
+				return reg.ctx().emplace<SceneNetworkContext>();
+			}
+			return reg.ctx().get<SceneNetworkContext>();
+		}
+
+		SceneNetworkContext* TryGetContext(Scene* scene)
+		{
+			if (!scene)
+			{
+				return nullptr;
+			}
+			return scene->GetRegistry().ctx().find<SceneNetworkContext>();
+		}
+
+		NetworkSessionTracker* GetSessionTracker(Scene* scene)
+		{
+			auto* ctx = TryGetContext(scene);
+			return ctx ? &ctx->Session : nullptr;
+		}
+
+		NetworkInputController* GetInputController(Scene* scene)
+		{
+			auto* ctx = TryGetContext(scene);
+			return ctx ? &ctx->Input : nullptr;
+		}
+
+		NetworkReplicationManager* GetReplicationManager(Scene* scene)
+		{
+			auto* ctx = TryGetContext(scene);
+			return ctx ? &ctx->Replication : nullptr;
+		}
+
+		void SetPlayerPrefab(Scene* scene, const std::string& path)
+		{
+			if (scene)
+			{
+				GetOrCreateContext(scene).Session.SetPlayerPrefab(path);
 			}
 		}
-		size_t pos = s.rfind("scenes/");
-		if (pos != std::string::npos)
-		{
-			return s.substr(pos);
-		}
-		pos = s.rfind("assets/");
-		if (pos != std::string::npos)
-		{
-			return s.substr(pos + 7);
-		}
-		return std::filesystem::path(s).filename().string();
-	}
 
-	static glm::vec3 FindSpawnPosition(entt::registry& reg)
-	{
-		for (auto [entity, spawn] : reg.view<SpawnComponent>().each())
+		const std::string& GetPlayerPrefab(Scene* scene)
 		{
-			if (spawn.IsActive)
+			static const std::string s_DefaultPrefab = "prefab/player.chprefab";
+			if (scene)
 			{
-				if (auto* transform = reg.try_get<TransformComponent>(entity))
+				if (auto* ctx = TryGetContext(scene))
 				{
-					glm::vec3 pos = transform->Translation + spawn.SpawnPoint;
-					CH_CORE_TRACE("Network: FindSpawnPosition — using SpawnComponent, pos=({:.1f}, {:.1f}, {:.1f}).",
-								  pos.x, pos.y, pos.z);
-					return pos;
+					return ctx->Session.GetPlayerPrefab();
+				}
+			}
+			return s_DefaultPrefab;
+		}
+
+		void RegisterPeerEntity(Scene* scene, int peer, uint64_t networkID)
+		{
+			if (scene)
+			{
+				GetOrCreateContext(scene).Session.RegisterPeer(peer, networkID);
+			}
+		}
+
+		void UnregisterPeer(Scene* scene, int peer)
+		{
+			if (scene)
+			{
+				if (auto* ctx = TryGetContext(scene))
+				{
+					ctx->Session.UnregisterPeer(peer);
 				}
 			}
 		}
-		for (auto [entity, player] : reg.view<PlayerComponent>().each())
+
+		const std::vector<ProcessedInput>& GetPendingInputs(Scene* scene)
 		{
-			if (auto* transform = reg.try_get<TransformComponent>(entity))
+			static const std::vector<ProcessedInput> s_EmptyInputs;
+			if (scene)
 			{
-				CH_CORE_TRACE("Network: FindSpawnPosition — using PlayerComponent, pos=({:.1f}, {:.1f}, {:.1f}).",
-							  transform->Translation.x, transform->Translation.y, transform->Translation.z);
-				return transform->Translation;
+				if (auto* ctx = TryGetContext(scene))
+				{
+					return ctx->Input.GetPendingInputs();
+				}
+			}
+			return s_EmptyInputs;
+		}
+
+		void ClearPendingInputs(Scene* scene)
+		{
+			if (scene)
+			{
+				if (auto* ctx = TryGetContext(scene))
+				{
+					ctx->Input.ClearPendingInputs();
+				}
 			}
 		}
-		CH_CORE_WARN(
-			"Network: FindSpawnPosition — no SpawnComponent or PlayerComponent found, using default (0, 100, 0).");
-		return {0, 100, 0};
-	}
 
-	void NetworkSystem::ProcessEntitySpawnMessage(EntitySpawnMessage* msg, Scene* scene)
-	{
-		if (!msg || !scene)
+		void ApplyHostInputs(entt::registry& reg, Timestep ts)
 		{
-			return;
-		}
-
-		if (msg->NetworkID == 0 || msg->PrefabPath[0] == '\0')
-		{
-			return;
-		}
-
-		if (m_NetworkIDToEntity.find(msg->NetworkID) != m_NetworkIDToEntity.end())
-		{
-			return;
-		}
-
-		entt::registry& reg = scene->GetRegistry();
-		auto view = reg.view<NetworkIdentityComponent>();
-		for (auto entity : view)
-		{
-			if (view.get<NetworkIdentityComponent>(entity).NetworkID == msg->NetworkID)
+			if (auto* ctx = reg.ctx().find<SceneNetworkContext>())
 			{
-				if (reg.all_of<IDComponent>(entity))
-				{
-					m_NetworkIDToEntity[msg->NetworkID] = reg.get<IDComponent>(entity).ID;
-				}
+				ctx->Input.ApplyHostInputs(reg, ts);
+			}
+		}
+
+		void InterpolateEntities(entt::registry& reg, float dt)
+		{
+			if (auto* ctx = reg.ctx().find<SceneNetworkContext>())
+			{
+				ctx->Replication.InterpolateEntities(reg, dt);
+			}
+		}
+
+		static void ProcessPlayerAssignMessage(PlayerAssignMessage* msg, Scene* scene, SceneNetworkContext& ctx)
+		{
+			if (!msg || !scene)
+			{
 				return;
 			}
-		}
-
-		std::string path = msg->PrefabPath;
-		if (auto* am = ServiceLocator::TryGet<AssetManager>())
-		{
-			path = am->ResolvePath(path);
-		}
-
-		Entity avatar = PrefabSerializer::Deserialize(scene, path);
-		if (!avatar)
-		{
-			CH_CORE_ERROR("Network: Failed to spawn replicated prefab '{}' (netID={}).", msg->PrefabPath,
-						  msg->NetworkID);
-			return;
-		}
-
-		auto* net = ServiceLocator::TryGet<Network>();
-		uint64_t localNetID = m_LocalNetworkID;
-		if (localNetID == 0 && net)
-		{
-			localNetID = net->GetLocalNetworkID();
-			if (localNetID != 0)
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net)
 			{
-				m_LocalNetworkID = localNetID;
+				return;
 			}
-		}
 
-		if (avatar.HasComponent<TransformComponent>())
-		{
-			auto& transform = avatar.GetComponent<TransformComponent>();
-			glm::vec3 spawnPos = FindSpawnPosition(scene->GetRegistry());
-			if (msg->NetworkID > 1)
-			{
-				spawnPos.x += static_cast<float>(msg->NetworkID - 1) * 4.0f;
-			}
-			TransformSystem::SetTranslation(transform, spawnPos);
-		}
-
-		auto& netID = avatar.AddOrReplaceComponent<NetworkIdentityComponent>();
-		netID.NetworkID = msg->NetworkID;
-		netID.PrefabPath = msg->PrefabPath;
-		if (localNetID != 0)
-		{
-			netID.IsOwner = (msg->NetworkID == localNetID);
-		}
-		else
-		{
-			netID.IsOwner = false;
-			CH_CORE_WARN("Network: EntitySpawn for netID={} arrived before PlayerAssign — IsOwner deferred.",
-						 msg->NetworkID);
-		}
-
-		// Mark remote entities as network-driven so physics doesn't fight interpolation.
-		if (!netID.IsOwner)
-		{
-			if (avatar.HasComponent<RigidBodyComponent>())
-			{
-				avatar.GetComponent<RigidBodyComponent>().IsNetworkDriven = true;
-			}
-		}
-
-		m_NetworkIDToEntity[msg->NetworkID] = avatar.GetUUID();
-		CH_CORE_INFO("Network: Spawned replicated entity (netID={}, owner={}).", msg->NetworkID, netID.IsOwner);
-	}
-
-	void NetworkSystem::ProcessEntityDestroyMessage(EntityDestroyMessage* msg, Scene* scene)
-	{
-		if (!msg || !scene)
-		{
-			return;
-		}
-
-		auto it = m_NetworkIDToEntity.find(msg->NetworkID);
-		if (it != m_NetworkIDToEntity.end())
-		{
-			Entity entity = scene->GetEntityByUUID(it->second);
-			if (entity && entity.IsValid())
-			{
-				scene->DestroyEntity(entity);
-			}
-			m_NetworkIDToEntity.erase(it);
-		}
-
-		// Also search registry directly by NetworkIdentityComponent and destroy all matching entities
-		entt::registry& reg = scene->GetRegistry();
-		std::vector<entt::entity> toDestroy;
-		auto view = reg.view<NetworkIdentityComponent>();
-		for (auto entity : view)
-		{
-			if (view.get<NetworkIdentityComponent>(entity).NetworkID == msg->NetworkID)
-			{
-				toDestroy.push_back(entity);
-			}
-		}
-		for (auto entity : toDestroy)
-		{
-			Entity e(entity, &reg);
-			if (e.IsValid())
-			{
-				scene->DestroyEntity(e);
-			}
-		}
-
-		m_PendingStates.erase(msg->NetworkID);
-		CH_CORE_INFO("Network: Destroyed replicated entity (netID={}).", msg->NetworkID);
-	}
-
-	void NetworkSystem::ProcessPlayerAssignMessage(PlayerAssignMessage* msg)
-	{
-		if (!msg)
-		{
-			return;
-		}
-
-		m_LocalNetworkID = msg->NetworkID;
-
-		if (auto* net = ServiceLocator::TryGet<Network>())
-		{
 			net->SetLocalNetworkID(msg->NetworkID);
-		}
+			ctx.Session.SetLocalNetworkID(msg->NetworkID);
+			CH_CORE_INFO("Network: Received PlayerAssign — local network ID is {}.", msg->NetworkID);
 
-		if (auto* scene = m_ReplicationScene)
-		{
-			entt::registry& reg = scene->GetRegistry();
+			auto& reg = scene->GetRegistry();
 			auto view = reg.view<NetworkIdentityComponent>();
 			for (auto entity : view)
 			{
@@ -381,957 +209,115 @@ namespace Chained
 					{
 						rb->IsNetworkDriven = false;
 					}
-					if (auto* tc = reg.try_get<TransformComponent>(entity))
-					{
-						glm::vec3 curPos = TransformSystem::GetTranslation(*tc);
-						if (curPos == glm::vec3(0.0f))
-						{
-							TransformSystem::SetTranslation(*tc, FindSpawnPosition(reg));
-						}
-					}
-					if (reg.all_of<IDComponent>(entity))
-					{
-						m_NetworkIDToEntity[msg->NetworkID] = reg.get<IDComponent>(entity).ID;
-					}
-				}
-			}
-		}
-
-		CH_CORE_INFO("Network: Assigned local network ID {}.", msg->NetworkID);
-	}
-
-	// ---- Incoming message processing (host side) ----
-
-	void NetworkSystem::ProcessInputStateMessage(InputStateMessage* msg, int clientIndex)
-	{
-		if (!msg)
-		{
-			return;
-		}
-
-		auto it = m_PeerToNetworkID.find(clientIndex);
-		uint64_t networkID = (it != m_PeerToNetworkID.end()) ? it->second : 0;
-		if (networkID == 0)
-		{
-			if (auto* net = ServiceLocator::TryGet<Network>())
-			{
-				networkID = net->GetNetworkIDForConnection(clientIndex);
-				if (networkID != 0)
-				{
-					m_PeerToNetworkID[clientIndex] = networkID;
-				}
-			}
-		}
-
-		ProcessedInput input;
-		input.NetworkID = networkID;
-		input.MoveX = msg->MoveX;
-		input.MoveZ = msg->MoveZ;
-		input.ActionFlags = msg->ActionFlags;
-		input.MouseX = msg->MouseX;
-		input.MouseY = msg->MouseY;
-
-		m_PendingInputs.push_back(input);
-		if (networkID != 0)
-		{
-			m_ActiveClientInputs[networkID] = input;
-			m_ActiveClientInputTimers[networkID] = 0.0f;
-		}
-	}
-
-	void NetworkSystem::ProcessPlayerInfoMessage(PlayerInfoMessage* msg, int clientIndex)
-	{
-		if (!msg)
-		{
-			return;
-		}
-
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net)
-		{
-			return;
-		}
-
-		const uint64_t networkID = net->GetNetworkIDForConnection(clientIndex);
-		if (networkID == 0)
-		{
-			CH_CORE_WARN("Network: PlayerInfo from client {} arrived before PlayerAssign — deferring.", clientIndex);
-			m_PendingPlayerInfo[clientIndex] = {std::string(msg->Name), msg->SkinIndex};
-			return;
-		}
-
-		net->UpdatePlayerInfo(networkID, msg->Name, msg->SkinIndex);
-		net->BroadcastPlayerList();
-	}
-
-	void NetworkSystem::ProcessPlayerListMessage(PlayerListMessage* msg)
-	{
-		if (!msg)
-		{
-			return;
-		}
-
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net)
-		{
-			return;
-		}
-
-		std::vector<PlayerNetInfo> playerList;
-		for (int i = 0; i < msg->Count && i < 64; ++i)
-		{
-			PlayerNetInfo info;
-			info.NetworkID = msg->Entries[i].NetworkID;
-			info.Name = msg->Entries[i].Name;
-			info.SkinIndex = msg->Entries[i].SkinIndex;
-			info.IsHost = msg->Entries[i].IsHost;
-			info.Ping = msg->Entries[i].Ping;
-
-			playerList.push_back(info);
-		}
-
-		net->SetPlayerListFromMessage(playerList);
-
-		CH_CORE_INFO("Network: Received player list ({} players).", msg->Count);
-	}
-
-	void NetworkSystem::ProcessChatMessageMessage(ChatMessageMessage* msg)
-	{
-		if (!msg)
-		{
-			return;
-		}
-
-		ChatMessagePacket pkt;
-		pkt.SenderNetworkID = msg->SenderNetworkID;
-		pkt.SenderName = msg->SenderName;
-		pkt.Message = msg->Message;
-
-		if (auto* net = ServiceLocator::TryGet<Network>())
-		{
-			net->StorePendingChatMessage(pkt);
-		}
-		CH_CORE_INFO("Network: Chat from '{}': {}", pkt.SenderName, pkt.Message);
-	}
-
-	// ---- Host-side: apply inputs from remote clients ----
-
-	void NetworkSystem::ApplyHostInputs(entt::registry& reg, Timestep ts)
-	{
-		m_PendingInputs.clear();
-		if (m_ActiveClientInputs.empty())
-		{
-			return;
-		}
-
-		float dt = static_cast<float>(ts);
-
-		for (auto it = m_ActiveClientInputs.begin(); it != m_ActiveClientInputs.end();)
-		{
-			uint64_t networkID = it->first;
-			auto& input = it->second;
-			float& timer = m_ActiveClientInputTimers[networkID];
-			timer += dt;
-
-			// If no input received for more than 250ms, drop it
-			if (timer > 0.25f)
-			{
-				it = m_ActiveClientInputs.erase(it);
-				m_ActiveClientInputTimers.erase(networkID);
-				continue;
-			}
-
-			entt::entity targetEntity = entt::null;
-			auto view = reg.view<NetworkIdentityComponent>();
-			for (auto entity : view)
-			{
-				auto& netID = view.get<NetworkIdentityComponent>(entity);
-				if (netID.NetworkID == networkID)
-				{
-					targetEntity = entity;
-					break;
-				}
-			}
-
-			if (targetEntity == entt::null || !reg.valid(targetEntity))
-			{
-				++it;
-				continue;
-			}
-
-			if (reg.all_of<PlayerComponent, RigidBodyComponent>(targetEntity))
-			{
-				auto& player = reg.get<PlayerComponent>(targetEntity);
-				auto& rb = reg.get<RigidBodyComponent>(targetEntity);
-
-				if (rb.Handle != kInvalidPhysicsBody)
-				{
-					float speed = player.MovementSpeed;
-					if (input.ActionFlags & InputAction_Sprint)
-					{
-						speed *= 2.0f;
-					}
-
-					float moveX = input.MoveX * speed;
-					float moveZ = input.MoveZ * speed;
-					rb.Velocity = glm::vec3(moveX, rb.Velocity.y, moveZ);
-
-					// Rotate remote avatar to face movement direction
-					if (auto* tc = reg.try_get<TransformComponent>(targetEntity))
-					{
-						if (std::abs(moveX) > 0.001f || std::abs(moveZ) > 0.001f)
-						{
-							float yaw = std::atan2(moveX, moveZ);
-							TransformSystem::SetRotation(*tc, glm::vec3(0.0f, yaw, 0.0f));
-						}
-					}
-
-					if ((input.ActionFlags & InputAction_Jump) && rb.IsGrounded)
-					{
-						rb.Velocity.y = player.JumpForce;
-						rb.VelocityForced = true;
-						input.ActionFlags &= ~InputAction_Jump;
-					}
-
-					m_LastActionFlags[networkID] = input.ActionFlags;
-				}
-			}
-			else
-			{
-				if (m_WarnedInputNetID.insert(networkID).second)
-				{
-					CH_CORE_WARN(
-						"Network: ApplyHostInputs — entity netID={} missing PlayerComponent/RigidBodyComponent",
-						networkID);
-				}
-			}
-
-			++it;
-		}
-	}
-
-	// ---- Client-side: collect local input and send to server ----
-
-	void NetworkSystem::CollectAndSendInput(Network* net, float dt)
-	{
-		if (!net->IsClient())
-		{
-			return;
-		}
-
-		InputStateMessage msg;
-		msg.Tick = m_ClientTick++;
-		msg.DeltaTime = dt;
-
-		float rawX = 0.0f;
-		float rawZ = 0.0f;
-		uint8_t flags = 0;
-
-		const bool captureKeyboard = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
-		if (!captureKeyboard)
-		{
-			if (Core::Input::IsKeyDown(KeyCode::W))
-			{
-				rawZ += 1.0f;
-			}
-			if (Core::Input::IsKeyDown(KeyCode::S))
-			{
-				rawZ -= 1.0f;
-			}
-			if (Core::Input::IsKeyDown(KeyCode::A))
-			{
-				rawX -= 1.0f;
-			}
-			if (Core::Input::IsKeyDown(KeyCode::D))
-			{
-				rawX += 1.0f;
-			}
-
-			if (Core::Input::IsKeyPressed(KeyCode::Space))
-			{
-				flags |= InputAction_Jump;
-			}
-			if (Core::Input::IsKeyDown(KeyCode::LeftShift))
-			{
-				flags |= InputAction_Sprint;
-			}
-		}
-
-		float moveX = rawX;
-		float moveZ = rawZ;
-		if (m_ReplicationScene)
-		{
-			auto camView = m_ReplicationScene->GetRegistry().view<CameraComponent, TransformComponent>();
-			for (auto entity : camView)
-			{
-				auto& cam = camView.get<CameraComponent>(entity);
-				if (!cam.Primary)
-				{
-					continue;
-				}
-				auto& tc = camView.get<TransformComponent>(entity);
-				glm::vec3 forward = tc.WorldTransform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-				forward.y = 0.0f;
-				float fwdLen = glm::length(forward);
-				if (fwdLen > 0.001f)
-				{
-					forward /= fwdLen;
+					CH_CORE_INFO("Network: Claimed ownership of entity {} with network ID {}.", (uint32_t)entity,
+								 msg->NetworkID);
 				}
 				else
 				{
-					forward = glm::vec3(0.0f, 0.0f, -1.0f);
-				}
-				glm::vec3 right = glm::vec3(-forward.z, 0.0f, forward.x);
-
-				moveX = rawX * right.x + rawZ * forward.x;
-				moveZ = rawX * right.z + rawZ * forward.z;
-				break;
-			}
-		}
-
-		float len = std::sqrt(moveX * moveX + moveZ * moveZ);
-		if (len > 0.001f)
-		{
-			moveX /= len;
-			moveZ /= len;
-		}
-
-		msg.MoveX = moveX;
-		msg.MoveZ = moveZ;
-		msg.ActionFlags = flags;
-
-		glm::vec2 mouseDelta = Core::Input::GetMouseDelta();
-		msg.MouseX = mouseDelta.x;
-		msg.MouseY = mouseDelta.y;
-
-		ByteWriter w;
-		msg.Encode(w);
-		net->SendToServer(MessageType_InputState, w.Data().data(), w.Data().size(), false);
-	}
-
-	static glm::quat SafeNormalizeQuat(const glm::quat& q)
-	{
-		float len2 = glm::dot(q, q);
-		if (len2 < 1e-6f || std::isnan(len2) || std::isinf(len2))
-		{
-			return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-		}
-		return glm::normalize(q);
-	}
-
-	void NetworkSystem::InterpolateEntities(entt::registry& reg, float dt)
-	{
-		constexpr float InterpSpeed = 25.0f;
-		float t = glm::clamp(1.0f - std::exp(-InterpSpeed * dt), 0.0f, 1.0f);
-
-		auto view = reg.view<NetworkIdentityComponent, TransformComponent>();
-		for (auto entity : view)
-		{
-			auto& netID = view.get<NetworkIdentityComponent>(entity);
-			auto& transform = view.get<TransformComponent>(entity);
-
-			auto it = m_PendingStates.find(netID.NetworkID);
-			if (it == m_PendingStates.end())
-			{
-				// No pending state: for non-owned entities, keep NetworkDriven so
-				// physics doesn't interfere; for owned, let physics run.
-				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
-				{
-					rb->IsNetworkDriven = !netID.IsOwner;
-				}
-				continue;
-			}
-
-			auto& target = it->second;
-			bool changed = false;
-
-			if (netID.IsOwner)
-			{
-				// Owned entity — local physics is authoritative.
-				// We do NOT snap-correct position from the server: on high-latency
-				// links (e.g. Radmin VPN, ~500ms RTT) the server's position is
-				// hundreds of milliseconds stale. Comparing it to the current local
-				// position always produces a large error that exceeds
-				// kMaxCorrectionDistance, causing the character to teleport back
-				// every time a WorldState packet arrives.
-				//
-				// The server state is still useful for IsGrounded (consumed by
-				// animation) but we intentionally ignore Position/Velocity for the
-				// owned avatar so local physics runs uninterrupted.
-				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
-				{
-					rb->IsNetworkDriven = false;
-					// Sync IsGrounded from server so animations stay correct.
-					rb->IsGrounded = target.IsGrounded;
-				}
-				// No position/rotation correction — local physics drives the avatar.
-			}
-			else
-			{
-				// Remote entity — driven by network interpolation + dead reckoning.
-				// TargetPosition/TargetVelocity are the latest authoritative server values
-				// and get overwritten every time a new WorldState packet arrives.
-				// RenderPosition is the smoothly-moving visual position that never hard-resets,
-				// so packet arrivals don't cause visible pops/teleports.
-				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
-				{
-					rb->IsNetworkDriven = true;
-				}
-
-				// First packet for this entity: snap render position immediately (no lerp).
-				if (!target.RenderInitialized)
-				{
-					target.RenderPosition = target.TargetPosition;
-					target.RenderRotation = SafeNormalizeQuat(target.TargetRotation);
-					target.RenderInitialized = true;
-				}
-
-				// Dead reckoning: advance the authoritative position by current velocity.
-				// This is our *goal* for this frame — where we expect the entity to be.
-				// We do NOT write back to TargetPosition so the next real packet always
-				// resets correctly without fighting accumulated drift.
-				glm::vec3 goalPos = target.TargetPosition + target.TargetVelocity * dt;
-
-				// Smoothly move RenderPosition toward goalPos.
-				// InterpSpeed = 10 gives ~86% catch-up over 200ms — enough to stay close
-				// without making every 64Hz packet visible as a stutter on 500ms RTT links.
-				constexpr float RemoteInterpSpeed = 10.0f;
-				float rt = glm::clamp(1.0f - std::exp(-RemoteInterpSpeed * dt), 0.0f, 1.0f);
-
-				float snapDist = glm::length(target.RenderPosition - goalPos);
-				if (snapDist > NetworkSystem::kMaxCorrectionDistance)
-				{
-					// Very large gap (e.g. respawn, scene change) — snap immediately.
-					target.RenderPosition = target.TargetPosition;
-					target.RenderRotation = SafeNormalizeQuat(target.TargetRotation);
-				}
-				else
-				{
-					target.RenderPosition = glm::mix(target.RenderPosition, goalPos, rt);
-					target.RenderRotation = glm::slerp(SafeNormalizeQuat(target.RenderRotation),
-													   SafeNormalizeQuat(target.TargetRotation), rt);
-				}
-
-				TransformSystem::SetTranslation(transform, target.RenderPosition);
-				TransformSystem::SetRotationQuat(transform, target.RenderRotation);
-
-				if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
-				{
-					rb->Velocity = target.TargetVelocity;
-					rb->IsGrounded = target.IsGrounded;
-				}
-				if (auto* netIDComp = reg.try_get<NetworkIdentityComponent>(entity))
-				{
-					netIDComp->RemoteActionFlags = target.ActionFlags;
-				}
-				changed = true;
-			}
-
-			if (changed)
-			{
-				glm::mat4 localMatrix = TransformSystem::ComputeLocalMatrix(transform);
-				if (reg.all_of<HierarchyComponent>(entity))
-				{
-					auto& hc = reg.get<HierarchyComponent>(entity);
-					if (hc.Parent != entt::null && reg.valid(hc.Parent) && reg.all_of<TransformComponent>(hc.Parent))
+					netID.IsOwner = false;
+					if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
 					{
-						transform.WorldTransform = reg.get<TransformComponent>(hc.Parent).WorldTransform * localMatrix;
-					}
-					else
-					{
-						transform.WorldTransform = localMatrix;
+						rb->IsNetworkDriven = true;
 					}
 				}
-				else
-				{
-					transform.WorldTransform = localMatrix;
-				}
-				transform.InverseWorldTransform = glm::inverse(transform.WorldTransform);
-				transform.TransformChanged = false;
 			}
 		}
-	}
 
-	// ---- Host-side: broadcast world state ----
-
-	void NetworkSystem::BroadcastWorldState(entt::registry& reg)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || !net->IsHost())
+		static void ProcessPlayerInfoMessage(PlayerInfoMessage* msg, int clientIndex, Scene* scene,
+											 SceneNetworkContext& ctx)
 		{
-			return;
-		}
-
-		struct EntityNetState
-		{
-			uint64_t NetworkID;
-			glm::vec3 Position;
-			glm::quat Rotation;
-			glm::vec3 Velocity;
-			bool IsGrounded;
-			uint8_t ActionFlags;
-		};
-
-		std::vector<EntityNetState> states;
-		auto view = reg.view<NetworkIdentityComponent, TransformComponent>();
-		for (auto entity : view)
-		{
-			auto& netID = view.get<NetworkIdentityComponent>(entity);
-			auto& transform = view.get<TransformComponent>(entity);
-
-			EntityNetState s;
-			s.NetworkID = netID.NetworkID;
-			s.Position = TransformSystem::GetTranslation(transform);
-			s.Rotation = glm::quat_cast(transform.WorldTransform);
-			if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
-			{
-				s.Velocity = rb->Velocity;
-				s.IsGrounded = rb->IsGrounded;
-			}
-			else
-			{
-				s.Velocity = {0, 0, 0};
-				s.IsGrounded = false;
-			}
-			auto flagIt = m_LastActionFlags.find(netID.NetworkID);
-			s.ActionFlags = (flagIt != m_LastActionFlags.end()) ? flagIt->second : 0;
-			states.push_back(s);
-		}
-
-		if (states.empty() || net->GetClientCount() == 0)
-		{
-			return;
-		}
-
-		++m_HostTick;
-		// CH_CORE_TRACE("Network: Broadcasting WorldState for {} entities (tick={}).", states.size(), m_HostTick);
-
-		for (auto& s : states)
-		{
-			net->BroadcastPacket(MessageType_WorldState, false, [this, &s](ByteWriter& bw) {
-				WorldStateMessage msg;
-				msg.Tick = m_HostTick;
-				msg.NetworkID = s.NetworkID;
-				msg.Position[0] = s.Position.x;
-				msg.Position[1] = s.Position.y;
-				msg.Position[2] = s.Position.z;
-				msg.Rotation[0] = s.Rotation.w;
-				msg.Rotation[1] = s.Rotation.x;
-				msg.Rotation[2] = s.Rotation.y;
-				msg.Rotation[3] = s.Rotation.z;
-				msg.Velocity[0] = s.Velocity.x;
-				msg.Velocity[1] = s.Velocity.y;
-				msg.Velocity[2] = s.Velocity.z;
-				msg.IsGrounded = s.IsGrounded ? 1 : 0;
-				msg.ActionFlags = s.ActionFlags;
-				msg.Encode(bw);
-			});
-		}
-	}
-
-	// ---- Host-side: broadcast an entity spawn/destroy ----
-
-	void NetworkSystem::SendEntitySpawn(Network* net, uint64_t networkID, const std::string& prefabPath,
-										int clientIndex)
-	{
-		if (clientIndex == kInvalidPeerHandle)
-		{
-			net->BroadcastPacket(MessageType_EntitySpawn, true, [networkID, &prefabPath](ByteWriter& bw) {
-				EntitySpawnMessage msg;
-				msg.NetworkID = networkID;
-				std::strncpy(msg.PrefabPath, prefabPath.c_str(), sizeof(msg.PrefabPath) - 1);
-				msg.PrefabPath[sizeof(msg.PrefabPath) - 1] = '\0';
-				msg.Encode(bw);
-			});
-		}
-		else
-		{
-			EntitySpawnMessage msg;
-			msg.NetworkID = networkID;
-			std::strncpy(msg.PrefabPath, prefabPath.c_str(), sizeof(msg.PrefabPath) - 1);
-			msg.PrefabPath[sizeof(msg.PrefabPath) - 1] = '\0';
-			ByteWriter w;
-			msg.Encode(w);
-			net->SendPacket(clientIndex, MessageType_EntitySpawn, w.Data().data(), w.Data().size(), true);
-		}
-	}
-
-	void NetworkSystem::SendEntityDestroy(Network* net, uint64_t networkID)
-	{
-		net->BroadcastPacket(MessageType_EntityDestroy, true, [networkID](ByteWriter& bw) {
-			EntityDestroyMessage msg;
-			msg.NetworkID = networkID;
-			msg.Encode(bw);
-		});
-	}
-
-	void NetworkSystem::ResyncClientEntities(int clientIndex, Scene* scene)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || !scene)
-		{
-			return;
-		}
-
-		// Ensure Host identity is populated in this scene before resyncing
-		EnsureHostIdentity(scene);
-
-		uint64_t clientNetID = 0;
-		auto it = m_PeerToNetworkID.find(clientIndex);
-		if (it != m_PeerToNetworkID.end())
-		{
-			clientNetID = it->second;
-		}
-		else
-		{
-			clientNetID = net->GetNetworkIDForConnection(clientIndex);
-		}
-
-		// BUG #1 fix: if networkID not yet assigned, defer so EntitySpawn never arrives before PlayerAssign
-		if (clientNetID == 0)
-		{
-			CH_CORE_WARN("Network: ResyncClientEntities - no networkID for client {} yet, deferring.", clientIndex);
-			m_DeferredSceneLoaded[clientIndex] = scene->GetSettings().ScenePath;
-			return;
-		}
-
-		// Always send PlayerAssign FIRST, before any EntitySpawn
-		{
-			PlayerAssignMessage assignMsg;
-			assignMsg.NetworkID = clientNetID;
-			ByteWriter w;
-			assignMsg.Encode(w);
-			net->SendPacket(clientIndex, MessageType_PlayerAssign, w.Data().data(), w.Data().size(), true);
-		}
-
-		int count = 0;
-
-		entt::registry& reg = scene->GetRegistry();
-		auto view = reg.view<NetworkIdentityComponent>();
-		for (auto entity : view)
-		{
-			auto& netID = view.get<NetworkIdentityComponent>(entity);
-			if (netID.NetworkID == 0)
-			{
-				continue;
-			}
-			std::string prefabPath = netID.PrefabPath.empty() ? m_PlayerPrefab : netID.PrefabPath;
-			SendEntitySpawn(net, netID.NetworkID, prefabPath, clientIndex);
-			count++;
-		}
-
-		CH_CORE_INFO("Network: Resynced {} entities for client {} (netID={}).", count, clientIndex, clientNetID);
-		net->BroadcastPlayerList();
-	}
-
-	void NetworkSystem::EnsureHostIdentity(Scene* scene)
-	{
-		if (!scene || IsLobbyOrMenuScene(scene))
-		{
-			return;
-		}
-
-		entt::registry& reg = scene->GetRegistry();
-
-		// Check if host avatar already exists
-		auto owned = reg.view<NetworkIdentityComponent>();
-		for (auto entity : owned)
-		{
-			if (owned.get<NetworkIdentityComponent>(entity).NetworkID == kHostNetworkID)
+			if (!msg || !scene)
 			{
 				return;
 			}
-		}
-
-		// Try to tag existing entity with PlayerComponent
-		auto players = reg.view<PlayerComponent>();
-		for (auto entity : players)
-		{
-			if (reg.all_of<NetworkIdentityComponent>(entity))
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net)
 			{
-				continue;
-			}
-
-			auto& netID = reg.emplace<NetworkIdentityComponent>(entity);
-			netID.NetworkID = kHostNetworkID;
-			netID.IsOwner = true;
-			netID.PrefabPath = m_PlayerPrefab;
-
-			if (reg.all_of<TransformComponent>(entity))
-			{
-				auto& transform = reg.get<TransformComponent>(entity);
-				glm::vec3 spawnPos = FindSpawnPosition(reg);
-				CH_CORE_INFO("Network: Tagged host player with netID={}, spawnPos=({:.1f}, {:.1f}, {:.1f}).",
-							 kHostNetworkID, spawnPos.x, spawnPos.y, spawnPos.z);
-				TransformSystem::SetTranslation(transform, spawnPos);
-			}
-			else
-			{
-				CH_CORE_INFO("Network: Tagged host player with netID={} (no TransformComponent).", kHostNetworkID);
-			}
-			return;
-		}
-
-		// No existing PlayerComponent entity — spawn from prefab
-		if (m_PlayerPrefab.empty())
-		{
-			CH_CORE_WARN("Network: EnsureHostIdentity — no PlayerComponent in scene and m_PlayerPrefab is empty.");
-			return;
-		}
-
-		std::string path = m_PlayerPrefab;
-		if (auto* am = ServiceLocator::TryGet<AssetManager>())
-		{
-			path = am->ResolvePath(m_PlayerPrefab);
-		}
-
-		Entity hostAvatar = PrefabSerializer::Deserialize(scene, path);
-		if (!hostAvatar)
-		{
-			CH_CORE_ERROR("Network: EnsureHostIdentity — failed to deserialize prefab '{}'.", m_PlayerPrefab);
-			return;
-		}
-
-		if (hostAvatar.HasComponent<TransformComponent>())
-		{
-			auto& transform = hostAvatar.GetComponent<TransformComponent>();
-			glm::vec3 spawnPos = FindSpawnPosition(reg);
-			CH_CORE_INFO("Network: Spawned host avatar from prefab, spawnPos=({:.1f}, {:.1f}, {:.1f}).", spawnPos.x,
-						 spawnPos.y, spawnPos.z);
-			TransformSystem::SetTranslation(transform, spawnPos);
-		}
-
-		auto& netID = hostAvatar.AddOrReplaceComponent<NetworkIdentityComponent>();
-		netID.NetworkID = kHostNetworkID;
-		netID.IsOwner = true;
-		netID.PrefabPath = m_PlayerPrefab;
-
-		bool hasRB = hostAvatar.HasComponent<RigidBodyComponent>();
-		bool hasCollider = hostAvatar.HasComponent<ColliderComponent>();
-		int rbType = hasRB ? (int)hostAvatar.GetComponent<RigidBodyComponent>().Type : -1;
-		CH_CORE_INFO("Network: Dynamically spawned host avatar (netID={}, entity={}, rb={}, collider={}, rbType={})",
-					 kHostNetworkID, (uint32_t)hostAvatar, hasRB, hasCollider, rbType);
-	}
-
-	// ---- Host-side: spawn/despawn an avatar per connected peer ----
-
-	void NetworkSystem::SyncPeerAvatars(Scene* scene, Network* net)
-	{
-		if (!scene || IsLobbyOrMenuScene(scene))
-		{
-			return;
-		}
-
-		if (m_PlayerPrefab.empty())
-		{
-			if (!m_PrefabWarnedOnce && net->GetClientCount() > 0)
-			{
-				m_PrefabWarnedOnce = true;
-				CH_CORE_ERROR("Network: No player prefab configured — clients will connect without an avatar. "
-							  "Call NetworkSystem::SetPlayerPrefab().");
-			}
-			return;
-		}
-
-		for (int clientIndex = 0; clientIndex < net->GetMaxClients(); ++clientIndex)
-		{
-			if (!net->IsClientConnected(clientIndex))
-			{
-				continue;
-			}
-
-			if (m_PeerToAvatar.find(clientIndex) != m_PeerToAvatar.end())
-			{
-				continue;
+				return;
 			}
 
 			uint64_t networkID = net->GetNetworkIDForConnection(clientIndex);
 			if (networkID == 0)
 			{
-				continue;
-			}
-			m_PeerToNetworkID[clientIndex] = networkID;
-
-			// If host is running an active gameplay scene, synchronize it to the newly connected client
-			const std::string& currentScenePath = scene->GetSettings().ScenePath;
-			if (!currentScenePath.empty())
-			{
-				std::string relScenePath = NormalizeToAssetPath(currentScenePath);
-				SceneChangeMessage sceneMsg;
-				std::strncpy(sceneMsg.ScenePath, relScenePath.c_str(), sizeof(sceneMsg.ScenePath) - 1);
-				sceneMsg.ScenePath[sizeof(sceneMsg.ScenePath) - 1] = '\0';
-				ByteWriter sw;
-				sceneMsg.Encode(sw);
-				net->SendPacket(clientIndex, MessageType_SceneChange, sw.Data().data(), sw.Data().size(), true);
-				CH_CORE_INFO("Network: Sent active scene '{}' to newly connected client {}.", relScenePath,
-							 clientIndex);
+				CH_CORE_WARN("Network: Received PlayerInfo for client {} but network ID is 0. Deferring.", clientIndex);
+				ctx.Session.AddPendingPlayerInfo(clientIndex, msg->Name, msg->SkinIndex);
+				return;
 			}
 
-			std::string path = m_PlayerPrefab;
-			if (auto* am = ServiceLocator::TryGet<AssetManager>())
-			{
-				path = am->ResolvePath(m_PlayerPrefab);
-			}
-
-			Entity avatar = PrefabSerializer::Deserialize(scene, path);
-			if (!avatar)
-			{
-				CH_CORE_ERROR("Network: Failed to spawn player prefab '{}' for client {}.", m_PlayerPrefab,
-							  clientIndex);
-				m_PeerToAvatar[clientIndex] = UUID(0);
-				continue;
-			}
-
-			if (avatar.HasComponent<TransformComponent>())
-			{
-				auto& transform = avatar.GetComponent<TransformComponent>();
-				glm::vec3 spawnPos = FindSpawnPosition(scene->GetRegistry());
-				spawnPos.x += static_cast<float>(networkID - 1) * 4.0f;
-				TransformSystem::SetTranslation(transform, spawnPos);
-			}
-
-			auto& netID = avatar.AddOrReplaceComponent<NetworkIdentityComponent>();
-			netID.NetworkID = networkID;
-			netID.IsOwner = false;
-			netID.PrefabPath = m_PlayerPrefab;
-
-			m_PeerToAvatar[clientIndex] = avatar.GetUUID();
-			CH_CORE_INFO("Network: Spawned avatar (netID={}) for client {}.", networkID, clientIndex);
-
-			// Ensure newly joined client knows its NetworkID before any EntitySpawn arrives
-			PlayerAssignMessage assignMsg;
-			assignMsg.NetworkID = networkID;
-			ByteWriter w;
-			assignMsg.Encode(w);
-			net->SendPacket(clientIndex, MessageType_PlayerAssign, w.Data().data(), w.Data().size(), true);
-
-			for (const auto& [existingClient, uuid] : m_PeerToAvatar)
-			{
-				if (existingClient == clientIndex || uuid == UUID(0))
-				{
-					continue;
-				}
-				auto netIdIt = m_PeerToNetworkID.find(existingClient);
-				if (netIdIt != m_PeerToNetworkID.end())
-				{
-					SendEntitySpawn(net, netIdIt->second, m_PlayerPrefab, clientIndex);
-				}
-				SendEntitySpawn(net, networkID, m_PlayerPrefab, existingClient);
-			}
-			SendEntitySpawn(net, kHostNetworkID, m_PlayerPrefab, clientIndex);
-			SendEntitySpawn(net, networkID, m_PlayerPrefab, clientIndex);
+			net->UpdatePlayerInfo(networkID, msg->Name, msg->SkinIndex);
+			net->BroadcastPlayerList();
+			CH_CORE_INFO("Network: Updated player info for client {} (netID={}): name='{}', skin={}.", clientIndex,
+						 networkID, msg->Name, msg->SkinIndex);
 		}
 
-		std::unordered_set<int> allKnownClients;
-		for (const auto& [c, _] : m_PeerToAvatar)
+		static void ProcessPlayerListMessage(PlayerListMessage* msg)
 		{
-			allKnownClients.insert(c);
-		}
-		for (const auto& [c, _] : m_PeerToNetworkID)
-		{
-			allKnownClients.insert(c);
-		}
-
-		std::vector<int> disconnectedClients;
-		for (int clientIndex : allKnownClients)
-		{
-			if (!net->IsClientConnected(clientIndex))
+			if (!msg)
 			{
-				disconnectedClients.push_back(clientIndex);
+				return;
 			}
-		}
-
-		for (int clientIndex : disconnectedClients)
-		{
-			uint64_t netIDToDestroy = 0;
-			auto idIt = m_PeerToNetworkID.find(clientIndex);
-			if (idIt != m_PeerToNetworkID.end())
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net)
 			{
-				netIDToDestroy = idIt->second;
+				return;
 			}
 
-			auto it = m_PeerToAvatar.find(clientIndex);
-			if (it != m_PeerToAvatar.end())
+			std::vector<PlayerNetInfo> playerList;
+			for (uint32_t i = 0; i < msg->Count; ++i)
 			{
-				if (it->second != UUID(0))
-				{
-					Entity avatar = scene->GetEntityByUUID(it->second);
-					if (avatar && avatar.IsValid())
-					{
-						scene->DestroyEntity(avatar);
-					}
-				}
-				m_PeerToAvatar.erase(it);
+				PlayerNetInfo info;
+				info.NetworkID = msg->Entries[i].NetworkID;
+				info.Name = msg->Entries[i].Name;
+				info.SkinIndex = msg->Entries[i].SkinIndex;
+				info.IsHost = msg->Entries[i].IsHost;
+				info.Ping = msg->Entries[i].Ping;
+				playerList.push_back(info);
 			}
 
-			// Also clean up by NetworkIdentityComponent directly in the scene registry
-			if (netIDToDestroy != 0)
-			{
-				entt::registry& reg = scene->GetRegistry();
-				std::vector<entt::entity> toDestroy;
-				auto view = reg.view<NetworkIdentityComponent>();
-				for (auto entity : view)
-				{
-					if (view.get<NetworkIdentityComponent>(entity).NetworkID == netIDToDestroy)
-					{
-						toDestroy.push_back(entity);
-					}
-				}
-				for (auto entity : toDestroy)
-				{
-					Entity e(entity, &reg);
-					if (e.IsValid())
-					{
-						scene->DestroyEntity(e);
-					}
-				}
+			net->SetPlayerListFromMessage(playerList);
+			CH_CORE_INFO("Network: Received PlayerList ({} players).", playerList.size());
+		}
 
-				SendEntityDestroy(net, netIDToDestroy);
+		static void ProcessChatMessageMessage(Chained::ChatMessageMessage* msg)
+		{
+			if (!msg)
+			{
+				return;
+			}
+			ChatMessagePacket pkt;
+			pkt.SenderNetworkID = msg->SenderNetworkID;
+			pkt.SenderName = msg->SenderName;
+			pkt.Message = msg->Message;
+
+			if (auto* net = ServiceLocator::TryGet<Network>())
+			{
+				net->StorePendingChatMessage(pkt);
+			}
+			CH_CORE_INFO("Network: Chat from '{}': {}", pkt.SenderName, pkt.Message);
+		}
+
+		static void InstallPacketCallback(Scene* scene, SceneNetworkContext& ctx)
+		{
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net)
+			{
+				return;
 			}
 
-			UnregisterPeer(clientIndex);
-			CH_CORE_INFO("Network: Despawned avatar for client {} (netID={}).", clientIndex, netIDToDestroy);
-		}
-	}
+			s_CurrentActiveScene = scene;
 
-	void NetworkSystem::InstallPacketCallback()
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net)
-		{
-			return;
-		}
-		// Re-install whenever the role has changed (including Offline→Host on each new session)
-		if (m_CallbackRole == net->GetRole() && net->GetRole() != Role::Offline)
-		{
-			return;
-		}
-
-		m_CallbackRole = net->GetRole();
-		net->SetPacketCallback([this, net](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
-			ByteReader r(data, len);
-
-			if (net->GetRole() == Role::Host)
+			if (ctx.CallbackRole == net->GetRole() && net->GetRole() != Role::Offline)
 			{
-				switch (type)
+				return;
+			}
+
+			ctx.CallbackRole = net->GetRole();
+			net->SetPacketCallback([net](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
+				ByteReader r(data, len);
+
+				// Global messages that do not require an active scene
+				if (type == MessageType_ChatMessage)
 				{
-				case MessageType_InputState: {
-					InputStateMessage msg;
-					if (msg.Decode(r))
-					{
-						ProcessInputStateMessage(&msg, clientIndex);
-					}
-					break;
-				}
-				case MessageType_PlayerInfo: {
-					PlayerInfoMessage msg;
-					if (msg.Decode(r))
-					{
-						ProcessPlayerInfoMessage(&msg, clientIndex);
-					}
-					break;
-				}
-				case MessageType_ChatMessage: {
 					ChatMessageMessage msg;
 					if (msg.Decode(r))
 					{
@@ -1342,397 +328,441 @@ namespace Chained
 												 [&msg](ByteWriter& bw) { msg.Encode(bw); });
 						}
 					}
-					break;
+					return;
 				}
-				case MessageType_SceneLoaded: {
-					SceneLoadedMessage msg;
-					if (msg.Decode(r))
-					{
-						std::string clientScene = msg.ScenePath;
 
-						// When host is still transitioning (m_ReplicationScene == nullptr),
-						// AreScenePathsMatching returns true for empty path — which causes
-						// ResyncClientEntities to be called with nullptr and silently drop all spawns.
-						// Always defer in this case so the resync fires after the host finishes loading.
-						if (!m_ReplicationScene)
-						{
-							CH_CORE_INFO(
-								"Network: Client {} loaded scene '{}' — host still transitioning, deferring resync.",
-								clientIndex, clientScene);
-							m_DeferredSceneLoaded[clientIndex] = clientScene;
-						}
-						else
-						{
-							std::string hostScene = m_ReplicationScene->GetSettings().ScenePath;
-							if (AreScenePathsMatching(hostScene, clientScene))
-							{
-								CH_CORE_INFO("Network: Client {} loaded scene '{}' — resyncing entities.", clientIndex,
-											 clientScene);
-								ResyncClientEntities(clientIndex, m_ReplicationScene);
-							}
-							else
-							{
-								CH_CORE_INFO(
-									"Network: Client {} loaded scene '{}', but host is on '{}' — deferring resync.",
-									clientIndex, clientScene, hostScene);
-								m_DeferredSceneLoaded[clientIndex] = clientScene;
-							}
-						}
-					}
-					break;
-				}
-				default:
-					break;
-				}
-			}
-			else if (net->GetRole() == Role::Client)
-			{
-				switch (type)
+				if (type == MessageType_PlayerList)
 				{
-				case MessageType_WorldState: {
-					WorldStateMessage msg;
-					if (msg.Decode(r))
-					{
-						ProcessWorldStateMessage(&msg);
-					}
-					break;
-				}
-				case MessageType_SceneChange: {
-					SceneChangeMessage msg;
-					if (msg.Decode(r))
-					{
-						ProcessSceneChangeMessage(&msg);
-					}
-					break;
-				}
-				case MessageType_PlayerList: {
 					PlayerListMessage msg;
 					if (msg.Decode(r))
 					{
 						ProcessPlayerListMessage(&msg);
 					}
-					break;
+					return;
 				}
-				case MessageType_PlayerAssign: {
+
+				if (type == MessageType_SceneChange)
+				{
+					SceneChangeMessage msg;
+					if (msg.Decode(r))
+					{
+						std::string currentPath =
+							s_CurrentActiveScene ? s_CurrentActiveScene->GetSettings().ScenePath : "";
+						std::string newPath = msg.ScenePath;
+						if (!AreScenePathsMatching(currentPath, newPath))
+						{
+							CH_CORE_INFO("Network: Received SceneChange message to '{}'", newPath);
+							net->SetPendingSceneChange(newPath);
+						}
+					}
+					return;
+				}
+
+				if (type == MessageType_PlayerAssign)
+				{
 					PlayerAssignMessage msg;
 					if (msg.Decode(r))
 					{
-						ProcessPlayerAssignMessage(&msg);
-					}
-					break;
-				}
-				case MessageType_EntitySpawn: {
-					EntitySpawnMessage spawnMsg;
-					if (spawnMsg.Decode(r))
-					{
-						if (m_ReplicationScene)
+						net->SetLocalNetworkID(msg.NetworkID);
+						Scene* activeScene = s_CurrentActiveScene;
+						if (activeScene)
 						{
-							ProcessEntitySpawnMessage(&spawnMsg, m_ReplicationScene);
-						}
-						else
-						{
-							m_PendingEntitySpawns.push_back(spawnMsg);
+							if (auto* sceneCtx = TryGetContext(activeScene))
+							{
+								ProcessPlayerAssignMessage(&msg, activeScene, *sceneCtx);
+							}
 						}
 					}
-					break;
+					return;
 				}
-				case MessageType_EntityDestroy: {
-					EntityDestroyMessage destroyMsg;
-					if (destroyMsg.Decode(r))
-					{
-						ProcessEntityDestroyMessage(&destroyMsg, m_ReplicationScene);
-					}
-					break;
-				}
-				case MessageType_ChatMessage: {
-					ChatMessageMessage msg;
+
+				if (type == MessageType_EntitySpawn)
+				{
+					EntitySpawnMessage msg;
 					if (msg.Decode(r))
 					{
-						ProcessChatMessageMessage(&msg);
-					}
-					break;
-				}
-				case MessageType_Heartbeat: {
-					// Heartbeat received from server — connection is alive.
-					// Reset reconnect timer if we were in reconnect flow.
-					if (net->IsClient())
-					{
-						net->SendToServer(MessageType_Heartbeat, nullptr, 0, false);
-					}
-					break;
-				}
-				default:
-					break;
-				}
-			}
-		});
-	}
-
-	// ---- Early identity setup (runs BEFORE scripts) ----
-
-	void NetworkSystem::EnsureLocalIdentity(Scene* scene)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || net->GetRole() == Role::Offline || !scene)
-		{
-			return;
-		}
-
-		if (net->IsHost())
-		{
-			EnsureHostIdentity(scene);
-		}
-		else if (net->IsClient())
-		{
-			if (m_LocalNetworkID == 0)
-			{
-				m_LocalNetworkID = net->GetLocalNetworkID();
-			}
-
-			if (m_LocalNetworkID != 0)
-			{
-				entt::registry& reg = scene->GetRegistry();
-				auto view = reg.view<NetworkIdentityComponent>();
-				for (auto entity : view)
-				{
-					auto& netID = view.get<NetworkIdentityComponent>(entity);
-					if (netID.NetworkID == m_LocalNetworkID)
-					{
-						if (!netID.IsOwner)
+						Scene* activeScene = s_CurrentActiveScene;
+						if (activeScene)
 						{
-							netID.IsOwner = true;
+							if (auto* sceneCtx = TryGetContext(activeScene))
+							{
+								sceneCtx->Replication.ProcessEntitySpawnMessage(&msg, activeScene, sceneCtx->Session);
+								return;
+							}
 						}
-						if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
+						s_PendingSpawns.push_back(msg);
+						CH_CORE_INFO("Network: Queued EntitySpawn for netID={} while scene is transitioning/loading.",
+									 msg.NetworkID);
+					}
+					return;
+				}
+
+				if (type == MessageType_EntityDestroy)
+				{
+					EntityDestroyMessage msg;
+					if (msg.Decode(r))
+					{
+						Scene* activeScene = s_CurrentActiveScene;
+						if (activeScene)
 						{
-							rb->IsNetworkDriven = false;
+							if (auto* sceneCtx = TryGetContext(activeScene))
+							{
+								sceneCtx->Replication.ProcessEntityDestroyMessage(&msg, activeScene, sceneCtx->Session);
+							}
 						}
 					}
+					return;
 				}
-			}
-		}
-	}
 
-	// ---- Per-session reset ----
-
-	void NetworkSystem::Reset()
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (net && net->IsClient() && net->GetLocalNetworkID() != 0)
-		{
-			m_LocalNetworkID = net->GetLocalNetworkID();
-		}
-		else
-		{
-			m_LocalNetworkID = 0;
-		}
-
-		m_ClientTick = 0;
-		m_HostTick = 0;
-		m_CallbackRole = Role::Offline;
-		m_PeerToNetworkID.clear();
-		m_PeerToAvatar.clear();
-		m_PendingStates.clear();
-		m_PendingInputs.clear();
-		m_ActiveClientInputs.clear();
-		m_ActiveClientInputTimers.clear();
-		m_PendingPlayerInfo.clear();
-		m_NetworkIDToEntity.clear();
-		m_LastActionFlags.clear();
-		m_WarnedInputNetID.clear();
-		m_DeferredSceneLoaded.clear();
-		m_PendingEntitySpawns.clear();
-		m_ReplicationScene = nullptr;
-		m_PrefabWarnedOnce = false;
-		m_SceneLoadedPending = false;
-
-		if (net)
-		{
-			net->ClearPendingSceneChange();
-		}
-
-		CH_CORE_INFO("NetworkSystem: session state reset (localNetID={}).", m_LocalNetworkID);
-	}
-
-	// ---- Main update ----
-
-	void NetworkSystem::CheckAndPropagateSceneChange(Scene* scene)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || !scene)
-		{
-			return;
-		}
-		if (!net->HasPendingSceneChange())
-		{
-			return;
-		}
-
-		std::string path = net->GetPendingSceneChange();
-		net->ClearPendingSceneChange();
-
-		std::string currentPath = scene->GetSettings().ScenePath;
-		std::filesystem::path currentP(currentPath);
-		std::filesystem::path newP(path);
-
-		// If client is already on this scene, do not reload
-		if (!currentPath.empty() && (currentPath == path || currentP.filename() == newP.filename()))
-		{
-			CH_CORE_INFO("CheckAndPropagateSceneChange: already on scene '{}', skipping reload.", path);
-			if (net->IsClient())
-			{
-				m_SceneLoadedPending = true;
-			}
-			return;
-		}
-
-		CH_CORE_INFO("CheckAndPropagateSceneChange: propagating '{}' to Application", path);
-		SceneChangeRequestEvent e(path);
-		Application::Get().OnEvent(e);
-	}
-
-	void NetworkSystem::PollNetwork(Scene* scene, Timestep ts)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || net->GetRole() == Role::Offline || !scene)
-		{
-			return;
-		}
-
-		entt::registry& reg = scene->GetRegistry();
-
-		// Scene pointer changed → new Play Mode session, reset lookup tables
-		if (m_ReplicationScene != scene)
-		{
-			m_ReplicationScene = scene;
-			m_NetworkIDToEntity.clear();
-			m_PeerToAvatar.clear();
-			m_PendingStates.clear();
-			if (net->IsClient())
-			{
-				m_SceneLoadedPending = true;
-
-				// BUG #2 fix: flush EntitySpawn messages that arrived while scene was loading
-				for (auto& spawn : m_PendingEntitySpawns)
+				Scene* activeScene = s_CurrentActiveScene;
+				if (!activeScene)
 				{
-					ProcessEntitySpawnMessage(&spawn, m_ReplicationScene);
+					return;
 				}
-				m_PendingEntitySpawns.clear();
-			}
-		}
 
-		InstallPacketCallback();
-
-		if (m_SceneLoadedPending && net->IsClient() && net->IsConnected())
-		{
-			m_SceneLoadedPending = false;
-			std::string relScenePath = NormalizeToAssetPath(scene->GetSettings().ScenePath);
-			SceneLoadedMessage msg;
-			std::strncpy(msg.ScenePath, relScenePath.c_str(), sizeof(msg.ScenePath) - 1);
-			msg.ScenePath[sizeof(msg.ScenePath) - 1] = '\0';
-			ByteWriter w;
-			msg.Encode(w);
-			net->SendToServer(MessageType_SceneLoaded, w.Data().data(), w.Data().size(), true);
-			CH_CORE_INFO("Network: Sent SceneLoaded ('{}') to host.", relScenePath);
-		}
-
-		EnsureLocalIdentity(scene); // BUG4 fix: must run before scripts
-
-		if (net->IsHost())
-		{
-			// Process any deferred SceneLoaded messages that now match the host's scene
-			std::string currentScene = scene->GetSettings().ScenePath;
-			std::vector<int> readyDeferredScenes;
-			for (const auto& [clientIndex, deferredScene] : m_DeferredSceneLoaded)
-			{
-				if (AreScenePathsMatching(deferredScene, currentScene))
+				auto* sceneCtx = TryGetContext(activeScene);
+				if (!sceneCtx)
 				{
-					readyDeferredScenes.push_back(clientIndex);
+					return;
 				}
-			}
-			for (int clientIndex : readyDeferredScenes)
-			{
-				CH_CORE_INFO("Network: Processing deferred SceneLoaded for client {} (scene='{}')", clientIndex,
-							 currentScene);
-				m_DeferredSceneLoaded.erase(clientIndex);
-				ResyncClientEntities(clientIndex, scene);
-			}
 
-			// Flush any deferred PlayerInfoMessages (race: PlayerInfo arrived before PlayerAssign).
-			std::vector<std::pair<int, std::pair<std::string, uint8_t>>> readyPlayerInfo;
-			for (const auto& [clientIndex, info] : m_PendingPlayerInfo)
-			{
-				uint64_t netId = net->GetNetworkIDForConnection(clientIndex);
-				if (netId != 0)
+				if (net->GetRole() == Role::Host)
 				{
-					readyPlayerInfo.emplace_back(clientIndex, info);
+					switch (type)
+					{
+					case MessageType_InputState: {
+						InputStateMessage msg;
+						if (msg.Decode(r))
+						{
+							uint64_t netID = sceneCtx->Session.GetNetworkIDForPeer(clientIndex);
+							if (netID == 0)
+							{
+								netID = net->GetNetworkIDForConnection(clientIndex);
+							}
+							sceneCtx->Input.ProcessInputStateMessage(&msg, netID);
+						}
+						break;
+					}
+					case MessageType_PlayerInfo: {
+						PlayerInfoMessage msg;
+						if (msg.Decode(r))
+						{
+							ProcessPlayerInfoMessage(&msg, clientIndex, activeScene, *sceneCtx);
+						}
+						break;
+					}
+					case MessageType_SceneLoaded: {
+						SceneLoadedMessage msg;
+						if (msg.Decode(r))
+						{
+							std::string clientScene = msg.ScenePath;
+							auto& deferredMap = sceneCtx->Replication.GetDeferredSceneLoaded();
+
+							Scene* replScene = s_ActiveReplicationScene ? s_ActiveReplicationScene : activeScene;
+							if (!replScene)
+							{
+								CH_CORE_INFO(
+									"Network: Client {} loaded scene '{}' — host still transitioning, deferring.",
+									clientIndex, clientScene);
+								deferredMap[clientIndex] = clientScene;
+							}
+							else
+							{
+								std::string hostScene = replScene->GetSettings().ScenePath;
+								if (AreScenePathsMatching(hostScene, clientScene))
+								{
+									CH_CORE_INFO("Network: Client {} confirmed scene '{}' loaded matching host '{}', "
+												 "sync avatars.",
+												 clientIndex, clientScene, hostScene);
+									sceneCtx->Replication.ResyncClientEntities(clientIndex, replScene, net,
+																			   sceneCtx->Session);
+								}
+								else
+								{
+									CH_CORE_INFO("Network: Client {} loaded scene '{}' != host '{}', deferring sync.",
+												 clientIndex, clientScene, hostScene);
+									deferredMap[clientIndex] = clientScene;
+								}
+							}
+						}
+						break;
+					}
+					default:
+						break;
+					}
 				}
-			}
-			for (const auto& [clientIndex, info] : readyPlayerInfo)
+				else if (net->GetRole() == Role::Client)
+				{
+					switch (type)
+					{
+					case MessageType_WorldState: {
+						WorldStateMessage msg;
+						if (msg.Decode(r))
+						{
+							sceneCtx->Replication.ProcessWorldStateMessage(&msg);
+						}
+						break;
+					}
+					default:
+						break;
+					}
+				}
+			});
+		}
+
+		void EnsureLocalIdentity(Scene* scene)
+		{
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net || net->GetRole() == Role::Offline || !scene)
 			{
-				m_PendingPlayerInfo.erase(clientIndex);
-				PlayerInfoMessage deferredMsg;
-				std::strncpy(deferredMsg.Name, info.first.c_str(), sizeof(deferredMsg.Name) - 1);
-				deferredMsg.Name[sizeof(deferredMsg.Name) - 1] = '\0';
-				deferredMsg.SkinIndex = info.second;
-				ProcessPlayerInfoMessage(&deferredMsg, clientIndex);
+				return;
 			}
 
-			EnsureHostIdentity(scene);
-			SyncPeerAvatars(scene, net);
-		}
-
-		float dt = static_cast<float>(ts);
-
-		net->Update(dt);
-
-		// Check for pending scene change AFTER processing ENet packets.
-		// This avoids the C# polling timing issue where OnUpdate runs before
-		// net->Update processes incoming SceneChangeMessage packets.
-		if (net->IsClient())
-		{
-			CheckAndPropagateSceneChange(scene);
-		}
-	}
-
-	void NetworkSystem::FinalizeFrame(Scene* scene, Timestep ts)
-	{
-		auto* net = ServiceLocator::TryGet<Network>();
-		if (!net || net->GetRole() == Role::Offline || !scene)
-		{
-			return;
-		}
-
-		m_NetworkTickAccumulator += static_cast<float>(ts);
-		if (m_NetworkTickAccumulator >= kNetworkTickInterval)
-		{
-			if (m_NetworkTickAccumulator > kNetworkTickInterval * 4.0f)
-			{
-				m_NetworkTickAccumulator = kNetworkTickInterval;
-			}
-			m_NetworkTickAccumulator -= kNetworkTickInterval;
-
-			entt::registry& reg = scene->GetRegistry();
-
+			auto& ctx = GetOrCreateContext(scene);
 			if (net->IsHost())
 			{
-				BroadcastWorldState(reg);
+				ctx.Replication.EnsureHostIdentity(scene, ctx.Session);
 			}
 			else if (net->IsClient())
 			{
-				float dt = static_cast<float>(ts);
-				CollectAndSendInput(net, dt);
+				uint64_t localNetID = ctx.Session.GetLocalNetworkID();
+				if (localNetID == 0)
+				{
+					localNetID = net->GetLocalNetworkID();
+					if (localNetID != 0)
+					{
+						ctx.Session.SetLocalNetworkID(localNetID);
+					}
+				}
+
+				if (localNetID != 0)
+				{
+					entt::registry& reg = scene->GetRegistry();
+					auto view = reg.view<NetworkIdentityComponent>();
+					for (auto entity : view)
+					{
+						auto& netID = view.get<NetworkIdentityComponent>(entity);
+						if (netID.NetworkID == localNetID)
+						{
+							if (!netID.IsOwner)
+							{
+								netID.IsOwner = true;
+							}
+							if (auto* rb = reg.try_get<RigidBodyComponent>(entity))
+							{
+								rb->IsNetworkDriven = false;
+							}
+						}
+					}
+				}
 			}
 		}
-	}
 
-	const std::vector<ProcessedInput>& NetworkSystem::GetPendingInputs()
-	{
-		return m_PendingInputs;
-	}
+		void Reset(Scene* scene)
+		{
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (scene)
+			{
+				if (auto* ctx = TryGetContext(scene))
+				{
+					ctx->Session.Reset();
+					ctx->Input.Reset();
+					ctx->Replication.Reset();
+					if (net && net->IsClient() && net->GetLocalNetworkID() != 0)
+					{
+						ctx->Session.SetLocalNetworkID(net->GetLocalNetworkID());
+					}
+					ctx->CallbackRole = Role::Offline;
+					ctx->SceneLoadedPending = false;
+					ctx->NetworkTickAccumulator = 0.0f;
+				}
+			}
 
-	void NetworkSystem::ClearPendingInputs()
-	{
-		m_PendingInputs.clear();
-	}
+			if (scene == nullptr || s_ActiveReplicationScene == scene)
+			{
+				s_ActiveReplicationScene = nullptr;
+			}
+			if (scene == nullptr || s_CurrentActiveScene == scene)
+			{
+				s_CurrentActiveScene = nullptr;
+			}
+
+			if (scene == nullptr)
+			{
+				s_PendingSpawns.clear();
+			}
+
+			if (net && scene == nullptr)
+			{
+				net->ClearPendingSceneChange();
+			}
+
+			CH_CORE_INFO("NetworkSystem: session state reset.");
+		}
+
+		void CheckAndPropagateSceneChange(Scene* scene)
+		{
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net || !scene)
+			{
+				return;
+			}
+			if (!net->HasPendingSceneChange())
+			{
+				return;
+			}
+
+			std::string path = net->GetPendingSceneChange();
+			net->ClearPendingSceneChange();
+
+			std::string currentPath = scene->GetSettings().ScenePath;
+			std::filesystem::path currentP(currentPath);
+			std::filesystem::path newP(path);
+
+			if (!currentPath.empty() && (currentPath == path || currentP.filename() == newP.filename()))
+			{
+				CH_CORE_INFO("CheckAndPropagateSceneChange: already on scene '{}', skipping reload.", path);
+				if (net->IsClient())
+				{
+					GetOrCreateContext(scene).SceneLoadedPending = true;
+				}
+				return;
+			}
+
+			CH_CORE_INFO("CheckAndPropagateSceneChange: propagating '{}' to Application", path);
+			SceneChangeRequestEvent e(path);
+			ApplicationEventProxy::Dispatch(e);
+		}
+
+		void PollNetwork(Scene* scene, Timestep ts)
+		{
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net || net->GetRole() == Role::Offline || !scene)
+			{
+				return;
+			}
+
+			s_CurrentActiveScene = scene;
+			auto& ctx = GetOrCreateContext(scene);
+
+			if (s_ActiveReplicationScene != scene)
+			{
+				s_ActiveReplicationScene = scene;
+				ctx.Replication.ClearPendingStates();
+				if (net->IsClient())
+				{
+					ctx.SceneLoadedPending = true;
+					for (auto& spawnMsg : s_PendingSpawns)
+					{
+						ctx.Replication.ProcessEntitySpawnMessage(&spawnMsg, scene, ctx.Session);
+					}
+					s_PendingSpawns.clear();
+					ctx.Replication.FlushPendingSpawns(s_ActiveReplicationScene, ctx.Session);
+				}
+			}
+
+			InstallPacketCallback(scene, ctx);
+
+			if (ctx.SceneLoadedPending && net->IsClient() && net->IsConnected())
+			{
+				ctx.SceneLoadedPending = false;
+				std::string relScenePath = NormalizeToAssetPath(scene->GetSettings().ScenePath);
+				SceneLoadedMessage msg;
+				std::strncpy(msg.ScenePath, relScenePath.c_str(), sizeof(msg.ScenePath) - 1);
+				msg.ScenePath[sizeof(msg.ScenePath) - 1] = '\0';
+				ByteWriter w;
+				msg.Encode(w);
+				net->SendToServer(MessageType_SceneLoaded, w.Data().data(), w.Data().size(), true);
+				CH_CORE_INFO("Network: Sent SceneLoaded ('{}') to host.", relScenePath);
+			}
+
+			EnsureLocalIdentity(scene);
+
+			if (net->IsHost())
+			{
+				std::string currentScene = scene->GetSettings().ScenePath;
+				std::vector<int> readyDeferredScenes;
+				auto& deferredMap = ctx.Replication.GetDeferredSceneLoaded();
+				for (const auto& [clientIndex, deferredScene] : deferredMap)
+				{
+					if (AreScenePathsMatching(deferredScene, currentScene))
+					{
+						readyDeferredScenes.push_back(clientIndex);
+					}
+				}
+				for (int clientIndex : readyDeferredScenes)
+				{
+					CH_CORE_INFO("Network: Processing deferred SceneLoaded for client {} (scene='{}')", clientIndex,
+								 currentScene);
+					deferredMap.erase(clientIndex);
+					ctx.Replication.ResyncClientEntities(clientIndex, scene, net, ctx.Session);
+				}
+
+				std::vector<std::pair<int, std::pair<std::string, uint8_t>>> readyPlayerInfo;
+				for (const auto& [clientIndex, info] : ctx.Session.GetPendingPlayerInfo())
+				{
+					uint64_t netId = net->GetNetworkIDForConnection(clientIndex);
+					if (netId != 0)
+					{
+						readyPlayerInfo.emplace_back(clientIndex, info);
+					}
+				}
+				for (const auto& [clientIndex, info] : readyPlayerInfo)
+				{
+					ctx.Session.RemovePendingPlayerInfo(clientIndex);
+					PlayerInfoMessage deferredMsg;
+					std::strncpy(deferredMsg.Name, info.first.c_str(), sizeof(deferredMsg.Name) - 1);
+					deferredMsg.Name[sizeof(deferredMsg.Name) - 1] = '\0';
+					deferredMsg.SkinIndex = info.second;
+					ProcessPlayerInfoMessage(&deferredMsg, clientIndex, scene, ctx);
+				}
+
+				ctx.Replication.EnsureHostIdentity(scene, ctx.Session);
+				ctx.Replication.SyncPeerAvatars(scene, net, ctx.Session);
+			}
+
+			float dt = static_cast<float>(ts);
+			net->Update(dt);
+
+			if (net->IsClient())
+			{
+				CheckAndPropagateSceneChange(scene);
+			}
+		}
+
+		void FinalizeFrame(Scene* scene, Timestep ts)
+		{
+			auto* net = ServiceLocator::TryGet<Network>();
+			if (!net || net->GetRole() == Role::Offline || !scene)
+			{
+				return;
+			}
+
+			auto& ctx = GetOrCreateContext(scene);
+
+			ctx.NetworkTickAccumulator += static_cast<float>(ts);
+			if (ctx.NetworkTickAccumulator >= NetworkConstants::kNetworkTickInterval)
+			{
+				if (ctx.NetworkTickAccumulator > NetworkConstants::kNetworkTickInterval * 4.0f)
+				{
+					ctx.NetworkTickAccumulator = NetworkConstants::kNetworkTickInterval;
+				}
+				ctx.NetworkTickAccumulator -= NetworkConstants::kNetworkTickInterval;
+
+				entt::registry& reg = scene->GetRegistry();
+
+				if (net->IsHost())
+				{
+					std::unordered_map<uint64_t, uint8_t> actionFlagsMap;
+					ctx.Replication.BroadcastWorldState(reg, net, actionFlagsMap);
+				}
+				else if (net->IsClient())
+				{
+					float dt = static_cast<float>(ts);
+					ctx.Input.CollectAndSendInput(net, dt, scene);
+				}
+			}
+		}
+	} // namespace NetworkSystem
 
 } // namespace Chained

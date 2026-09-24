@@ -199,6 +199,18 @@ namespace Chained
 			return m_TestMode;
 		}
 
+		void SetPlayerPrefab(const char* path)
+		{
+			if (path)
+			{
+				m_PlayerPrefabPath = path;
+			}
+		}
+		const std::string& GetPlayerPrefab() const
+		{
+			return m_PlayerPrefabPath;
+		}
+
 		NetworkSession& GetSession()
 		{
 			return m_Session;
@@ -229,6 +241,7 @@ namespace Chained
 		std::mutex m_PublicIPMutex;
 		std::thread m_IPFetchThread;
 		bool m_TestMode = false;
+		std::string m_PlayerPrefabPath = "prefab/player.chprefab";
 
 		// Hole punch state
 		bool m_HolePunchActive = false;

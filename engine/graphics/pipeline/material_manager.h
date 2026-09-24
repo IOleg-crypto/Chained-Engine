@@ -26,8 +26,8 @@ namespace Chained
 		///   2. ModelAsset embedded materials
 		///   3. Model struct embedded materials
 		///   Returns a default Material if nothing matches.
-		Material Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
-						 ModelAsset* modelAsset = nullptr) const;
+		const Material& Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
+								ModelAsset* modelAsset = nullptr) const;
 
 		/// @brief Bind all PBR textures and uniforms for the given material to the shader.
 		/// Resolves lazy-loaded textures via AssetManager when shared_ptr is null.

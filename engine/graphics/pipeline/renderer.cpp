@@ -12,6 +12,7 @@
 #include "engine/graphics/api/vertex_array.h"
 #include "engine/assets/types/environment_asset.h"
 #include "engine/assets/types/shader_asset.h"
+#include "engine/scene/systems/nametag_system.h"
 
 #include <variant> // Added for type-safe variant visitation
 
@@ -58,6 +59,9 @@ namespace Chained
 		shaders.LoadOrGet("Skinned");
 		shaders.LoadOrGet("Unlit");
 		shaders.LoadOrGet("Billboard");
+		shaders.LoadOrGet("Nametag");
+
+		NametagSystem::Init();
 
 		m_ResourcesLoaded = true;
 		CH_CORE_INFO("[Renderer] LoadEngineResources done. {} shader(s) loaded.", shaders.GetNames().size());
@@ -72,6 +76,7 @@ namespace Chained
 			return;
 		}
 
+		NametagSystem::Shutdown();
 		CleanupSkybox();
 
 		m_LightingManager.Shutdown();
@@ -83,6 +88,7 @@ namespace Chained
 		m_Data->Instancing.Capacity = 0;
 
 		GraphicsDevice::Get().Shutdown();
+		GraphicsDevice::Destroy();
 	}
 
 	Renderer::Renderer()
@@ -260,7 +266,7 @@ namespace Chained
 	}
 
 	void Renderer::DrawSkybox(uint32_t textureId, int skyboxMode, bool isHDR, float exposure, float brightness,
-							  float contrast, const Camera3D& camera, bool flipped)
+							  float contrast, const Camera3D& camera, bool flipY, bool flipX, float rotation)
 	{
 		if (textureId == 0)
 		{
@@ -294,7 +300,9 @@ namespace Chained
 		shaderAsset->GetShader()->SetFloat("u_Brightness", brightness);
 		shaderAsset->GetShader()->SetFloat("u_Contrast", contrast);
 		shaderAsset->GetShader()->SetInt("u_IsHDR", isHDR ? 1 : 0);
-		shaderAsset->GetShader()->SetInt("u_VFlipped", flipped ? 1 : 0);
+		shaderAsset->GetShader()->SetInt("u_VFlipped", flipY ? 1 : 0);
+		shaderAsset->GetShader()->SetInt("u_HFlipped", flipX ? 1 : 0);
+		shaderAsset->GetShader()->SetFloat("u_Rotation", glm::radians(rotation));
 
 		// 3. Bind Textures and Draw Mesh
 		const char* texUniform = "u_Panorama";

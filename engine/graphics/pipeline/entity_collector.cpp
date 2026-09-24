@@ -201,7 +201,7 @@ namespace Chained
 		const auto& model = modelAsset->GetModel();
 		for (int i = 0; i < (int)model.Meshes.size(); ++i)
 		{
-			Material mat = m_MaterialManager.Resolve(i, model, materials, modelAsset);
+			const Material& mat = m_MaterialManager.Resolve(i, model, materials, modelAsset);
 			if (mat.Transparent || mat.AlbedoColor.a < 0.99f)
 			{
 				hasTransparent = true;

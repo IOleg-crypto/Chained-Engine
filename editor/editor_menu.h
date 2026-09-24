@@ -7,18 +7,40 @@
 #include <atomic>
 #include <cstdint>
 
+#include <functional>
+
 namespace Chained
 {
-
 	class EditorPanels;
-	class EditorLayer;
+	class EditorSceneManager;
+	class EditorProjectManager;
+	class CommandHistory;
+	struct EditorConfig;
 
 	/// @brief Handles the top-level editor menu bar and associated overlays/settings.
 	class EditorMenu
 	{
 	public:
-		EditorMenu() = default;
+		EditorMenu(EditorSceneManager* sceneManager = nullptr, EditorProjectManager* projectManager = nullptr,
+				   EditorConfig* config = nullptr, std::function<void()> saveConfigCallback = nullptr,
+				   std::function<void()> reloadFontsCallback = nullptr);
 		~EditorMenu() = default;
+
+		void SetDependencies(EditorSceneManager* sceneManager, EditorProjectManager* projectManager,
+							 EditorConfig* config, std::function<void()> saveConfigCallback,
+							 std::function<void()> reloadFontsCallback)
+		{
+			m_SceneManager = sceneManager;
+			m_ProjectManager = projectManager;
+			m_Config = config;
+			m_SaveConfigCallback = std::move(saveConfigCallback);
+			m_ReloadFontsCallback = std::move(reloadFontsCallback);
+		}
+
+		void SetCommandHistory(CommandHistory* commandHistory)
+		{
+			m_CommandHistory = commandHistory;
+		}
 
 		/// @brief Draws the main menu bar.
 		/// @param panels The editor panels to potentially toggle via the menu.
@@ -35,8 +57,9 @@ namespace Chained
 
 	private:
 		void DrawFileMenu();
+		void DrawEditMenu();
 		void DrawViewMenu(EditorPanels& panels);
-		void DrawProjectMenu();
+		void DrawProjectMenu(EditorPanels& panels);
 		void DrawEditorMenu();
 		void DrawPlaybackControls();
 		void DrawExportResultPopup();
@@ -85,6 +108,13 @@ namespace Chained
 		bool m_ExportResultSuccess = false;
 		std::string m_ExportResultMessage;
 		std::string m_ExportResultOutDir;
+
+		EditorSceneManager* m_SceneManager = nullptr;
+		EditorProjectManager* m_ProjectManager = nullptr;
+		EditorConfig* m_Config = nullptr;
+		CommandHistory* m_CommandHistory = nullptr;
+		std::function<void()> m_SaveConfigCallback;
+		std::function<void()> m_ReloadFontsCallback;
 	};
 
 } // namespace Chained

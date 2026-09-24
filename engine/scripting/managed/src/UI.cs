@@ -20,6 +20,16 @@ namespace Chained
         internal static unsafe delegate* unmanaged<void> UI_SetKeyboardFocusHere_Ptr;
         internal static unsafe delegate* unmanaged<float, void> UI_SetScrollHereY_Ptr;
         internal static unsafe delegate* unmanaged<float*, float*, void> UI_GetDisplaySize_Ptr;
+        internal static unsafe delegate* unmanaged<int, float, float, float, float, void> UI_PushStyleColor_Ptr;
+        internal static unsafe delegate* unmanaged<int, void> UI_PopStyleColor_Ptr;
+        internal static unsafe delegate* unmanaged<int, float, void> UI_PushStyleVarFloat_Ptr;
+        internal static unsafe delegate* unmanaged<int, float, float, void> UI_PushStyleVarVec2_Ptr;
+        internal static unsafe delegate* unmanaged<int, void> UI_PopStyleVar_Ptr;
+        internal static unsafe delegate* unmanaged<float, float, void> UI_Dummy_Ptr;
+        internal static unsafe delegate* unmanaged<byte> UI_IsItemHovered_Ptr;
+        internal static unsafe delegate* unmanaged<float, void> UI_SetWindowFontScale_Ptr;
+        internal static unsafe delegate* unmanaged<char*, float*, float, float, byte> UI_SliderFloat_Ptr;
+        internal static unsafe delegate* unmanaged<char*, byte*, byte> UI_Checkbox_Ptr;
 #pragma warning restore 0649
 
         /// <summary>Draws UI text.</summary>
@@ -142,5 +152,124 @@ namespace Chained
             }
             return new Vector2(w, h);
         }
+
+        /// <summary>Pushes a style color override.</summary>
+        public static unsafe void PushStyleColor(int colIdx, float r, float g, float b, float a = 1.0f)
+        {
+            if (UI_PushStyleColor_Ptr == null) return;
+            UI_PushStyleColor_Ptr(colIdx, r, g, b, a);
+        }
+
+        /// <summary>Pops style color overrides.</summary>
+        public static unsafe void PopStyleColor(int count = 1)
+        {
+            if (UI_PopStyleColor_Ptr == null) return;
+            UI_PopStyleColor_Ptr(count);
+        }
+
+        /// <summary>Pushes a float style variable.</summary>
+        public static unsafe void PushStyleVar(int varIdx, float val)
+        {
+            if (UI_PushStyleVarFloat_Ptr == null) return;
+            UI_PushStyleVarFloat_Ptr(varIdx, val);
+        }
+
+        /// <summary>Pushes a Vector2 style variable.</summary>
+        public static unsafe void PushStyleVar(int varIdx, float x, float y)
+        {
+            if (UI_PushStyleVarVec2_Ptr == null) return;
+            UI_PushStyleVarVec2_Ptr(varIdx, x, y);
+        }
+
+        /// <summary>Pops style variables.</summary>
+        public static unsafe void PopStyleVar(int count = 1)
+        {
+            if (UI_PopStyleVar_Ptr == null) return;
+            UI_PopStyleVar_Ptr(count);
+        }
+
+        /// <summary>Inserts empty layout space.</summary>
+        public static unsafe void Dummy(float width, float height)
+        {
+            if (UI_Dummy_Ptr == null) return;
+            UI_Dummy_Ptr(width, height);
+        }
+
+        /// <summary>Returns true if the last rendered item is hovered.</summary>
+        public static unsafe bool IsItemHovered()
+        {
+            if (UI_IsItemHovered_Ptr == null) return false;
+            return UI_IsItemHovered_Ptr() != 0;
+        }
+
+        /// <summary>Sets font scale for subsequent text.</summary>
+        public static unsafe void SetWindowFontScale(float scale)
+        {
+            if (UI_SetWindowFontScale_Ptr == null) return;
+            UI_SetWindowFontScale_Ptr(scale);
+        }
+
+        /// <summary>Renders a float slider. Returns true if modified.</summary>
+        public static unsafe bool SliderFloat(string label, ref float value, float min, float max)
+        {
+            if (label == null || UI_SliderFloat_Ptr == null) return false;
+            fixed (char* ptr = label)
+            fixed (float* vPtr = &value)
+            {
+                return UI_SliderFloat_Ptr(ptr, vPtr, min, max) != 0;
+            }
+        }
+
+        /// <summary>Renders a checkbox. Returns true if clicked/modified.</summary>
+        public static unsafe bool Checkbox(string label, ref bool isChecked)
+        {
+            if (label == null || UI_Checkbox_Ptr == null) return false;
+            byte val = (byte)(isChecked ? 1 : 0);
+            byte changed = 0;
+            fixed (char* ptr = label)
+            {
+                changed = UI_Checkbox_Ptr(ptr, &val);
+            }
+            isChecked = (val != 0);
+            return changed != 0;
+        }
+    }
+
+    /// <summary>Standard ImGui color indices.</summary>
+    public static class UICol
+    {
+        public const int Text = 0;
+        public const int TextDisabled = 1;
+        public const int WindowBg = 2;
+        public const int ChildBg = 3;
+        public const int PopupBg = 4;
+        public const int Border = 5;
+        public const int BorderShadow = 6;
+        public const int FrameBg = 7;
+        public const int FrameBgHovered = 8;
+        public const int FrameBgActive = 9;
+        public const int Button = 21;
+        public const int ButtonHovered = 22;
+        public const int ButtonActive = 23;
+        public const int Header = 24;
+        public const int HeaderHovered = 25;
+        public const int HeaderActive = 26;
+        public const int Separator = 27;
+    }
+
+    /// <summary>Standard ImGui style variable indices.</summary>
+    public static class UIStyleVar
+    {
+        public const int WindowPadding = 2;
+        public const int WindowRounding = 3;
+        public const int WindowBorderSize = 4;
+        public const int ChildRounding = 7;
+        public const int ChildBorderSize = 8;
+        public const int PopupRounding = 9;
+        public const int FramePadding = 11;
+        public const int FrameRounding = 12;
+        public const int FrameBorderSize = 13;
+        public const int ItemSpacing = 14;
+        public const int ItemInnerSpacing = 15;
     }
 }

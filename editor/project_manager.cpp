@@ -1,7 +1,8 @@
 #include "engine/platform/dialogs/dialogs.h"
 #include "engine/core/service_locator.h"
+#include "engine/app/application.h"
 #include "project_manager.h"
-#include "layer.h"
+#include "editor/scene_manager.h"
 #include "engine/project/project.h"
 #include "project/project_serializer.h"
 #include "engine/graphics/pipeline/renderer.h"
@@ -29,6 +30,15 @@
 
 namespace Chained
 {
+	EditorProjectManager::EditorProjectManager(EditorConfig* config, EditorSceneManager* sceneManager,
+											   std::function<void()> reloadFontsCallback,
+											   std::function<void()> saveConfigCallback)
+		: m_Config(config),
+		  m_SceneManager(sceneManager),
+		  m_ReloadFontsCallback(std::move(reloadFontsCallback)),
+		  m_SaveConfigCallback(std::move(saveConfigCallback))
+	{
+	}
 
 	static std::filesystem::path FindProjectRoot()
 	{
@@ -198,10 +208,6 @@ namespace Chained
 		}
 
 		return str;
-	}
-
-	EditorProjectManager::EditorProjectManager()
-	{
 	}
 
 	void EditorProjectManager::NewProject()
@@ -459,6 +465,7 @@ namespace Chained
 		auto project = Project::GetActive();
 		if (!project)
 		{
+			CH_CORE_ERROR("SaveProject: No active project to save!");
 			return;
 		}
 
@@ -515,21 +522,29 @@ namespace Chained
 			// Must be done in one pass: Clear → add editor fonts → add project fonts → Build().
 			// Calling Build() twice (once per font group) crashes because ImGui frees
 			// font file data after the first Build(), making a second Build() invalid.
-			EditorLayer::Get().ReloadEditorFonts();
+			if (m_ReloadFontsCallback)
+			{
+				m_ReloadFontsCallback();
+			}
 
 			m_LastProjectPath = openedPath;
 
 			// Track in recent projects list (move to front, cap at 10)
-			auto& config = EditorLayer::Get().GetConfig();
-			auto& recents = config.RecentProjects;
-			recents.erase(std::remove(recents.begin(), recents.end(), m_LastProjectPath), recents.end());
-			recents.insert(recents.begin(), m_LastProjectPath);
-			if (recents.size() > 10)
+			if (m_Config)
 			{
-				recents.resize(10);
+				auto& recents = m_Config->RecentProjects;
+				recents.erase(std::remove(recents.begin(), recents.end(), m_LastProjectPath), recents.end());
+				recents.insert(recents.begin(), m_LastProjectPath);
+				if (recents.size() > 10)
+				{
+					recents.resize(10);
+				}
 			}
 
-			EditorLayer::Get().SaveConfig();
+			if (m_SaveConfigCallback)
+			{
+				m_SaveConfigCallback();
+			}
 
 			// Auto-load script assembly if configured
 			if (auto* scriptEngine = ServiceLocator::TryGet<ScriptEngine>())
@@ -560,7 +575,10 @@ namespace Chained
 			if (!sceneToLoad.empty() && std::filesystem::exists(sceneToLoad))
 			{
 				CH_CORE_INFO("EditorProjectManager: Auto-loading scene: {}", sceneToLoad.string());
-				EditorLayer::Get().GetSceneManager().OpenScene(sceneToLoad);
+				if (m_SceneManager)
+				{
+					m_SceneManager->OpenScene(sceneToLoad);
+				}
 			}
 		}
 	}
@@ -572,124 +590,17 @@ namespace Chained
 
 	void EditorProjectManager::RestoreLastProjectPath(const std::string& path)
 	{
+		if (!std::filesystem::exists(path))
+		{
+			CH_CORE_WARN("RestoreLastProjectPath: Path does not exist: {}", path);
+			return;
+		}
 		m_LastProjectPath = path;
 	}
 
 	std::string EditorProjectManager::ConsumePendingProjectPath()
 	{
 		return std::exchange(m_PendingOpenedProjectPath, {});
-	}
-
-	void EditorProjectManager::LaunchStandalone(std::shared_ptr<Scene> editorScene)
-	{
-		CH_PROFILE_FUNCTION();
-		auto project = Project::GetActive();
-		if (!project)
-		{
-			CH_CORE_ERROR("LaunchStandalone: No active project to launch!");
-			return;
-		}
-
-		auto& config = project->GetConfig();
-		std::string sceneArgument;
-
-		if (editorScene)
-		{
-			std::filesystem::path scenePath = editorScene->GetSettings().ScenePath;
-			if (scenePath.empty())
-			{
-				scenePath = config.ActiveScenePath;
-			}
-
-			if (!scenePath.empty())
-			{
-				if (!editorScene->GetSettings().ScenePath.empty())
-				{
-					SceneSerializer serializer(editorScene.get());
-					if (!serializer.Serialize(editorScene->GetSettings().ScenePath))
-					{
-						CH_CORE_ERROR("LaunchStandalone: Failed to save current editor scene before launching.");
-						return;
-					}
-				}
-
-				if (scenePath.is_relative())
-				{
-					scenePath = project->GetAssetPath(scenePath);
-				}
-
-				scenePath = std::filesystem::absolute(scenePath);
-				project->SetActiveScenePath(project->GetRelativePath(scenePath));
-				sceneArgument = std::format(" --scene \"{}\"", scenePath.string());
-			}
-		}
-
-		std::string configStr = (config.BuildConfig == Configuration::Release) ? "Release" : "Debug";
-		std::string runtimePath = FindRuntimeExecutable(config.Name, configStr).string();
-
-		std::filesystem::path projectFile = project->GetConfig().ProjectDirectory / (project->GetName() + ".chproject");
-		std::string arguments = std::format("\"{}\"", std::filesystem::absolute(projectFile).string());
-
-		if (!sceneArgument.empty())
-		{
-			arguments += sceneArgument;
-		}
-
-		if (runtimePath.empty() || !std::filesystem::exists(runtimePath))
-		{
-			CH_CORE_WARN("LaunchStandalone: Runtime binary not found at '{}'. Searching heuristic...", runtimePath);
-			runtimePath = FindRuntimeExecutable(config.Name, configStr).string();
-
-			if (runtimePath.empty() || !std::filesystem::exists(runtimePath))
-			{
-				CH_CORE_ERROR(
-					"LaunchStandalone: Runtime executable not found! Searched for '{}.exe' and 'ChainedRuntime.exe'.",
-					config.Name);
-				return;
-			}
-		}
-
-		if (!std::filesystem::exists(projectFile))
-		{
-			CH_CORE_ERROR("LaunchStandalone: Project file not found: {}",
-						  std::filesystem::absolute(projectFile).string());
-			return;
-		}
-
-#if CH_PLATFORM_WINDOWS
-		std::string normalizedRuntime = runtimePath;
-		std::replace(normalizedRuntime.begin(), normalizedRuntime.end(), '/', '\\');
-
-		std::string normalizedArgs = arguments;
-		std::replace(normalizedArgs.begin(), normalizedArgs.end(), '/', '\\');
-
-		CH_CORE_INFO("LaunchStandalone: Executing via ShellExecute: {} {}", normalizedRuntime, normalizedArgs);
-
-		// Provide the executable's directory as the working directory so it doesn't inherit the editor's CWD
-		std::string exeDir = std::filesystem::path(normalizedRuntime).parent_path().string();
-
-		std::wstring wExeDir(exeDir.begin(), exeDir.end());
-		HINSTANCE result =
-			ShellExecuteW(NULL, L"open", std::wstring(normalizedRuntime.begin(), normalizedRuntime.end()).c_str(),
-						  std::wstring(normalizedArgs.begin(), normalizedArgs.end()).c_str(), wExeDir.c_str(), SW_SHOW);
-		if ((uintptr_t)result <= 32)
-		{
-			DWORD err = GetLastError();
-			CH_CORE_ERROR("LaunchStandalone: ShellExecute failed with code {} (Win32 error: {})", (uintptr_t)result,
-						  err);
-		}
-#else
-		pid_t pid = fork();
-		if (pid == 0)
-		{
-			execl(runtimePath.c_str(), runtimePath.c_str(), arguments.c_str(), nullptr);
-			_exit(127);
-		}
-		else if (pid < 0)
-		{
-			CH_CORE_ERROR("LaunchStandalone: fork() failed");
-		}
-#endif
 	}
 
 } // namespace Chained

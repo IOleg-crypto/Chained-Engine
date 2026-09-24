@@ -137,12 +137,18 @@ namespace Chained
 
 		static GraphicsDevice& Get()
 		{
-			CH_ASSERT(s_Instance, "GraphicsDevice::Get() called before Set() or after Shutdown()!");
+			CH_ASSERT(s_Instance, "GraphicsDevice::Get() called before Set() or after Destroy()!");
 			return *s_Instance;
 		}
 		static void Set(std::unique_ptr<GraphicsDevice> device)
 		{
-			s_Instance = device.release();
+			s_Instance = std::move(device);
+		}
+		/// Destroy the device instance. Must be called after Shutdown() and before
+		/// the OpenGL context (window) is destroyed.
+		static void Destroy()
+		{
+			s_Instance.reset();
 		}
 		static API GetAPI()
 		{
@@ -155,7 +161,7 @@ namespace Chained
 		static std::unique_ptr<GraphicsDevice> Create();
 
 	private:
-		static GraphicsDevice* s_Instance;
+		static std::unique_ptr<GraphicsDevice> s_Instance;
 		static API s_API;
 	};
 

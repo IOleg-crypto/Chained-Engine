@@ -15,4 +15,12 @@ Material:
   Roughness: 0.600000024
   Transparent: false
   Alpha: 1
+  FlipUV_Y: true
+  FlipUV_X: false
+  UVScale:
+    - 1
+    - 1
+  UVOffset:
+    - 0
+    - 0
   AlbedoMap: textures/building/standardSurface4_baseColor.png

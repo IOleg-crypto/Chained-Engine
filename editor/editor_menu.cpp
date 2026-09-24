@@ -1,6 +1,5 @@
 #include "editor_menu.h"
 #include "editor/editor_colors.h"
-#include "editor/layer.h"
 #include "editor/panels.h"
 #include "editor/project/project_exporter.h"
 #include "engine/app/application.h"
@@ -12,6 +11,7 @@
 #include "thirdparty/IconsFontAwesome6.h"
 #include "engine/scripting/scriptengine.h"
 #include "editor/scene_manager.h"
+#include "editor/undo/command_history.h"
 #include "gui.h"
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -22,6 +22,16 @@
 
 namespace Chained
 {
+	EditorMenu::EditorMenu(EditorSceneManager* sceneManager, EditorProjectManager* projectManager, EditorConfig* config,
+						   std::function<void()> saveConfigCallback, std::function<void()> reloadFontsCallback)
+		: m_SceneManager(sceneManager),
+		  m_ProjectManager(projectManager),
+		  m_Config(config),
+		  m_SaveConfigCallback(std::move(saveConfigCallback)),
+		  m_ReloadFontsCallback(std::move(reloadFontsCallback))
+	{
+	}
+
 	constexpr float kPlaybackBarWidth = 330.0f;
 
 	void EditorMenu::DrawMenuBar(EditorPanels& panels)
@@ -32,8 +42,9 @@ namespace Chained
 		}
 
 		DrawFileMenu();
+		DrawEditMenu();
 		DrawViewMenu(panels);
-		DrawProjectMenu();
+		DrawProjectMenu(panels);
 		DrawEditorMenu();
 		DrawPlaybackControls();
 		DrawExportResultPopup();
@@ -49,20 +60,26 @@ namespace Chained
 			if (ImGui::MenuItem(ICON_FA_FILE " New Project", "Ctrl+Shift+N"))
 			{
 				auto newScene = Scene::CreateDefault();
-				EditorLayer::Get().GetSceneManager().SetScene(newScene);
+				if (m_SceneManager)
+				{
+					m_SceneManager->SetScene(newScene);
+				}
 			}
 			if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN " Open Project", "Ctrl+O"))
 			{
 				std::vector<DialogFilter> filters = {{"Chained Scene", "chscene"}};
 				auto result = Chained::Dialogs::OpenFile(filters);
-				if (result)
+				if (result && m_SceneManager)
 				{
-					EditorLayer::Get().GetSceneManager().OpenScene(*result);
+					m_SceneManager->OpenScene(*result);
 				}
 			}
 			if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK " Save Project"))
 			{
-				EditorLayer::Get().GetSceneManager().SaveScene();
+				if (m_SceneManager)
+				{
+					m_SceneManager->SaveScene();
+				}
 			}
 			if (ImGui::MenuItem(ICON_FA_XMARK " Close Project"))
 			{
@@ -71,25 +88,62 @@ namespace Chained
 			ImGui::Separator();
 			if (ImGui::MenuItem(ICON_FA_FILE_CODE " New Scene", "Ctrl+N"))
 			{
-				EditorLayer::Get().GetSceneManager().NewScene();
+				if (m_SceneManager)
+				{
+					m_SceneManager->NewScene();
+				}
 			}
 			if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK " Save Scene", "Ctrl+S"))
 			{
-				EditorLayer::Get().GetSceneManager().SaveScene();
+				if (m_SceneManager)
+				{
+					m_SceneManager->SaveScene();
+				}
 			}
 			if (ImGui::MenuItem(ICON_FA_FILE_EXPORT " Save Scene As...", "Ctrl+Shift+S"))
 			{
-				EditorLayer::Get().GetSceneManager().SaveSceneAs();
+				if (m_SceneManager)
+				{
+					m_SceneManager->SaveSceneAs();
+				}
 			}
 			if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN " Load Scene", "Ctrl+L"))
 			{
-				EditorLayer::Get().GetSceneManager().OpenScene();
+				if (m_SceneManager)
+				{
+					m_SceneManager->OpenScene();
+				}
 			}
 			ImGui::Separator();
 			if (ImGui::MenuItem(ICON_FA_POWER_OFF " Exit"))
 			{
 				Application::Get().Close();
 			}
+			ImGui::EndMenu();
+		}
+	}
+
+	void EditorMenu::DrawEditMenu()
+	{
+		if (ImGui::BeginMenu("Edit"))
+		{
+			const bool canUndo = m_CommandHistory && m_CommandHistory->CanUndo();
+			const bool canRedo = m_CommandHistory && m_CommandHistory->CanRedo();
+
+			ImGui::BeginDisabled(!canUndo);
+			if (ImGui::MenuItem("Undo", "Ctrl+Z") && canUndo)
+			{
+				m_CommandHistory->Undo();
+			}
+			ImGui::EndDisabled();
+
+			ImGui::BeginDisabled(!canRedo);
+			if (ImGui::MenuItem("Redo", "Ctrl+Y") && canRedo)
+			{
+				m_CommandHistory->Redo();
+			}
+			ImGui::EndDisabled();
+
 			ImGui::EndMenu();
 		}
 	}
@@ -113,13 +167,13 @@ namespace Chained
 		}
 	}
 
-	void EditorMenu::DrawProjectMenu()
+	void EditorMenu::DrawProjectMenu(EditorPanels& panels)
 	{
 		if (ImGui::BeginMenu("Project"))
 		{
 			if (ImGui::MenuItem(ICON_FA_GEARS " Settings"))
 			{
-				if (auto p = EditorLayer::Get().GetPanels().Get("Project Settings"))
+				if (auto p = panels.Get("Project Settings"))
 				{
 					p->IsOpen() = true;
 				}
@@ -215,7 +269,7 @@ namespace Chained
 			ImGui::SameLine(centerPos);
 		}
 
-		SceneState sceneState = EditorLayer::Get().GetSceneManager().GetSceneState();
+		SceneState sceneState = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
 		bool isPlaying = (sceneState == SceneState::Play);
 		bool isSimulating = (sceneState == SceneState::Simulate);
 
@@ -226,7 +280,10 @@ namespace Chained
 		}
 		if (ImGui::Button(isPlaying ? (ICON_FA_STOP " Stop") : (ICON_FA_PLAY " Play"), ImVec2(65, 20)))
 		{
-			EditorLayer::Get().GetSceneManager().SetSceneState(isPlaying ? SceneState::Edit : SceneState::Play);
+			if (m_SceneManager)
+			{
+				m_SceneManager->SetSceneState(isPlaying ? SceneState::Edit : SceneState::Play);
+			}
 		}
 		if (isPlaying)
 		{
@@ -246,7 +303,10 @@ namespace Chained
 		}
 		if (ImGui::Button(isSimulating ? (ICON_FA_STOP " Stop") : (ICON_FA_GEARS " Simulate"), ImVec2(80, 20)))
 		{
-			EditorLayer::Get().GetSceneManager().SetSceneState(isSimulating ? SceneState::Edit : SceneState::Simulate);
+			if (m_SceneManager)
+			{
+				m_SceneManager->SetSceneState(isSimulating ? SceneState::Edit : SceneState::Simulate);
+			}
 		}
 		if (isSimulating)
 		{
@@ -309,8 +369,7 @@ namespace Chained
 
 	void EditorMenu::DrawUnsavedChangesPopup()
 	{
-		auto& sceneMgr = EditorLayer::Get().GetSceneManager();
-		if (sceneMgr.IsConfirmPending())
+		if (m_SceneManager && m_SceneManager->IsConfirmPending())
 		{
 			ImGui::OpenPopup("Unsaved Changes");
 		}
@@ -324,20 +383,29 @@ namespace Chained
 
 			if (ImGui::Button("Save", ImVec2(120.f, 0.f)))
 			{
-				sceneMgr.SaveScene();
-				sceneMgr.ConfirmPendingAction();
+				if (m_SceneManager)
+				{
+					m_SceneManager->SaveScene();
+					m_SceneManager->ConfirmPendingAction();
+				}
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Don't Save", ImVec2(120.f, 0.f)))
 			{
-				sceneMgr.ConfirmPendingAction();
+				if (m_SceneManager)
+				{
+					m_SceneManager->ConfirmPendingAction();
+				}
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
 			{
-				sceneMgr.CancelPendingAction();
+				if (m_SceneManager)
+				{
+					m_SceneManager->CancelPendingAction();
+				}
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::EndPopup();
@@ -803,14 +871,13 @@ namespace Chained
 
 	void EditorMenu::DrawEditorSettings()
 	{
-
-		if (!m_ShowEditorSettings)
+		if (!m_ShowEditorSettings || !m_Config)
 		{
 			return;
 		}
 
 		ImGui::SetNextWindowSize(ImVec2(700, 480), ImGuiCond_FirstUseEver);
-		auto& config = EditorLayer::Get().GetConfig();
+		auto& config = *m_Config;
 
 		if (ImGui::Begin(ICON_FA_SLIDERS " Editor Settings", &m_ShowEditorSettings))
 		{
@@ -1048,9 +1115,15 @@ namespace Chained
 
 			if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save Settings", ImVec2(-1, 0)))
 			{
-				EditorLayer::Get().SaveConfig();
-				EditorGUI::ApplyTheme();
-				EditorLayer::Get().RequestEditorFontReload();
+				if (m_SaveConfigCallback)
+				{
+					m_SaveConfigCallback();
+				}
+				EditorGUI::ApplyTheme(m_Config ? m_Config->FontSize : 14.0f);
+				if (m_ReloadFontsCallback)
+				{
+					m_ReloadFontsCallback();
+				}
 			}
 			if (ImGui::IsItemHovered())
 			{

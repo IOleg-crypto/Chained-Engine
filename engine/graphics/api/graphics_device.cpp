@@ -6,7 +6,7 @@
 namespace Chained
 {
 
-	GraphicsDevice* GraphicsDevice::s_Instance = nullptr;
+	std::unique_ptr<GraphicsDevice> GraphicsDevice::s_Instance = nullptr;
 	GraphicsDevice::API GraphicsDevice::s_API = GraphicsDevice::API::OpenGL;
 
 	static std::mutex s_DeletionMutex;

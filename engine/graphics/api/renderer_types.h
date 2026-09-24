@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <functional>
 
 namespace Chained
 {
@@ -50,6 +51,11 @@ namespace Chained
 		float Metalness = 0.0f;
 		float Roughness = 0.5f;
 
+		bool FlipUV_Y = false;
+		bool FlipUV_X = false;
+		glm::vec2 UVScale = {1.0f, 1.0f};
+		glm::vec2 UVOffset = {0.0f, 0.0f};
+
 		std::shared_ptr<Texture> AlbedoMap;
 		std::shared_ptr<Texture> NormalMap;
 		std::shared_ptr<Texture> MetallicRoughnessMap;
@@ -67,9 +73,56 @@ namespace Chained
 		float Alpha = 1.0f;
 		std::string Name;
 
+		mutable uint64_t CachedHash = 0;
+
+		uint64_t GetHash() const
+		{
+			if (CachedHash != 0)
+			{
+				return CachedHash;
+			}
+			uint64_t hash = 14695981039346656037ull;
+			auto hashCombine = [&hash](uint64_t val) {
+				hash ^= val;
+				hash *= 1099511628211ull;
+			};
+			hashCombine(std::hash<std::string>{}(AlbedoPath));
+			hashCombine(std::hash<std::string>{}(NormalPath));
+			hashCombine(std::hash<std::string>{}(MetallicRoughnessPath));
+			hashCombine(std::hash<std::string>{}(EmissivePath));
+			hashCombine(std::hash<std::string>{}(OcclusionPath));
+			hashCombine(ShaderID);
+			hashCombine(static_cast<uint64_t>(Transparent));
+			hashCombine(static_cast<uint64_t>(FlipUV_Y) | (static_cast<uint64_t>(FlipUV_X) << 1));
+			CachedHash = (hash == 0) ? 1 : hash;
+			return CachedHash;
+		}
+
 		static const char* GetStaticName()
 		{
 			return "Material";
+		}
+
+		/// Path-based equality: two Materials are "same batch" when they reference the same
+		/// textures and share the same key scalar/state values. shared_ptr identity is NOT
+		/// compared — only the resolved path strings matter for instancing grouping.
+		bool operator==(const Material& o) const
+		{
+			if (GetHash() != o.GetHash())
+			{
+				return false;
+			}
+			return ShaderID == o.ShaderID && Transparent == o.Transparent && Alpha == o.Alpha &&
+				   Metalness == o.Metalness && Roughness == o.Roughness && AlbedoColor == o.AlbedoColor &&
+				   EmissiveColor == o.EmissiveColor && EmissiveIntensity == o.EmissiveIntensity &&
+				   FlipUV_Y == o.FlipUV_Y && FlipUV_X == o.FlipUV_X && UVScale == o.UVScale && UVOffset == o.UVOffset &&
+				   AlbedoPath == o.AlbedoPath && NormalPath == o.NormalPath &&
+				   MetallicRoughnessPath == o.MetallicRoughnessPath && EmissivePath == o.EmissivePath &&
+				   OcclusionPath == o.OcclusionPath;
+		}
+		bool operator!=(const Material& o) const
+		{
+			return !(*this == o);
 		}
 
 		struct UI
@@ -81,6 +134,10 @@ namespace Chained
 			UIMeta Roughness = {.Tooltip = "Microfacet roughness from smooth/glossy to diffuse (0.0 to 1.0)"};
 			UIMeta Transparent = {.Tooltip = "Enables alpha blending layers for this material"};
 			UIMeta Alpha = {.Tooltip = "Global opacity multiplier"};
+			UIMeta FlipUV_Y = {.Tooltip = "Flip texture V/Y coordinates vertically"};
+			UIMeta FlipUV_X = {.Tooltip = "Flip texture U/X coordinates horizontally"};
+			UIMeta UVScale = {.Tooltip = "Texture coordinate tiling/scale factor"};
+			UIMeta UVOffset = {.Tooltip = "Texture coordinate offset"};
 		};
 	};
 	CH_MARK_RFL(Material);

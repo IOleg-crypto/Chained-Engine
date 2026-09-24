@@ -79,11 +79,13 @@ namespace Chained
 
 		Disconnect();
 
+#ifdef CH_ENABLE_UPNP
 		if (m_UpnpMapper.IsAvailable() && portToUnmap != 0)
 		{
 			m_UpnpMapper.RemoveMapping(portToUnmap, "UDP");
 			m_UpnpMapper.Shutdown();
 		}
+#endif
 
 		m_Session.Shutdown();
 
@@ -96,6 +98,7 @@ namespace Chained
 
 		if (!m_TestMode)
 		{
+#ifdef CH_ENABLE_UPNP
 			if (!m_UpnpMapper.IsAvailable())
 			{
 				m_UpnpMapper.Initialize();
@@ -118,10 +121,13 @@ namespace Chained
 				CH_CORE_WARN("[Network][Host] UPnP: Unavailable (port {} must be forwarded manually if behind NAT).",
 							 port);
 			}
+#endif
 
+#ifdef CH_ENABLE_STUN
 			// Query STUN synchronously BEFORE ENet binds the port,
 			// so STUN can actually bind to localPort and verify it's reachable from the internet.
 			QueryStunPublicEndpointSync(port);
+#endif
 		}
 
 		m_Session.SetDriverType(DriverType::ENet);
@@ -146,9 +152,11 @@ namespace Chained
 
 		m_Session.SetDriverType(DriverType::ENet);
 
-		// Skip hairpin check for local addresses — connect directly
+		// Skip hairpin check for local and VPN addresses — connect directly
 		bool isLocal = (ip == "127.0.0.1" || ip == "localhost" || ip == "::1" || ip.rfind("192.168.", 0) == 0 ||
-						ip.rfind("10.", 0) == 0 || ip.rfind("172.", 0) == 0);
+						ip.rfind("10.", 0) == 0 || ip.rfind("172.", 0) == 0 || ip.rfind("26.", 0) == 0 || // Radmin VPN
+						ip.rfind("25.", 0) == 0 ||														  // Hamachi
+						ip.rfind("100.", 0) == 0);														  // Tailscale
 
 		std::string resolvedIP = ip;
 
@@ -173,6 +181,7 @@ namespace Chained
 				}
 			}
 
+#ifdef CH_ENABLE_STUN
 			// If we still don't know our public IP, do a fast sync STUN query now
 			// (ephemeral port 0, 1500ms timeout) to enable hairpin detection.
 			if (myPubIP.empty())
@@ -188,6 +197,7 @@ namespace Chained
 					CH_CORE_INFO("[Network][Client] Fast STUN resolved public IP: {}", m_CachedPublicIP);
 				}
 			}
+#endif
 
 			if (!myPubIP.empty() && ip == myPubIP)
 			{

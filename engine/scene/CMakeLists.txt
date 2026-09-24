@@ -28,6 +28,7 @@ set(SCENE_COMPONENTS
     components/gameplay/player_component.h
     components/gameplay/spawn_component.h
     components/gameplay/network_identity_component.h
+    components/gameplay/network_interpolation_component.h
     components/scripting/scripting_components.h
     components/scripting/scripting_components.cpp
 )
@@ -70,6 +71,13 @@ set(SCENE_SYSTEMS
     systems/scene_transition_system.cpp
     systems/network_system.h
     systems/network_system.cpp
+    systems/network/network_types.h
+    systems/network/network_session_tracker.h
+    systems/network/network_session_tracker.cpp
+    systems/network/network_input_controller.h
+    systems/network/network_input_controller.cpp
+    systems/network/network_replication_manager.h
+    systems/network/network_replication_manager.cpp
     systems/camera_auto_select_system.h
     systems/camera_auto_select_system.cpp
 )

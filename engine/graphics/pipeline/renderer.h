@@ -47,7 +47,8 @@ namespace Chained
 		void DrawMesh(const Mesh& mesh, const Material& material, const glm::mat4& transform);
 		void DrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<glm::mat4>& transforms);
 		void DrawSkybox(uint32_t textureId, int skyboxMode, bool isHDR, float exposure, float brightness,
-						float contrast, const Camera3D& camera, bool flipped = false);
+						float contrast, const Camera3D& camera, bool flipY = false, bool flipX = false,
+						float rotation = 0.0f);
 		void DrawBillboard(const Camera3D& camera, uint32_t textureId, const glm::vec3& position, float size,
 						   const glm::vec4& tint);
 		void DrawSprite(uint32_t textureId, const glm::mat4& transform, const glm::vec4& tint, bool flipX = false,
@@ -77,6 +78,10 @@ namespace Chained
 		const FrameState& GetFrame() const
 		{
 			return m_Data->Frame;
+		}
+		void SetCurrentShaderId(uint32_t shaderId)
+		{
+			m_Data->Frame.CurrentShaderId = shaderId;
 		}
 
 		void SetHeadless(bool headless)

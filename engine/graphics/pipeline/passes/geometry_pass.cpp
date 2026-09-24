@@ -22,15 +22,16 @@ namespace Chained
 		{
 			const auto& firstItem = opaqueQueue[i];
 
-			// Check for consecutive identical static instances (same asset, materials, shader override)
-			if (firstItem.Asset && firstItem.BoneMatrices.empty() && firstItem.Materials.empty() &&
-				!firstItem.ShaderOverride && firstItem.CustomUniforms.empty())
+			// Batch consecutive items: same asset, no bones/shader-override/custom-uniforms,
+			// AND identical material overrides (including both-empty case).
+			if (firstItem.Asset && firstItem.BoneMatrices.empty() && !firstItem.ShaderOverride &&
+				firstItem.CustomUniforms.empty())
 			{
 				size_t j = i + 1;
 				std::vector<glm::mat4> transforms = {firstItem.Transform};
 				while (j < opaqueQueue.size() && opaqueQueue[j].Asset == firstItem.Asset &&
 					   opaqueQueue[j].BoneMatrices.empty() && !opaqueQueue[j].ShaderOverride &&
-					   opaqueQueue[j].CustomUniforms.empty() && opaqueQueue[j].Materials.empty())
+					   opaqueQueue[j].CustomUniforms.empty() && opaqueQueue[j].Materials == firstItem.Materials)
 				{
 					transforms.push_back(opaqueQueue[j].Transform);
 					++j;
