@@ -30,6 +30,11 @@ namespace Chained
 							 EditorConfig* config, std::function<void()> saveConfigCallback,
 							 std::function<void()> reloadFontsCallback)
 		{
+			if (sceneManager == nullptr || projectManager == nullptr || config == nullptr)
+			{
+				CH_CORE_ERROR("[EditorMenu] SetDependencies called with null pointer(s)!");
+				return;
+			}
 			m_SceneManager = sceneManager;
 			m_ProjectManager = projectManager;
 			m_Config = config;

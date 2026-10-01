@@ -46,6 +46,14 @@ namespace Chained
 		// Re-register with the now-valid Window pointer (m_Window is created inside InitializePlatform).
 		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent), m_Window.get());
 		RegisterCoreServices();
+
+		// Inject Input into the window now that the service is registered —
+		// InitializePlatform() runs before RegisterCoreServices() so Input wasn't available then.
+		if (m_Window)
+		{
+			m_Window->InjectInput(ServiceLocator::TryGet<Core::Input>());
+		}
+
 		RegisterRuntimeServices();
 		RegisterGameplayServices();
 
@@ -78,7 +86,7 @@ namespace Chained
 		const bool isHeadless = m_Specification.Headless;
 		if (!isHeadless)
 		{
-			m_Window = Window::Create(m_Specification.Window);
+			m_Window = Window::Create(m_Specification.Window, ServiceLocator::TryGet<Core::Input>());
 			m_Window->SetEventCallback(CH_BIND_EVENT_FN(Application::OnEvent));
 		}
 		else
@@ -137,10 +145,13 @@ namespace Chained
 		const bool isHeadless = m_Specification.Headless;
 		if (!isHeadless)
 		{
-			ServiceLocator::Provide<Renderer>([] { return std::make_unique<Renderer>(); });
+			ServiceLocator::Provide<GraphicsDevice>([] { return GraphicsDevice::Create(); });
+			ServiceLocator::Provide<Renderer>(
+				[] { return std::make_unique<Renderer>(ServiceLocator::TryGet<GraphicsDevice>()); });
 			ServiceLocator::Provide<UIFontRegistry>([] { return std::make_unique<UIFontRegistry>(); });
 			ServiceLocator::Provide<WidgetRenderer>([] { return std::make_unique<WidgetRenderer>(); });
-			ServiceLocator::Provide<DebugRenderer>([] { return std::make_unique<DebugRenderer>(); });
+			ServiceLocator::Provide<DebugRenderer>(
+				[] { return std::make_unique<DebugRenderer>(ServiceLocator::TryGet<GraphicsDevice>()); });
 		}
 	}
 
@@ -161,13 +172,13 @@ namespace Chained
 
 		m_LayerStack.reset();
 
-		// WARNING: OpenGL resources held by the Project (like Environment maps)
-		// MUST be released before the OpenGL context is destroyed (via m_Window.reset()).
-		// Setting Active Project to nullptr invokes destructors cleanly.
 		Project::SetActive(nullptr);
 
+		if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
+		{
+			gd->ProcessResourceDeletions();
+		}
 		ServiceLocator::Shutdown();
-		GraphicsDevice::ProcessResourceDeletions();
 		m_Window.reset();
 		// Log::Shutdown() MUST come after m_Window.reset(): ~GlfwWindow::Shutdown() emits
 		// CH_CORE_INFO("Glfw Window Closed"). If the core logger were reset first, that log
@@ -198,7 +209,7 @@ namespace Chained
 			}
 
 			// Process any GPU resource deletions queued from worker threads
-			GraphicsDevice::ProcessResourceDeletions();
+			ServiceLocator::Get<GraphicsDevice>()->ProcessResourceDeletions();
 
 			if (m_Window && m_Window->GetWidth() > 0 && m_Window->GetHeight() > 0)
 			{
@@ -227,7 +238,7 @@ namespace Chained
 					layer->OnUpdate(m_Timer.DeltaTime);
 				}
 
-				Core::Input::Update(m_Timer.DeltaTime);
+				ServiceLocator::Get<Core::Input>()->Update(m_Timer.DeltaTime);
 
 				for (auto& layer : *m_LayerStack)
 				{

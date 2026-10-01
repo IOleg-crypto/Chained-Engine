@@ -253,8 +253,9 @@ namespace Chained
 	void ViewportToolbar::HandleKeyboardShortcuts()
 	{
 		bool hasImGui = ImGui::GetCurrentContext() != nullptr;
-		bool rightDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
-								  : Chained::Core::Input::IsMouseButtonDown(Chained::MouseCode::ButtonRight);
+		bool rightDown =
+			hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
+					 : Chained::ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(Chained::MouseCode::ButtonRight);
 
 		if (!rightDown)
 		{
@@ -281,7 +282,7 @@ namespace Chained
 			{
 				for (const auto& btn : s_GizmoBtns)
 				{
-					if (Chained::Core::Input::IsKeyPressed(btn.key))
+					if (Chained::ServiceLocator::Get<Core::Input>()->IsKeyPressed(btn.key))
 					{
 						m_Gizmo.SetCurrentTool(btn.type);
 					}
@@ -289,11 +290,12 @@ namespace Chained
 			}
 		}
 
-		bool isCtrl = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-							   : (Chained::Core::Input::IsKeyDown(Chained::KeyCode::LeftControl) ||
-								  Chained::Core::Input::IsKeyDown(Chained::KeyCode::RightControl));
-		bool isDPressed =
-			hasImGui ? ImGui::IsKeyPressed(ImGuiKey_D, false) : Chained::Core::Input::IsKeyPressed(Chained::KeyCode::D);
+		bool isCtrl = hasImGui
+						  ? (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
+						  : (Chained::ServiceLocator::Get<Core::Input>()->IsKeyDown(Chained::KeyCode::LeftControl) ||
+							 Chained::ServiceLocator::Get<Core::Input>()->IsKeyDown(Chained::KeyCode::RightControl));
+		bool isDPressed = hasImGui ? ImGui::IsKeyPressed(ImGuiKey_D, false)
+								   : Chained::ServiceLocator::Get<Core::Input>()->IsKeyPressed(Chained::KeyCode::D);
 
 		if (isCtrl && isDPressed)
 		{

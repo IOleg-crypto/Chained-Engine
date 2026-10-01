@@ -1,6 +1,7 @@
 #include "gl_uniform_buffer.h"
 #include "engine/graphics/api/graphics_device.h"
 #include <glad/gl.h>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -18,7 +19,10 @@ namespace Chained
 		if (m_RendererID)
 		{
 			uint32_t id = m_RendererID;
-			GraphicsDevice::EnqueueResourceDeletion([id]() { glDeleteBuffers(1, &id); });
+			if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
+			{
+				gd->EnqueueResourceDeletion([id]() { glDeleteBuffers(1, &id); });
+			}
 		}
 	}
 

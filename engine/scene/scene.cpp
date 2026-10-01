@@ -5,6 +5,8 @@
 #include "engine/ui/ui_data_components.h"
 #include "engine/ui/widget_renderer.h"
 #include "engine/physics/physics.h"
+#include "engine/audio/audio.h"
+#include "engine/assets/asset_manager.h"
 #include "engine/scene/components/animation/animation_component.h"
 #include "engine/scene/components/core/hierarchy_component.h"
 #include "engine/scene/components/ui/scene_transition_component.h"
@@ -241,7 +243,7 @@ namespace Chained
 			m_ScriptingManager->OnRuntimeStop();
 		}
 
-		AudioSystem::OnRuntimeStop(*m_Registry);
+		AudioSystem::OnRuntimeStop(*m_Registry, ServiceLocator::TryGet<Audio>());
 		NetworkSystem::Reset(this);
 
 		bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
@@ -261,10 +263,13 @@ namespace Chained
 
 	void Scene::TickCommonSystems(Timestep ts)
 	{
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		auto* audioSvc = ServiceLocator::TryGet<Audio>();
+
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		AssetResolutionSystem::Update(*m_Registry);
-		AnimationSystem::Update(*m_Registry, ts);
-		AudioSystem::Update(*m_Registry);
+		AssetResolutionSystem::Update(*m_Registry, assets);
+		AnimationSystem::Update(*m_Registry, ts, assets);
+		AudioSystem::Update(*m_Registry, audioSvc);
 		m_Dispatcher.update();
 	}
 

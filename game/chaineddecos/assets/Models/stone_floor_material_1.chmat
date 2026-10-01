@@ -1,0 +1,27 @@
+Material:
+  Name: StoneFloor
+  AlbedoColor:
+    - 1
+    - 1
+    - 1
+    - 1
+  EmissiveColor:
+    - 0
+    - 0
+    - 0
+    - 1
+  EmissiveIntensity: 0
+  Metalness: 0
+  Roughness: 0.600000024
+  Transparent: false
+  Alpha: 1
+  FlipUV_Y: true
+  FlipUV_X: false
+  UVScale:
+    - 1
+    - 1
+  UVOffset:
+    - 0
+    - 0
+  AlbedoMap: models/stone_floor_embtex_2.jpg
+  NormalMap: models/stone_floor_embtex_3.png

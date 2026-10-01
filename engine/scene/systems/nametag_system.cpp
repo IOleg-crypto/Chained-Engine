@@ -151,7 +151,7 @@ namespace Chained::NametagSystem
 		shader->SetVec4("backgroundColor", glm::vec4(0.0f, 0.0f, 0.0f, 0.7f));
 		shader->SetVec2("size", glm::vec2(1.0f, 1.0f));
 
-		GraphicsDevice::Get().SetTexture(0, font.textureAtlas->GetNativeHandle());
+		ServiceLocator::Get<GraphicsDevice>()->SetTexture(0, font.textureAtlas->GetNativeHandle());
 		shader->SetInt("textTexture", 0);
 
 		PipelineStateGuard stateGuard;
@@ -262,7 +262,7 @@ namespace Chained::NametagSystem
 
 			uint32_t idxCount = static_cast<uint32_t>(quads.size() * kIndicesPerGlyph);
 			s_QuadVAO->Bind();
-			GraphicsDevice::Get().DrawIndexed(s_QuadVAO, idxCount);
+			ServiceLocator::Get<GraphicsDevice>()->DrawIndexed(s_QuadVAO, idxCount);
 			s_QuadVAO->Unbind();
 		}
 

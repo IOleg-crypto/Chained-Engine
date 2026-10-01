@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <glm/gtx/quaternion.hpp>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -103,28 +104,28 @@ namespace Chained
 		bool hasImGui = ImGui::GetCurrentContext() != nullptr;
 
 		bool rightDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
-								  : Core::Input::IsMouseButtonDown(MouseCode::ButtonRight);
+								  : ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(MouseCode::ButtonRight);
 		bool middleDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Middle)
-								   : Core::Input::IsMouseButtonDown(MouseCode::ButtonMiddle);
+								   : ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(MouseCode::ButtonMiddle);
 		bool leftDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Left)
-								 : Core::Input::IsMouseButtonDown(MouseCode::ButtonLeft);
+								 : ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(MouseCode::ButtonLeft);
 
-		bool shiftDown =
-			hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift))
-					 : (Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift));
-		bool altDown = hasImGui
-						   ? (ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt))
-						   : (Core::Input::IsKeyDown(KeyCode::LeftAlt) || Core::Input::IsKeyDown(KeyCode::RightAlt));
-		bool ctrlDown =
-			hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-					 : (Core::Input::IsKeyDown(KeyCode::LeftControl) || Core::Input::IsKeyDown(KeyCode::RightControl));
+		bool shiftDown = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift))
+								  : (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftShift) ||
+									 ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightShift));
+		bool altDown = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt))
+								: (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftAlt) ||
+								   ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightAlt));
+		bool ctrlDown = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
+								 : (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftControl) ||
+									ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightControl));
 
 		auto isKeyDown = [hasImGui](KeyCode coreKey, ImGuiKey imguiKey) -> bool {
 			if (hasImGui)
 			{
 				return ImGui::IsKeyDown(imguiKey);
 			}
-			return Core::Input::IsKeyDown(coreKey);
+			return ServiceLocator::Get<Core::Input>()->IsKeyDown(coreKey);
 		};
 
 		bool hasEntity = cameraEntity && cameraEntity.HasComponent<TransformComponent>() &&
@@ -181,7 +182,7 @@ namespace Chained
 			}
 			else
 			{
-				glm::vec2 raw = Core::Input::GetMouseDelta();
+				glm::vec2 raw = ServiceLocator::Get<Core::Input>()->GetMouseDelta();
 #if CH_PLATFORM_LINUX
 				raw.x = std::clamp(raw.x, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
 				raw.y = std::clamp(raw.y, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
@@ -257,8 +258,8 @@ namespace Chained
 			MousePan(delta);
 		}
 
-		float wheel = hasImGui ? ImGui::GetIO().MouseWheel : Core::Input::GetMouseWheelMove();
-		float wheelH = hasImGui ? ImGui::GetIO().MouseWheelH : Core::Input::GetMouseWheelHMove();
+		float wheel = hasImGui ? ImGui::GetIO().MouseWheel : ServiceLocator::Get<Core::Input>()->GetMouseWheelMove();
+		float wheelH = hasImGui ? ImGui::GetIO().MouseWheelH : ServiceLocator::Get<Core::Input>()->GetMouseWheelHMove();
 
 		if (wheel != 0.0f || wheelH != 0.0f)
 		{

@@ -452,7 +452,7 @@ namespace Chained
 
 	void EditorLayer::OnRender(Timestep ts)
 	{
-		GraphicsDevice::Get().Clear({25, 25, 25, 255});
+		ServiceLocator::Get<GraphicsDevice>()->Clear({25, 25, 25, 255});
 	}
 
 	void EditorLayer::OnImGuiRender()
@@ -616,8 +616,10 @@ namespace Chained
 			return false;
 		}
 
-		const bool ctrl = Core::Input::IsKeyDown(KeyCode::LeftControl) || Core::Input::IsKeyDown(KeyCode::RightControl);
-		const bool shift = Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift);
+		const bool ctrl = ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftControl) ||
+						  ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightControl);
+		const bool shift = ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftShift) ||
+						   ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightShift);
 		const KeyCode key = e.GetKeyCode();
 
 		if (ctrl)

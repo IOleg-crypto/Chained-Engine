@@ -48,8 +48,10 @@ DebugSettings:
   DrawLights: true
   DrawSpawnZones: true
   CollisionWireframeMode: 0
+  MeshColliderAsBBox: true
+  ColliderAlpha: 0.600000024
 Entities:
-  - Entity: 3709573788454630664
+  - Entity: 4929988488087062369
     ModelComponent:
       ModelPath: models/primitives/w.obj
       ModelUUID: 16164448670906863704
@@ -90,7 +92,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 7629531423744396195
+  - Entity: 7801697311929495969
     LightComponent:
       Type: 1
       LightColor: [238, 238, 255, 255]
@@ -107,7 +109,7 @@ Entities:
       Tag: Spot Light
     IDComponent:
       {}
-  - Entity: 11795145035523871578
+  - Entity: 11158822502366417415
     TransformComponent:
       Translation: [-51.6971283, 137.265976, 0]
       Rotation: [0, -0, 0]
@@ -128,12 +130,15 @@ Entities:
       MinDistance: 0
       MaxDistance: 6000000
       IsPlaying: true
-  - Entity: 6855195177011867562
+  - Entity: 5332736468882987380
     ModelComponent:
       ModelPath: models/minigames/hub_for_minigames_server.glb
       ModelUUID: 8378150816431493396
       MaterialPaths:
-        []
+        - models/minigames/hub_for_minigames_server_material_0.chmat
+        - models/minigames/hub_for_minigames_server_material_1.chmat
+        - models/minigames/hub_for_minigames_server_material_2.chmat
+        - models/minigames/hub_for_minigames_server_material_3.chmat
     TransformComponent:
       Translation: [-118.395287, 12.3910465, 826.530884]
       Rotation: [0, -0, 0]
@@ -169,7 +174,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 14342089722546072476
+  - Entity: 11283848723926336489
     ModelComponent:
       ModelPath: models/building/scene.gltf
       ModelUUID: 16285444420064967065
@@ -215,7 +220,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 16049509304767910640
+  - Entity: 6829230499190070341
     ModelComponent:
       ModelPath: models/stairs.glb
       ModelUUID: 2777666302803713364
@@ -256,7 +261,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 18104835603734053354
+  - Entity: 10512866968127335132
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -297,7 +302,7 @@ Entities:
       IsGrounded: true
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 5857843551945153397
+  - Entity: 3285166006008032154
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -326,7 +331,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 8157528484743135438
+  - Entity: 2157848320453276836
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -355,7 +360,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 9569087216355936865
+  - Entity: 7422120285868792783
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -384,7 +389,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 8495485245901106755
+  - Entity: 15326866426676308847
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -413,7 +418,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 4519369378393181679
+  - Entity: 5830711125445976853
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -442,7 +447,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 3442464580617740449
+  - Entity: 4857941876105288806
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -471,7 +476,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 10737304749927283902
+  - Entity: 7927529535791240462
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -500,7 +505,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 4570133786829053552
+  - Entity: 6957377247339141505
     ModelComponent:
       ModelPath: models/arena.glb
       ModelUUID: 10755992412146045657
@@ -541,7 +546,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 3294218508804275056
+  - Entity: 6369520506912205172
     ModelComponent:
       ModelPath: models/mystery_skulls_ghost_lewis/scene.gltf
       ModelUUID: 6481625887406353999
@@ -583,7 +588,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 7142811162629031787
+  - Entity: 1342032090237141522
     ModelComponent:
       ModelPath: models/pilot/animated_civilian_helicopter/scene.gltf
       ModelUUID: 6922423336282928323
@@ -610,7 +615,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 16171838326673582242
+  - Entity: 12350721816896285785
     ModelComponent:
       ModelPath: models/skeleton/scene.gltf
       ModelUUID: 3520787229482223369
@@ -672,7 +677,7 @@ Entities:
         speed: 0
         isGrounded: 0
         isMoving: 0
-  - Entity: 17765029814127488575
+  - Entity: 3727444422101538545
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -713,12 +718,14 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 6896946389885476062
+  - Entity: 129369203961833081
     ModelComponent:
       ModelPath: models/stone_floor.glb
       ModelUUID: 5231694586974801729
       MaterialPaths:
-        []
+        - models/stone_floor_material_0.chmat
+        - models/stone_floor_material_1.chmat
+        - models/stone_floor_material_2.chmat
     TransformComponent:
       Translation: [-231.075317, -11.3970604, 67.6377563]
       Rotation: [0, -0, 0]
@@ -754,7 +761,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 8455596155916766691
+  - Entity: 3162395732919724791
     CameraComponent:
       Primary: true
       FixedAspectRatio: false
@@ -765,8 +772,8 @@ Entities:
       OrbitPitch: 6
       LookSensitivity: 0
     TransformComponent:
-      Translation: [-50.6746254, 308.905457, 257.544525]
-      Rotation: [0.374999911, 1.4940083, 0]
+      Translation: [-529.433533, 320.02475, -452.147247]
+      Rotation: [0.174000025, -3.71099448, 0]
       Scale: [1, 1, 1]
     TagComponent:
       Tag: Camera
@@ -781,7 +788,7 @@ Entities:
         - Name: color
           Value: 0
       Enabled: true
-  - Entity: 15386598586977235308
+  - Entity: 16999647261191928961
     ModelComponent:
       ModelPath: models/container_ship/scene.gltf
       ModelUUID: 16650958288931697221
@@ -824,7 +831,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 15540060557686544346
+  - Entity: 7172844323843743178
     ModelComponent:
       ModelPath: models/pilot/animated_civilian_helicopter/scene.gltf
       ModelUUID: 6922423336282928323
@@ -851,7 +858,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 12952026887607196455
+  - Entity: 8755014576048168333
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -880,7 +887,7 @@ Entities:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 0
       IsColliding: false
-  - Entity: 17714773697517028876
+  - Entity: 14223806592425610792
     TransformComponent:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -889,7 +896,7 @@ Entities:
       Tag: train_vagons
     IDComponent:
       {}
-  - Entity: 15817276578479549268
+  - Entity: 4575699282508199907
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -930,7 +937,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 1829589675691814228
+  - Entity: 9959384571425317190
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -971,7 +978,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 4720930573180286770
+  - Entity: 6044074042684158616
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -1012,7 +1019,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 8759986998134805052
+  - Entity: 18326314568912546720
     ModelComponent:
       ModelPath: models/wooden_bridge/wooden_bridge_roofed_bridge_cap_-24mb.glb
       ModelUUID: 4537241321556691418
@@ -1053,7 +1060,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 7554491643108972179
+  - Entity: 15763319668023066996
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -1094,7 +1101,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 1896052557040305628
+  - Entity: 9667158647417948728
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -1123,7 +1130,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 17503716596983247528
+  - Entity: 17094469855041022124
     ManagedScriptComponent:
       Scripts:
         - ClassName: chaineddecos.scripts.spawnzone
@@ -1156,12 +1163,82 @@ Entities:
       SpawnPoint: [0, 0, 0]
       ZoneSize: [1, 1, 1]
       RenderSpawnZoneInScene: true
-  - Entity: 917985343520180458
+  - Entity: 6219637913352195304
     ModelComponent:
       ModelPath: models/city/after_the_rain..._-_vr__sound.glb
       ModelUUID: 9063345529843979990
       MaterialPaths:
-        []
+        - models/city/after_the_rain..._-_vr__sound_material_0.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_1.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_2.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_3.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_4.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_5.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_6.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_7.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_8.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_9.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_10.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_11.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_12.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_13.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_14.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_15.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_16.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_17.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_18.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_19.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_20.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_21.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_22.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_23.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_24.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_25.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_26.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_27.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_28.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_29.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_30.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_31.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_32.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_33.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_34.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_35.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_36.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_37.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_38.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_39.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_40.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_41.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_42.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_43.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_44.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_45.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_46.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_47.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_48.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_49.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_50.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_51.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_52.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_53.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_54.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_55.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_56.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_57.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_58.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_59.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_60.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_61.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_62.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_63.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_64.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_65.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_66.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_67.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_68.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_69.chmat
+        - models/city/after_the_rain..._-_vr__sound_material_70.chmat
     TransformComponent:
       Translation: [868.357849, 18.0451431, 48.9843903]
       Rotation: [2.35353184, -1.46152711, -2.33593369]
@@ -1197,7 +1274,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 13461307702401262176
+  - Entity: 3247792311028890926
     ModelComponent:
       ModelPath: models/new_model/a109082005619/scene.gltf
       ModelUUID: 18003340254112658511

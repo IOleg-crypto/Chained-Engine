@@ -6,11 +6,7 @@
 namespace Chained
 {
 
-	std::unique_ptr<GraphicsDevice> GraphicsDevice::s_Instance = nullptr;
 	GraphicsDevice::API GraphicsDevice::s_API = GraphicsDevice::API::OpenGL;
-
-	static std::mutex s_DeletionMutex;
-	static std::vector<std::function<void()>> s_DeletionQueue;
 
 	void GraphicsDevice::EnqueueResourceDeletion(std::function<void()> deleter)
 	{
@@ -18,20 +14,20 @@ namespace Chained
 		{
 			return;
 		}
-		std::lock_guard<std::mutex> lock(s_DeletionMutex);
-		s_DeletionQueue.push_back(std::move(deleter));
+		std::lock_guard<std::mutex> lock(m_DeletionMutex);
+		m_DeletionQueue.push_back(std::move(deleter));
 	}
 
 	void GraphicsDevice::ProcessResourceDeletions()
 	{
 		std::vector<std::function<void()>> queueToProcess;
 		{
-			std::lock_guard<std::mutex> lock(s_DeletionMutex);
-			if (s_DeletionQueue.empty())
+			std::lock_guard<std::mutex> lock(m_DeletionMutex);
+			if (m_DeletionQueue.empty())
 			{
 				return;
 			}
-			queueToProcess.swap(s_DeletionQueue);
+			queueToProcess.swap(m_DeletionQueue);
 		}
 
 		for (auto& deleter : queueToProcess)

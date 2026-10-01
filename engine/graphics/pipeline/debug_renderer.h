@@ -18,6 +18,7 @@ namespace Chained
 {
 
 	class Renderer;
+	class GraphicsDevice;
 
 	struct LineVertex
 	{
@@ -44,7 +45,7 @@ namespace Chained
 	class CH_API DebugRenderer : public Service
 	{
 	public:
-		DebugRenderer() = default;
+		explicit DebugRenderer(GraphicsDevice* device = nullptr);
 		virtual ~DebugRenderer() override = default;
 
 		void DrawLine(const glm::vec3& start, const glm::vec3& end, const glm::vec4& color);
@@ -71,6 +72,7 @@ namespace Chained
 		virtual void Shutdown() override;
 
 	private:
+		GraphicsDevice* m_Device = nullptr;
 		LineState m_Lines;
 		StaticResources m_Resources;
 		std::shared_ptr<VertexArray> m_GridPlaneVAO;

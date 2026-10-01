@@ -51,7 +51,7 @@ DebugSettings:
   MeshColliderAsBBox: true
   ColliderAlpha: 0.600000024
 Entities:
-  - Entity: 3015717176946530574
+  - Entity: 5498922869124156790
     ManagedScriptComponent:
       Scripts:
         - ClassName: Chained.Hero
@@ -81,7 +81,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 13762757367430785815
+  - Entity: 9937648245662107110
     ManagedScriptComponent:
       Scripts:
         - ClassName: Chained.HeroSkill
@@ -114,7 +114,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 7890650465983235141
+  - Entity: 2445423476862486378
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -143,7 +143,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 18388946251789058872
+  - Entity: 15269200228032754261
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -185,7 +185,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 6703276193669480521
+  - Entity: 10779029844797236188
     ModelComponent:
       ModelPath: models/wooden_bridge/wooden_bridge_roofed_bridge_cap_-24mb.glb
       ModelUUID: 4537241321556691418
@@ -214,7 +214,7 @@ Entities:
       ModelPath: models/wooden_bridge/wooden_bridge_roofed_bridge_cap_-24mb.glb
       ModelUUID: 0
       IsColliding: false
-  - Entity: 848610134178802035
+  - Entity: 18122526878201738639
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -256,7 +256,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 14242544123093720280
+  - Entity: 529383670703637126
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -298,7 +298,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 6823552209860862304
+  - Entity: 688684196995660920
     ModelComponent:
       ModelPath: models/bridge.glb
       ModelUUID: 9850403329235179652
@@ -340,7 +340,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 13951756051271525665
+  - Entity: 10693072787074013559
     ManagedScriptComponent:
       Scripts:
         - ClassName: chaineddecos.scripts.endgamezone
@@ -367,7 +367,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 8359285604438023778
+  - Entity: 4372473859123103792
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -396,7 +396,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 5748485624806991386
+  - Entity: 18040540711319266395
     ModelComponent:
       ModelPath: models/pilot/animated_civilian_helicopter/scene.gltf
       ModelUUID: 6922423336282928323
@@ -423,7 +423,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 15346483827380215849
+  - Entity: 12617283326669405284
     ModelComponent:
       ModelPath: models/container_ship/scene.gltf
       ModelUUID: 16650958288931697221
@@ -467,7 +467,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 2586668971822953971
+  - Entity: 7098423749769012699
     ManagedScriptComponent:
       Scripts:
         - ClassName: chaineddecos.scripts.cameracontroller
@@ -486,14 +486,14 @@ Entities:
       OrbitPitch: 20
       LookSensitivity: 0.899999976
     TransformComponent:
-      Translation: [-257.531982, 217.978485, 386.570557]
-      Rotation: [0.294000626, 13.5569983, 0]
+      Translation: [-169.157913, 346.816498, -144.358734]
+      Rotation: [0.363000125, -2.90699816, 0]
       Scale: [1, 1, 1]
     TagComponent:
       Tag: Camera
     IDComponent:
       {}
-  - Entity: 2152841250339195944
+  - Entity: 2437667409750237313
     ModelComponent:
       ModelPath: models/stairs.glb
       ModelUUID: 2777666302803713364
@@ -522,7 +522,7 @@ Entities:
       ModelPath: models/stairs.glb
       ModelUUID: 0
       IsColliding: false
-  - Entity: 12089423521681246454
+  - Entity: 31600701773377765
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -551,7 +551,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 2154050227510635573
+  - Entity: 15574642247187414130
     ManagedScriptComponent:
       Scripts:
         - ClassName: chaineddecos.scripts.playercontroller
@@ -606,7 +606,7 @@ Entities:
       MovementSpeed: 15
       JumpForce: 10
       LookSensitivity: 0.899999976
-  - Entity: 9522698759405386897
+  - Entity: 1116470810670690786
     CameraComponent:
       Primary: false
       FixedAspectRatio: false
@@ -617,14 +617,14 @@ Entities:
       OrbitPitch: 20
       LookSensitivity: 0.899999976
     TransformComponent:
-      Translation: [-299.868927, 124.552559, 714.485779]
-      Rotation: [0.570000052, 2.53199697, 0]
+      Translation: [0, 0, 10]
+      Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     TagComponent:
       Tag: SceneCamera
     IDComponent:
       {}
-  - Entity: 5746347634512026530
+  - Entity: 9035319635935283884
     ModelComponent:
       ModelPath: models/mystery_skulls_ghost_lewis/scene.gltf
       ModelUUID: 6481625887406353999
@@ -666,7 +666,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 4298194520418238320
+  - Entity: 9053012980293412948
     ModelComponent:
       ModelPath: models/arena.glb
       ModelUUID: 10755992412146045657
@@ -695,7 +695,7 @@ Entities:
       ModelPath: models/arena.glb
       ModelUUID: 0
       IsColliding: false
-  - Entity: 3526851264815845485
+  - Entity: 15204876912496139870
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -724,7 +724,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 17131660966738420823
+  - Entity: 17765391155927322151
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -753,7 +753,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 9708152586784840544
+  - Entity: 2346958367475069402
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -782,7 +782,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 3017940687665485969
+  - Entity: 15081212764336883150
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -811,7 +811,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 18071874276456122737
+  - Entity: 8374509599764233226
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -840,7 +840,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 5912166545220929068
+  - Entity: 2933776773068519571
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -869,7 +869,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 18154865956022350884
+  - Entity: 14622369829208145022
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -898,7 +898,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 12389151364198012303
+  - Entity: 4874938723536550129
     ModelComponent:
       ModelPath: models/toy_train/train_vagon.glb
       ModelUUID: 13349678835275148188
@@ -927,7 +927,7 @@ Entities:
       ModelPath: ""
       ModelUUID: 0
       IsColliding: false
-  - Entity: 12461264313971841462
+  - Entity: 15234628916725425420
     ModelComponent:
       ModelPath: models/stairs.glb
       ModelUUID: 2777666302803713364
@@ -956,7 +956,7 @@ Entities:
       ModelPath: models/stairs.glb
       ModelUUID: 0
       IsColliding: false
-  - Entity: 6292927101682260646
+  - Entity: 12997866943632627320
     ModelComponent:
       ModelPath: models/building/scene.gltf
       ModelUUID: 16285444420064967065
@@ -975,12 +975,15 @@ Entities:
       Tag: buildings_6_pack
     IDComponent:
       {}
-  - Entity: 5739824534436835008
+  - Entity: 8053116160074176536
     ModelComponent:
       ModelPath: models/minigames/hub_for_minigames_server.glb
       ModelUUID: 8378150816431493396
       MaterialPaths:
-        []
+        - models/minigames/hub_for_minigames_server_material_0.chmat
+        - models/minigames/hub_for_minigames_server_material_1.chmat
+        - models/minigames/hub_for_minigames_server_material_2.chmat
+        - models/minigames/hub_for_minigames_server_material_3.chmat
     TransformComponent:
       Translation: [-118.395287, 12.3910465, 826.530884]
       Rotation: [0, -0, 0]
@@ -1016,7 +1019,7 @@ Entities:
       IsGrounded: false
       VelocityForced: false
       IsNetworkDriven: false
-  - Entity: 1907114387635957674
+  - Entity: 15606871526547872798
     ModelComponent:
       ModelPath: models/toy_train/wooden_train.glb
       ModelUUID: 6503497834854385828
@@ -1043,7 +1046,7 @@ Entities:
       IsLooping: true
       Variables:
         {}
-  - Entity: 2007284083709690031
+  - Entity: 1185437831046797017
     ModelComponent:
       ModelPath: models/building/scene.gltf
       ModelUUID: 16285444420064967065

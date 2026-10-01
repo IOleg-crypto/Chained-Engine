@@ -118,16 +118,22 @@ namespace Chained
 		shader->Bind();
 		shader->SetMatrix("u_LightSpaceMatrix", m_LightSpaceMatrix);
 
-		uint32_t previousFBO = GraphicsDevice::Get().GetFramebufferBinding();
+		auto* device = ctx.Device ? ctx.Device : ServiceLocator::TryGet<GraphicsDevice>();
+		if (!device)
+		{
+			return;
+		}
+
+		uint32_t previousFBO = device->GetFramebufferBinding();
 		int prevViewport[4] = {0, 0, 0, 0};
-		GraphicsDevice::Get().GetViewport(&prevViewport[0], &prevViewport[1], &prevViewport[2], &prevViewport[3]);
+		device->GetViewport(&prevViewport[0], &prevViewport[1], &prevViewport[2], &prevViewport[3]);
 
 		m_ShadowMap->Bind();
-		GraphicsDevice::Get().SetViewport(0, 0, shadowRes, shadowRes);
-		GraphicsDevice::Get().ClearDepth();
+		device->SetViewport(0, 0, shadowRes, shadowRes);
+		device->ClearDepth();
 
 		// Depth bias to prevent shadow acne (surface-shadow self-intersection)
-		GraphicsDevice::Get().SetPolygonOffset(true, 2.0f, 1.0f);
+		device->SetPolygonOffset(true, 2.0f, 1.0f);
 
 		// Render all opaque items into the depth buffer using the depth shader (with GPU instancing).
 		// Cull objects whose world AABB does not intersect the orthographic shadow volume.
@@ -192,12 +198,12 @@ namespace Chained
 			++i;
 		}
 
-		GraphicsDevice::Get().SetPolygonOffset(false);
+		device->SetPolygonOffset(false);
 
 		// Restore previous FBO binding and viewport without pipeline stalls
 		m_ShadowMap->Unbind();
-		GraphicsDevice::Get().BindFramebuffer(previousFBO);
-		GraphicsDevice::Get().SetViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+		device->BindFramebuffer(previousFBO);
+		device->SetViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
 	}
 
 	void ShadowPass::Shutdown()

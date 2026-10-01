@@ -10,6 +10,7 @@
 namespace Chained
 {
 	class SceneRenderer;
+	class GraphicsDevice;
 	struct SceneRenderOptions;
 
 	struct RenderContext
@@ -19,6 +20,7 @@ namespace Chained
 		const Camera3D& Camera;
 		const SceneRenderOptions& Options;
 		SceneRenderer* Renderer;
+		GraphicsDevice* Device = nullptr;
 	};
 
 	class IRenderPass

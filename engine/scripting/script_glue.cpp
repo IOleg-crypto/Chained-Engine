@@ -20,8 +20,9 @@
 #include "script_glue_ui.h"
 #include "script_glue_audio.h"
 #include "script_glue_input.h"
+#include "script_glue_components.h"
 #include "script_glue_network.h"
-#include "generated/script_glue_generated.h"
+#include "script_glue_registry.h"
 #include <Coral/Assembly.hpp>
 
 namespace Chained
@@ -263,6 +264,14 @@ namespace Chained
 								 (void*)&AnimationComponent_GetBlendDuration);
 		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_SetBlendDuration_Ptr",
 								 (void*)&AnimationComponent_SetBlendDuration);
+		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_GetSpeed_Ptr",
+								 (void*)&AnimationComponent_GetSpeed);
+		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_SetSpeed_Ptr",
+								 (void*)&AnimationComponent_SetSpeed);
+		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_PlayClip_Ptr",
+								 (void*)&AnimationComponent_PlayClip);
+		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_Stop_Ptr",
+								 (void*)&AnimationComponent_Stop);
 		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_CrossFade_Ptr",
 								 (void*)&AnimationComponent_CrossFade);
 
@@ -307,15 +316,6 @@ namespace Chained
 		assembly.AddInternalCall("Chained.UI", "UI_Checkbox_Ptr", (void*)&UI_Checkbox);
 
 		// ── Input ─────────────────────────────────────────────────────────
-		assembly.AddInternalCall("Chained.Input", "Input_IsKeyDown_Ptr", (void*)&Input_IsKeyDown);
-		assembly.AddInternalCall("Chained.Input", "Input_IsKeyPressed_Ptr", (void*)&Input_IsKeyPressed);
-		assembly.AddInternalCall("Chained.Input", "Input_IsKeyReleased_Ptr", (void*)&Input_IsKeyReleased);
-		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonDown_Ptr", (void*)&Input_IsMouseButtonDown);
-		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonPressed_Ptr", (void*)&Input_IsMouseButtonPressed);
-		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelMove_Ptr", (void*)&Input_GetMouseWheelMove);
-		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelHMove_Ptr", (void*)&Input_GetMouseWheelHMove);
-		assembly.AddInternalCall("Chained.Input", "Input_GetMouseScroll_Ptr", (void*)&Input_GetMouseScroll);
-		assembly.AddInternalCall("Chained.Input", "Input_GetMouseDelta_Ptr", (void*)&Input_GetMouseDelta);
 
 		// ── Log ───────────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Log", "Log_Info_Ptr", (void*)&Log_Info);
@@ -424,12 +424,14 @@ namespace Chained
 								 (void*)&Network_GetStunPublicAddress);
 		assembly.AddInternalCall("Chained.Network", "Network_StartHolePunch_Ptr", (void*)&Network_StartHolePunch);
 		assembly.AddInternalCall("Chained.Network", "Network_QueryStun_Ptr", (void*)&Network_QueryStun);
+		assembly.AddInternalCall("Chained.Network", "Network_GetPing_Ptr", (void*)&Network_GetPing);
 
 		// Clipboard
 		assembly.AddInternalCall("Chained.Clipboard", "Clipboard_SetText_Ptr", (void*)&Clipboard_SetText);
 
-		// ── Auto-generated: Player, Spawn, NetworkIdentity properties ──────
-#include "generated/script_glue_generated_reg.inl"
+		// Input & Components
+		ScriptGlue_RegisterInput(assembly);
+		ScriptGlue_RegisterComponents(assembly);
 
 		assembly.UploadInternalCalls();
 		CH_CORE_INFO("[ScriptGlue] Registered {} internal calls for '{}'.", 172, (std::string)assembly.GetName());

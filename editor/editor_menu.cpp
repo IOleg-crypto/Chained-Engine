@@ -1125,10 +1125,10 @@ namespace Chained
 					m_ReloadFontsCallback();
 				}
 			}
-			if (ImGui::IsItemHovered())
-			{
-				ImGui::SetTooltip("Save and apply all settings.");
-			}
+			// if (ImGui::IsItemHovered())
+			// {
+			// 	ImGui::SetTooltip("Save and apply all settings.");
+			// }
 		}
 		ImGui::End();
 	}

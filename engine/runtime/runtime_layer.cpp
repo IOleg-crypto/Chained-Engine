@@ -62,30 +62,25 @@ namespace Chained
 		: Layer("RuntimeLayer"),
 		  m_ProjectPath(projectPath)
 	{
-		s_Instance = this;
+
 		m_SceneRenderer = std::make_unique<SceneRenderer>();
 
 		m_Renderer = ServiceLocator::TryGet<Renderer>();
 		m_AssetManager = ServiceLocator::TryGet<AssetManager>();
 
 		// Populate lightweight session API pointers used by engine_scripting.
-		SessionAPI::HasSuspendedSession = []() -> bool { return s_Instance && s_Instance->HasSuspendedSession(); };
-		SessionAPI::ResumeSuspendedSession = []() {
-			if (s_Instance)
-			{
-				s_Instance->ResumeSuspendedSession();
-			}
-		};
+		SessionAPI::HasSuspendedSession = [this]() -> bool { return HasSuspendedSession(); };
+		SessionAPI::ResumeSuspendedSession = [this]() { ResumeSuspendedSession(); };
 	}
 
 	RuntimeLayer::~RuntimeLayer()
 	{
-		if (s_Instance == this)
+		if (m_SuspendedGameplayScene)
 		{
-			s_Instance = nullptr;
-			SessionAPI::HasSuspendedSession = nullptr;
-			SessionAPI::ResumeSuspendedSession = nullptr;
+			m_SuspendedGameplayScene.reset();
 		}
+		SessionAPI::HasSuspendedSession = nullptr;
+		SessionAPI::ResumeSuspendedSession = nullptr;
 	}
 
 	void RuntimeLayer::OnAttach()
@@ -163,7 +158,7 @@ namespace Chained
 			return;
 		}
 
-		if (Core::Input::IsKeyPressed(KeyCode::Escape))
+		if (ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::Escape))
 		{
 			if (m_Scene && m_Scene->GetSettings().Type == SceneType::Default &&
 				m_LoadState.State == RuntimeLoadState::Running)

@@ -2,6 +2,7 @@
 #include "engine/graphics/api/graphics_device.h"
 
 #include <glad/gl.h>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -20,32 +21,35 @@ namespace Chained
 		uint32_t resolveColor = m_ResolveColorAttachment;
 		uint32_t resolveDepth = m_ResolveDepthAttachment;
 
-		GraphicsDevice::EnqueueResourceDeletion([fbo, color, depth, resolveFbo, resolveColor, resolveDepth]() {
-			if (fbo)
-			{
-				glDeleteFramebuffers(1, &fbo);
-			}
-			if (color)
-			{
-				glDeleteTextures(1, &color);
-			}
-			if (depth)
-			{
-				glDeleteTextures(1, &depth);
-			}
-			if (resolveFbo)
-			{
-				glDeleteFramebuffers(1, &resolveFbo);
-			}
-			if (resolveColor)
-			{
-				glDeleteTextures(1, &resolveColor);
-			}
-			if (resolveDepth)
-			{
-				glDeleteTextures(1, &resolveDepth);
-			}
-		});
+		if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
+		{
+			gd->EnqueueResourceDeletion([fbo, color, depth, resolveFbo, resolveColor, resolveDepth]() {
+				if (fbo)
+				{
+					glDeleteFramebuffers(1, &fbo);
+				}
+				if (color)
+				{
+					glDeleteTextures(1, &color);
+				}
+				if (depth)
+				{
+					glDeleteTextures(1, &depth);
+				}
+				if (resolveFbo)
+				{
+					glDeleteFramebuffers(1, &resolveFbo);
+				}
+				if (resolveColor)
+				{
+					glDeleteTextures(1, &resolveColor);
+				}
+				if (resolveDepth)
+				{
+					glDeleteTextures(1, &resolveDepth);
+				}
+			});
+		}
 	}
 
 	void GLFramebuffer::Invalidate()
@@ -218,13 +222,13 @@ namespace Chained
 
 	void GLFramebuffer::Bind()
 	{
-		GraphicsDevice::Get().BindFramebuffer(m_RendererID);
-		GraphicsDevice::Get().SetViewport(0, 0, m_Specification.Width, m_Specification.Height);
+		ServiceLocator::Get<GraphicsDevice>()->BindFramebuffer(m_RendererID);
+		ServiceLocator::Get<GraphicsDevice>()->SetViewport(0, 0, m_Specification.Width, m_Specification.Height);
 	}
 
 	void GLFramebuffer::Unbind()
 	{
-		GraphicsDevice::Get().BindFramebuffer(0);
+		ServiceLocator::Get<GraphicsDevice>()->BindFramebuffer(0);
 	}
 
 	void GLFramebuffer::Resolve()

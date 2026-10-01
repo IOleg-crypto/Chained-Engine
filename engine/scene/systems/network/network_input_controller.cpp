@@ -13,6 +13,7 @@
 #include "engine/scene/systems/transform_system.h"
 #include <imgui.h>
 #include <cmath>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -162,28 +163,28 @@ namespace Chained
 		const bool captureKeyboard = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
 		if (!captureKeyboard)
 		{
-			if (Core::Input::IsKeyDown(KeyCode::W))
+			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::W))
 			{
 				rawZ += 1.0f;
 			}
-			if (Core::Input::IsKeyDown(KeyCode::S))
+			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::S))
 			{
 				rawZ -= 1.0f;
 			}
-			if (Core::Input::IsKeyDown(KeyCode::A))
+			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::A))
 			{
 				rawX -= 1.0f;
 			}
-			if (Core::Input::IsKeyDown(KeyCode::D))
+			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::D))
 			{
 				rawX += 1.0f;
 			}
 
-			if (Core::Input::IsKeyPressed(KeyCode::Space))
+			if (ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::Space))
 			{
 				flags |= InputAction_Jump;
 			}
-			if (Core::Input::IsKeyDown(KeyCode::LeftShift))
+			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftShift))
 			{
 				flags |= InputAction_Sprint;
 			}
@@ -232,7 +233,7 @@ namespace Chained
 		msg.MoveZ = moveZ;
 		msg.ActionFlags = flags;
 
-		glm::vec2 mouseDelta = Core::Input::GetMouseDelta();
+		glm::vec2 mouseDelta = ServiceLocator::Get<Core::Input>()->GetMouseDelta();
 		msg.MouseX = mouseDelta.x;
 		msg.MouseY = mouseDelta.y;
 

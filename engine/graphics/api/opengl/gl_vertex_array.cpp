@@ -1,6 +1,7 @@
 #include "gl_vertex_array.h"
 #include "engine/graphics/api/graphics_device.h"
 #include <glad/gl.h>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -47,7 +48,10 @@ namespace Chained
 		if (m_RendererID)
 		{
 			uint32_t id = m_RendererID;
-			GraphicsDevice::EnqueueResourceDeletion([id]() { glDeleteVertexArrays(1, &id); });
+			if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
+			{
+				gd->EnqueueResourceDeletion([id]() { glDeleteVertexArrays(1, &id); });
+			}
 		}
 	}
 
