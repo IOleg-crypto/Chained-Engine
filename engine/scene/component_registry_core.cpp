@@ -26,10 +26,12 @@ namespace Chained
 		};
 
 		ComponentRegistry::RegisterReflective<TagComponent>("Tag", ICON_FA_TAG, "Core");
+
 		ComponentRegistry::RegisterReflective<CameraComponent>("Camera", ICON_FA_VIDEO, "Core");
 		ComponentRegistry::RegisterReflective<IDComponent>("ID", nullptr, "Core");
+
 		auto& idMeta = ComponentRegistry::GetMetadataMutable(entt::type_hash<IDComponent>::value());
-		idMeta.Visible = false;
+		idMeta.Visible = true;
 		idMeta.AllowAdd = false;
 
 		ComponentRegistry::RegisterReflective<NameComponent>("Name", nullptr, "Core");

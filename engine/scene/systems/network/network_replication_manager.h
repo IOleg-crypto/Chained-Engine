@@ -16,6 +16,7 @@ namespace Chained
 {
 	class Network;
 	class Scene;
+	class AssetManager;
 
 	class CH_API NetworkReplicationManager
 	{
@@ -26,7 +27,8 @@ namespace Chained
 		void Reset();
 
 		void ProcessWorldStateMessage(WorldStateMessage* msg);
-		void ProcessEntitySpawnMessage(EntitySpawnMessage* msg, Scene* scene, NetworkSessionTracker& session);
+		void ProcessEntitySpawnMessage(EntitySpawnMessage* msg, Scene* scene, NetworkSessionTracker& session,
+									   AssetManager* assets = nullptr, Network* net = nullptr);
 		void ProcessEntityDestroyMessage(EntityDestroyMessage* msg, Scene* scene, NetworkSessionTracker& session);
 
 		void InterpolateEntities(entt::registry& reg, float dt);
@@ -36,8 +38,9 @@ namespace Chained
 		void SendEntitySpawn(Network* net, uint64_t networkID, const std::string& prefabPath, int clientIndex = -1);
 		void SendEntityDestroy(Network* net, uint64_t networkID);
 
-		void EnsureHostIdentity(Scene* scene, NetworkSessionTracker& session);
-		void SyncPeerAvatars(Scene* scene, Network* net, NetworkSessionTracker& session);
+		void EnsureHostIdentity(Scene* scene, NetworkSessionTracker& session, AssetManager* assets = nullptr);
+		void SyncPeerAvatars(Scene* scene, Network* net, NetworkSessionTracker& session,
+							 AssetManager* assets = nullptr);
 		void ResyncClientEntities(int clientIndex, Scene* scene, Network* net, NetworkSessionTracker& session);
 
 		void FlushPendingSpawns(Scene* scene, NetworkSessionTracker& session);

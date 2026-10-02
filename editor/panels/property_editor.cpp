@@ -354,11 +354,8 @@ namespace Chained
 				comp.Reflect(props);
 			}
 
-			if (ui.HasStarted())
-			{
-				s_InitialStates[e] = entity.GetComponent<T>();
-			}
-
+			// Finish first: consume the stored baseline before a same-frame
+			// activation of another field overwrites it.
 			if (ui.HasFinished())
 			{
 				if (s_InitialStates.contains(e))
@@ -374,6 +371,11 @@ namespace Chained
 
 					s_InitialStates.erase(e);
 				}
+			}
+
+			if (ui.HasStarted())
+			{
+				s_InitialStates[e] = entity.GetComponent<T>();
 			}
 
 			return props.HasChanged();
@@ -412,14 +414,13 @@ namespace Chained
 		}
 	}
 
-	void PropertyEditor::DrawGenericReflection(const ComponentMetadata& metadata, Entity entity)
+	void PropertyEditor::DrawGenericReflection(entt::id_type typeId, const ComponentMetadata& metadata, Entity entity)
 	{
-		// Use a stable hash of the component name as the tree node ID
-		// to avoid ImGui ID collisions when multiple generic components are rendered
-		entt::id_type stableId = static_cast<entt::id_type>(std::hash<std::string>{}(metadata.Name));
-
+		// Pass the real EnTT type hash so that DrawComponentInternal's
+		// canDeleteComponent guard correctly identifies protected components
+		// (TagComponent, TransformComponent, ControlComponent).
 		DrawComponentInternal(
-			stableId, metadata.Name, metadata.Icon, entity,
+			typeId, metadata.Name, metadata.Icon, entity,
 			[&]() {
 				UIProperties ui;
 				metadata.ReflectInternal(entity, ui, ReflectionMode::UI);
@@ -514,8 +515,10 @@ namespace Chained
 	void PropertyEditor::Init(CommandHistory* commandHistory)
 	{
 		s_CommandHistory = commandHistory;
-		// --- Core Components ---
+		// --- Core Components --- cannot be added or removed manually
+		ComponentRegistry::SetAllowAdd(entt::type_hash<TagComponent>::value(), false);
 		ComponentRegistry::SetAllowAdd(entt::type_hash<TransformComponent>::value(), false);
+		ComponentRegistry::SetAllowAdd(entt::type_hash<ControlComponent>::value(), false);
 
 		RegisterCustom<LightComponent>(
 			"Light",
@@ -1548,40 +1551,46 @@ namespace Chained
 												 ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap |
 												 ImGuiTreeNodeFlags_FramePadding;
 
-		ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
+		float contentRegionWidth = ImGui::GetContentRegionAvail().x;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{4, 4});
+
 		float lineHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
 
-		// Header Background Color
 		ImGui::PushStyleColor(ImGuiCol_Header, {0.2f, 0.25f, 0.35f, 0.8f});
 		ImGui::PushStyleColor(ImGuiCol_HeaderActive, {0.3f, 0.4f, 0.6f, 1.0f});
 		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, {0.25f, 0.35f, 0.5f, 1.0f});
 
 		std::string headerName = (icon ? std::string(icon) + " " : "") + name;
-		bool open = ImGui::TreeNodeEx((void*)typeId, treeNodeFlags, headerName.c_str());
+
+		bool open = ImGui::TreeNodeEx((void*)typeId, treeNodeFlags, "%s", headerName.c_str());
 
 		ImGui::PopStyleColor(3);
-		ImGui::PopStyleVar();
 
-		bool canRemove =
-			typeId != entt::type_hash<TagComponent>::value() && typeId != entt::type_hash<TransformComponent>::value();
+		bool removed = false;
 
-		if (canRemove)
+		// Components that must never be removed via the Inspector
+		const bool canDeleteComponent = typeId != entt::type_hash<TagComponent>::value() &&
+										typeId != entt::type_hash<TransformComponent>::value() &&
+										typeId != entt::type_hash<ControlComponent>::value();
+
+		if (canDeleteComponent)
 		{
-			// Right-aligned settings button
-			ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.7f);
+			ImGui::PushID((void*)typeId);
+
+			ImGui::SameLine(contentRegionWidth - lineHeight * 0.8f);
+
 			ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.3f, 0.35f, 0.45f, 0.8f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.2f, 0.25f, 0.35f, 0.8f});
+
 			if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
 			{
 				ImGui::OpenPopup("ComponentSettings");
 			}
-			ImGui::PopStyleColor();
-		}
 
-		bool removed = false;
-		if (canRemove)
-		{
+			ImGui::PopStyleColor(3);
+
 			if (ImGui::BeginPopup("ComponentSettings"))
 			{
 				if (ImGui::MenuItem("Remove Component"))
@@ -1592,7 +1601,11 @@ namespace Chained
 
 				ImGui::EndPopup();
 			}
+
+			ImGui::PopID();
 		}
+
+		ImGui::PopStyleVar();
 
 		if (open)
 		{
@@ -1602,6 +1615,7 @@ namespace Chained
 				contentDrawer();
 				EditorGUI::EndPropertyGrid();
 			}
+
 			ImGui::TreePop();
 			ImGui::Spacing();
 		}
@@ -1638,7 +1652,7 @@ namespace Chained
 				}
 				else if (metadata.IsReflective && metadata.ReflectInternal)
 				{
-					DrawGenericReflection(metadata, entity);
+					DrawGenericReflection(id, metadata, entity);
 				}
 				ImGui::PopID();
 			}

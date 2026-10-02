@@ -2,28 +2,53 @@ name: Linux
 
 on:
   workflow_call:
+    inputs:
+      matrix_mode:
+        description: 'Matrix mode: fast (Clang Debug ASan) or full (Clang + GCC, Debug + Release)'
+        required: false
+        default: 'fast'
+        type: string
 
 env:
   CI: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
-  NODE_OPTIONS: "--no-deprecation" 
+  NODE_OPTIONS: "--no-deprecation"
 
 jobs:
+  setup-matrix:
+    name: Setup Linux Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set_matrix.outputs.matrix }}
+    steps:
+      - id: set_matrix
+        run: |
+          if [[ "${{ inputs.matrix_mode }}" == "fast" ]]; then
+            # Fast CI: Linux Clang Debug with AddressSanitizer & UndefinedBehaviorSanitizer
+            JSON='[{"preset":"linux-clang","compiler":"clang","build_type":"Debug"}]'
+          else
+            # Full CI: Clang & GCC in both Debug & Release (4 configurations)
+            JSON='[
+              {"preset":"linux-clang","compiler":"clang","build_type":"Debug"},
+              {"preset":"linux-clang","compiler":"clang","build_type":"Release"},
+              {"preset":"linux-gcc","compiler":"gcc","build_type":"Debug"},
+              {"preset":"linux-gcc","compiler":"gcc","build_type":"Release"}
+            ]'
+          fi
+          echo "matrix={\"include\":$JSON}" >> "$GITHUB_OUTPUT"
+
   build-linux:
-    name: build (ubuntu-latest, ${{ matrix.build_type }}, ${{ matrix.toolchain.compiler }})
+    name: build (ubuntu-latest, ${{ matrix.build_type }}, ${{ matrix.compiler }})
+    needs: [setup-matrix]
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
     strategy:
       fail-fast: false
-      matrix:
-        build_type: [Debug, Release]
-        toolchain:
-          - { preset: linux-clang, compiler: clang }
-          - { preset: linux-gcc, compiler: gcc }
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -32,9 +57,6 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Update submodules recursively
-        run: git submodule update --init --recursive
-
       - name: Get CMake and Ninja
         uses: lukka/get-cmake@latest
 
@@ -42,26 +64,27 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           variant: ccache
-          key: Linux-${{ matrix.toolchain.preset }}-${{ matrix.build_type }}
+          key: Linux-${{ matrix.preset }}-${{ matrix.build_type }}
           max-size: 5G
 
       - name: Setup Mold Linker
         uses: rui314/setup-mold@v1
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
       - name: Install Python dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install jinja2
+          python -m pip install --upgrade pip
+          python -m pip install jinja2
 
       - name: Install Linux Dependencies
         run: |
           set -euo pipefail
           sudo apt-get update
-          # xorg-dev is the GLFW-recommended meta-package: it pulls the full set of
-          # X11 development headers/libs (libx11, xrandr, xinerama, xcursor, xi, xext,
-          # and the X protocol headers) that find_package(X11) needs. Installing it
-          # directly (rather than via a cache-apt action) avoids cache-restore gaps
-          # where a package is "installed" per the manifest but its files are absent.
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             xorg-dev \
@@ -73,7 +96,7 @@ jobs:
       - name: Setup Linux Compilers
         run: |
           set -euo pipefail
-          if [[ "${{ matrix.toolchain.compiler }}" == "clang" ]]; then
+          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
             sudo apt-get install -y clang-18 clang++-18 libc++-18-dev libc++abi-18-dev lld-18 llvm-18
             echo "CC=clang-18" >> $GITHUB_ENV
             echo "CXX=clang++-18" >> $GITHUB_ENV
@@ -103,7 +126,7 @@ jobs:
       - name: Configure
         run: |
           set -euo pipefail
-          BUILD_DIR="build/${{ matrix.toolchain.preset }}"
+          BUILD_DIR="build/${{ matrix.preset }}"
           mkdir -p "$BUILD_DIR"
 
           SANITIZERS_FLAG="OFF"
@@ -111,9 +134,9 @@ jobs:
             SANITIZERS_FLAG="ON"
           fi
 
-          PYTHON_EXE=$(python3 -c "import sys; print(sys.executable)")
+          PYTHON_EXE=$(python -c "import sys; print(sys.executable)")
 
-          cmake --preset ${{ matrix.toolchain.preset }} \
+          cmake --preset ${{ matrix.preset }} \
             -B "$BUILD_DIR" \
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install" \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -130,13 +153,13 @@ jobs:
       - name: Build
         run: |
           set -euo pipefail
-          cmake --build "build/${{ matrix.toolchain.preset }}" --config ${{ matrix.build_type }} --parallel \
-            2>&1 | tee "build/${{ matrix.toolchain.preset }}/build_${{ matrix.build_type }}.log"
+          cmake --build "build/${{ matrix.preset }}" --config ${{ matrix.build_type }} --parallel \
+            2>&1 | tee "build/${{ matrix.preset }}/build_${{ matrix.build_type }}.log"
 
-      - name: Test
+      - name: Test (Native C++ CTest)
         run: |
           set -euo pipefail
-          BUILD_DIR="${{ github.workspace }}/build/${{ matrix.toolchain.preset }}"
+          BUILD_DIR="${{ github.workspace }}/build/${{ matrix.preset }}"
           export LIBGL_ALWAYS_SOFTWARE=1
           export GALLIUM_DRIVER=llvmpipe
           export MESA_GL_VERSION_OVERRIDE=4.5
@@ -145,29 +168,41 @@ jobs:
           xvfb-run -a ctest --test-dir "$BUILD_DIR" -C "${{ matrix.build_type }}" --output-on-failure --timeout 300 --output-junit "$BUILD_DIR/junit_${{ matrix.build_type }}.xml" \
             2>&1 | tee "$BUILD_DIR/ctest_${{ matrix.build_type }}.log"
 
-      - name: Run C# Managed Tests
+      - name: Test (Managed C# dotnet)
         run: |
           dotnet test "tests/managed/Chained.Managed.Tests.csproj" --verbosity normal
 
-      - name: Upload Artifacts
+      - name: Publish Test Results
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: 'build/${{ matrix.preset }}/**/junit_*.xml'
+          check_name: 'Linux (${{ matrix.compiler }}, ${{ matrix.build_type }}) Test Results'
+          fail_on_failure: false
+          require_tests: true
+
+      - name: Upload Logs & Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Linux-${{ matrix.toolchain.preset }}-${{ matrix.build_type }}-binaries
+          name: Linux-${{ matrix.preset }}-${{ matrix.build_type }}-logs
           if-no-files-found: ignore
           path: |
-            build/${{ matrix.toolchain.preset }}/**/*.log
-            build/${{ matrix.toolchain.preset }}/**/junit_*.xml
+            build/${{ matrix.preset }}/**/*.log
+            build/${{ matrix.preset }}/**/junit_*.xml
           retention-days: 7
 
       - name: Upload Release Binaries
         if: matrix.build_type == 'Release'
         uses: actions/upload-artifact@v4
         with:
-          name: Linux-${{ matrix.toolchain.preset }}-Release-executables
+          name: Linux-${{ matrix.preset }}-Release-executables
           if-no-files-found: ignore
           path: |
-            build/${{ matrix.toolchain.preset }}/bin/Release/ChainedEditor
-            build/${{ matrix.toolchain.preset }}/bin/Release/ChainedDecos
-            build/${{ matrix.toolchain.preset }}/bin/Release/*.so
+            build/${{ matrix.preset }}/bin/Release/ChainedEditor
+            build/${{ matrix.preset }}/bin/Release/ChainedDecos
+            build/${{ matrix.preset }}/bin/ChainedEditor
+            build/${{ matrix.preset }}/bin/ChainedDecos
+            build/${{ matrix.preset }}/bin/Release/*.so
+            build/${{ matrix.preset }}/bin/*.so
           retention-days: 7

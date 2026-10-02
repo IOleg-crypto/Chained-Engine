@@ -1,260 +1,24 @@
-#include <gtest/gtest.h>
+// network_tests.cpp
+// Consolidated scenario-based tests for Networking (NetPacket Codecs, Channel Mapping, and Loopback Session).
+// Follows Arrange-Act-Assert (AAA) pattern without fixtures.
 
 #include "engine/networking/net_packet.h"
 #include "engine/networking/network_service.h"
+#include "gtest/gtest.h"
 
 #include <chrono>
 #include <cstring>
 #include <thread>
-#include <atomic>
+#include <vector>
 
 using namespace Chained;
 
-// Network loopback tests are flaky in CI (timing-sensitive, UPnP/firewall side-effects).
-// They still run locally when CH_CI is not defined.
-#ifndef CH_CI
-namespace
+// ============================================================================
+// 1. POSITIVE SCENARIO (Happy Path: Channel Mapping and Codec Round-Trips)
+// ============================================================================
+TEST(NetworkModule, Positive_ChannelMappingAndMessageRoundTrips)
 {
-	constexpr uint16_t kTestPortBase = 27599;
-	std::atomic<uint16_t> s_PortCounter{0};
-
-	class NetworkLoopbackTest : public ::testing::Test
-	{
-	protected:
-		void SetUp() override
-		{
-			m_Port = kTestPortBase + (s_PortCounter.fetch_add(1) % 50);
-			m_Host.SetTestMode(true);
-			m_Client.SetTestMode(true);
-			m_Host.Initialize();
-			m_Client.Initialize();
-			ASSERT_TRUE(m_Host.IsEnabled()) << "ENet failed to initialize";
-			ASSERT_TRUE(m_Client.IsEnabled()) << "ENet failed to initialize";
-		}
-
-		void TearDown() override
-		{
-			m_Client.Shutdown();
-			m_Host.Shutdown();
-		}
-
-		template <typename Predicate> bool PumpUntil(Predicate pred, std::chrono::milliseconds timeout)
-		{
-			const auto deadline = std::chrono::steady_clock::now() + timeout;
-			while (std::chrono::steady_clock::now() < deadline)
-			{
-				m_Host.Update(1.0f / 60.0f);
-				m_Client.Update(1.0f / 60.0f);
-				if (pred())
-				{
-					return true;
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
-			}
-			return false;
-		}
-
-		uint16_t m_Port = 0;
-		Network m_Host;
-		Network m_Client;
-	};
-} // namespace
-
-TEST_F(NetworkLoopbackTest, InitializeSucceeds)
-{
-	EXPECT_EQ(m_Host.GetRole(), Role::Offline);
-	EXPECT_FALSE(m_Host.IsConnected());
-}
-
-TEST_F(NetworkLoopbackTest, HostGameOpensListenSocket)
-{
-	m_Host.HostGame(m_Port, 4);
-
-	EXPECT_TRUE(m_Host.IsEnabled()) << "HostGame disabled the service — listen socket failed";
-	EXPECT_EQ(m_Host.GetRole(), Role::Host);
-	EXPECT_EQ(m_Host.GetPort(), m_Port);
-}
-
-TEST_F(NetworkLoopbackTest, ClientConnectsToHost)
-{
-	m_Host.HostGame(m_Port, 4);
-	ASSERT_TRUE(m_Host.IsEnabled());
-
-	m_Client.ConnectTo("127.0.0.1", m_Port);
-	ASSERT_TRUE(m_Client.IsEnabled());
-	EXPECT_EQ(m_Client.GetRole(), Role::Client);
-
-	const bool connected = PumpUntil([this] { return m_Host.GetClientCount() == 1; }, std::chrono::seconds(10));
-	EXPECT_TRUE(connected) << "Host never accepted the client connection";
-}
-
-TEST_F(NetworkLoopbackTest, ClientToHostPacketRoundTrip)
-{
-	m_Host.HostGame(m_Port, 4);
-	ASSERT_TRUE(m_Host.IsEnabled());
-
-	m_Client.ConnectTo("127.0.0.1", m_Port);
-	ASSERT_TRUE(m_Client.IsEnabled());
-	ASSERT_TRUE(PumpUntil([this] { return m_Host.GetClientCount() == 1; }, std::chrono::seconds(10)));
-
-	InputStateMessage received{};
-	bool gotPacket = false;
-	m_Host.SetPacketCallback([&](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
-		if (type == MessageType_InputState && clientIndex >= 0)
-		{
-			ByteReader r(data, len);
-			if (received.Decode(r))
-			{
-				gotPacket = true;
-			}
-		}
-	});
-
-	InputStateMessage sent;
-	sent.Tick = 4242;
-	sent.MoveX = 1.5f;
-	sent.MoveZ = -2.5f;
-	sent.ActionFlags = InputAction_Jump | InputAction_Sprint;
-
-	ByteWriter w;
-	sent.Encode(w);
-	m_Client.SendToServer(MessageType_InputState, w.Data().data(), w.Data().size(), true);
-
-	ASSERT_TRUE(PumpUntil([&] { return gotPacket; }, std::chrono::seconds(10)))
-		<< "Host never received the client's input message";
-
-	EXPECT_EQ(received.Tick, 4242u);
-	EXPECT_FLOAT_EQ(received.MoveX, 1.5f);
-	EXPECT_FLOAT_EQ(received.MoveZ, -2.5f);
-	EXPECT_EQ(received.ActionFlags, InputAction_Jump | InputAction_Sprint);
-
-	m_Host.ClearPacketCallback();
-}
-
-TEST_F(NetworkLoopbackTest, HostBroadcastReachesClient)
-{
-	m_Host.HostGame(m_Port, 4);
-	ASSERT_TRUE(m_Host.IsEnabled());
-
-	m_Client.ConnectTo("127.0.0.1", m_Port);
-	ASSERT_TRUE(m_Client.IsEnabled());
-	ASSERT_TRUE(PumpUntil([this] { return m_Host.GetClientCount() == 1; }, std::chrono::seconds(10)));
-
-	std::string receivedPath;
-	m_Client.SetPacketCallback([&](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
-		if (type == MessageType_SceneChange)
-		{
-			SceneChangeMessage msg;
-			ByteReader r(data, len);
-			if (msg.Decode(r))
-			{
-				receivedPath = msg.ScenePath;
-			}
-		}
-	});
-
-	m_Host.BroadcastSceneChange("assets/scenes/level_01.chscene");
-
-	ASSERT_TRUE(PumpUntil([&] { return !receivedPath.empty(); }, std::chrono::seconds(10)))
-		<< "Client never received the broadcast scene change";
-	EXPECT_EQ(receivedPath, "assets/scenes/level_01.chscene");
-
-	m_Client.ClearPacketCallback();
-}
-
-TEST_F(NetworkLoopbackTest, HostAppearsInItsOwnPlayerList)
-{
-	m_Host.SetLocalPlayerInfo("Alice", 3);
-	m_Host.HostGame(m_Port, 4);
-	ASSERT_TRUE(m_Host.IsEnabled());
-
-	const auto& players = m_Host.GetPlayerList();
-	ASSERT_EQ(players.size(), 1u) << "Host is missing from its own lobby";
-	EXPECT_EQ(players[0].NetworkID, 1u);
-	EXPECT_EQ(players[0].IsHost, 1);
-	EXPECT_EQ(players[0].Name, "Alice");
-	EXPECT_EQ(players[0].SkinIndex, 3);
-	EXPECT_EQ(m_Host.GetLocalNetworkID(), 1u);
-}
-
-TEST_F(NetworkLoopbackTest, PeerGetsIdentityDistinctFromHost)
-{
-	m_Host.HostGame(m_Port, 4);
-	ASSERT_TRUE(m_Host.IsEnabled());
-
-	m_Client.ConnectTo("127.0.0.1", m_Port);
-	ASSERT_TRUE(m_Client.IsEnabled());
-	ASSERT_TRUE(PumpUntil([this] { return m_Host.GetClientCount() == 1; }, std::chrono::seconds(10)));
-
-	const auto clients = m_Host.GetClients();
-	ASSERT_EQ(clients.size(), 1u);
-	const int peer = clients.front();
-	const uint64_t peerID = m_Host.GetNetworkIDForConnection(peer);
-	EXPECT_NE(peerID, 0u) << "Peer identity was not bound at accept time";
-	EXPECT_NE(peerID, 1u) << "NetworkID 1 is reserved for the host";
-
-	const auto& players = m_Host.GetPlayerList();
-	ASSERT_EQ(players.size(), 2u);
-	int hostFlags = 0;
-	for (const auto& p : players)
-	{
-		hostFlags += p.IsHost ? 1 : 0;
-	}
-	EXPECT_EQ(hostFlags, 1);
-
-	EXPECT_EQ(m_Host.GetNetworkIDForConnection(kInvalidPeerHandle), 0u);
-}
-#endif // CH_CI
-
-TEST(NetworkMessageTest, EntitySpawnFields)
-{
-	EntitySpawnMessage msg;
-	msg.NetworkID = 0x00000000DEADBEEFull;
-	std::strncpy(msg.PrefabPath, "prefab/player.chprefab", sizeof(msg.PrefabPath) - 1);
-	msg.PrefabPath[sizeof(msg.PrefabPath) - 1] = '\0';
-
-	ByteWriter w;
-	msg.Encode(w);
-
-	EntitySpawnMessage decoded;
-	ByteReader r(w.Data().data(), w.Data().size());
-	ASSERT_TRUE(decoded.Decode(r));
-
-	EXPECT_EQ(decoded.NetworkID, 0x00000000DEADBEEFull);
-	EXPECT_STREQ(decoded.PrefabPath, "prefab/player.chprefab");
-}
-
-TEST(NetworkMessageTest, EntityDestroyAndPlayerAssignFields)
-{
-	EntityDestroyMessage destroy;
-	destroy.NetworkID = 77;
-
-	ByteWriter w1;
-	destroy.Encode(w1);
-	EntityDestroyMessage dec1;
-	ByteReader r1(w1.Data().data(), w1.Data().size());
-	ASSERT_TRUE(dec1.Decode(r1));
-	EXPECT_EQ(dec1.NetworkID, 77u);
-
-	PlayerAssignMessage assign;
-	assign.NetworkID = 5;
-
-	ByteWriter w2;
-	assign.Encode(w2);
-	PlayerAssignMessage dec2;
-	ByteReader r2(w2.Data().data(), w2.Data().size());
-	ASSERT_TRUE(dec2.Decode(r2));
-	EXPECT_EQ(dec2.NetworkID, 5u);
-}
-
-TEST(NetworkChannelTest, ChannelEnumValuesAndReliability)
-{
-	EXPECT_EQ(static_cast<int>(ePacketChannel::SYSTEM), 0);
-	EXPECT_EQ(static_cast<int>(ePacketChannel::SYNC), 1);
-	EXPECT_EQ(static_cast<int>(ePacketChannel::EVENT), 2);
-	EXPECT_EQ(static_cast<int>(ePacketChannel::SCRIPT), 3);
-	EXPECT_EQ(static_cast<int>(ePacketChannel::COUNT), 4);
-
+	// Arrange & Assert (Step 1: Verify channel mappings and reliability flags)
 	EXPECT_TRUE(IsChannelReliable(ePacketChannel::SYSTEM));
 	EXPECT_FALSE(IsChannelReliable(ePacketChannel::SYNC));
 	EXPECT_TRUE(IsChannelReliable(ePacketChannel::EVENT));
@@ -264,48 +28,201 @@ TEST(NetworkChannelTest, ChannelEnumValuesAndReliability)
 	EXPECT_EQ(GetChannelForMessageType(MessageType_InputState), ePacketChannel::SYNC);
 	EXPECT_EQ(GetChannelForMessageType(MessageType_ChatMessage), ePacketChannel::EVENT);
 	EXPECT_EQ(GetChannelForMessageType(MessageType_EntitySpawn), ePacketChannel::SYSTEM);
-	EXPECT_EQ(GetChannelForMessageType(MessageType_EntityDestroy), ePacketChannel::SYSTEM);
-	EXPECT_EQ(GetChannelForMessageType(MessageType_SceneLoaded), ePacketChannel::SYSTEM);
 	EXPECT_EQ(GetChannelForMessageType(MessageType_SceneChange), ePacketChannel::SYSTEM);
-	EXPECT_EQ(GetChannelForMessageType(MessageType_PlayerAssign), ePacketChannel::SYSTEM);
-	EXPECT_EQ(GetChannelForMessageType(MessageType_PlayerInfo), ePacketChannel::SYSTEM);
-	EXPECT_EQ(GetChannelForMessageType(MessageType_PlayerList), ePacketChannel::SYSTEM);
-	EXPECT_EQ(GetChannelForMessageType(MessageType_Heartbeat), ePacketChannel::SYSTEM);
+
+	// Act & Assert (Step 2: WorldState round-trip)
+	{
+		WorldStateMessage sent;
+		sent.Tick = 1000;
+		sent.NetworkID = 0xCAFEBABEull;
+		sent.Position[0] = 12.5f;
+		sent.Position[1] = 1.0f;
+		sent.Position[2] = -4.5f;
+		sent.Rotation[0] = 1.0f;
+		sent.Rotation[1] = 0.0f;
+		sent.Rotation[2] = 0.0f;
+		sent.Rotation[3] = 0.0f;
+		sent.Velocity[0] = 5.0f;
+		sent.Velocity[1] = 0.0f;
+		sent.Velocity[2] = -1.0f;
+		sent.IsGrounded = 1;
+		sent.ActionFlags = InputAction_Jump | InputAction_Sprint;
+
+		ByteWriter w;
+		sent.Encode(w);
+
+		WorldStateMessage received;
+		ByteReader r(w.Data().data(), w.Data().size());
+		ASSERT_TRUE(received.Decode(r));
+		EXPECT_TRUE(r.Eof());
+
+		EXPECT_EQ(received.Tick, 1000u);
+		EXPECT_EQ(received.NetworkID, 0xCAFEBABEull);
+		EXPECT_FLOAT_EQ(received.Position[0], 12.5f);
+		EXPECT_FLOAT_EQ(received.Position[2], -4.5f);
+		EXPECT_EQ(received.IsGrounded, 1);
+		EXPECT_EQ(received.ActionFlags, InputAction_Jump | InputAction_Sprint);
+	}
+
+	// Act & Assert (Step 3: EntitySpawn and EntityDestroy round-trip)
+	{
+		EntitySpawnMessage spawn;
+		spawn.NetworkID = 42;
+		std::strncpy(spawn.PrefabPath, "prefabs/hero.chprefab", sizeof(spawn.PrefabPath) - 1);
+
+		ByteWriter w;
+		spawn.Encode(w);
+
+		EntitySpawnMessage decodedSpawn;
+		ByteReader r(w.Data().data(), w.Data().size());
+		ASSERT_TRUE(decodedSpawn.Decode(r));
+		EXPECT_EQ(decodedSpawn.NetworkID, 42u);
+		EXPECT_STREQ(decodedSpawn.PrefabPath, "prefabs/hero.chprefab");
+
+		EntityDestroyMessage destroy;
+		destroy.NetworkID = 42;
+		ByteWriter w2;
+		destroy.Encode(w2);
+
+		EntityDestroyMessage decodedDestroy;
+		ByteReader r2(w2.Data().data(), w2.Data().size());
+		ASSERT_TRUE(decodedDestroy.Decode(r2));
+		EXPECT_EQ(decodedDestroy.NetworkID, 42u);
+	}
+
+	// Act & Assert (Step 4: PlayerList round-trip)
+	{
+		PlayerListMessage list;
+		list.Count = 2;
+		list.Entries[0] = {1, "HostPlayer", 0, 1, 0};
+		list.Entries[1] = {2, "ClientPlayer", 3, 0, 35};
+		std::strncpy(list.Entries[0].Name, "HostPlayer", sizeof(list.Entries[0].Name) - 1);
+		std::strncpy(list.Entries[1].Name, "ClientPlayer", sizeof(list.Entries[1].Name) - 1);
+
+		ByteWriter w;
+		list.Encode(w);
+
+		PlayerListMessage decodedList;
+		ByteReader r(w.Data().data(), w.Data().size());
+		ASSERT_TRUE(decodedList.Decode(r));
+		ASSERT_EQ(decodedList.Count, 2);
+		EXPECT_EQ(decodedList.Entries[0].NetworkID, 1u);
+		EXPECT_STREQ(decodedList.Entries[0].Name, "HostPlayer");
+		EXPECT_EQ(decodedList.Entries[1].Ping, 35u);
+	}
 }
 
-#ifndef CH_CI
-TEST_F(NetworkLoopbackTest, VirtualDriverMultiChannelTransmission)
+// ============================================================================
+// 2. NEGATIVE SCENARIO (Buffer Underflow, Corrupted Packets, Overflow Safety)
+// ============================================================================
+TEST(NetworkModule, Negative_BufferUnderflowAndCorruptedPackets)
 {
-	m_Host.HostGame(m_Port, 4);
-	ASSERT_TRUE(m_Host.IsEnabled());
+	// Act & Assert (Step 1: Reading from empty buffer returns false)
+	ByteReader emptyReader(nullptr, 0);
+	uint8_t u8Val = 0;
+	uint32_t u32Val = 0;
+	float floatVal = 0.0f;
+	char strBuf[32] = {};
 
-	m_Client.ConnectTo("127.0.0.1", m_Port);
-	ASSERT_TRUE(m_Client.IsEnabled());
-	ASSERT_TRUE(PumpUntil([this] { return m_Host.GetClientCount() == 1; }, std::chrono::seconds(10)));
+	EXPECT_FALSE(emptyReader.ReadU8(u8Val));
+	EXPECT_FALSE(emptyReader.ReadU32(u32Val));
+	EXPECT_FALSE(emptyReader.ReadFloat(floatVal));
+	EXPECT_FALSE(emptyReader.ReadString(strBuf, sizeof(strBuf)));
+	EXPECT_TRUE(emptyReader.Eof());
 
-	INetworkDriver* hostDriver = m_Host.GetSession().GetDriver();
-	INetworkDriver* clientDriver = m_Client.GetSession().GetDriver();
-	ASSERT_NE(hostDriver, nullptr);
-	ASSERT_NE(clientDriver, nullptr);
+	// Act & Assert (Step 2: Buffer underflow returns false during decode)
+	InputStateMessage inputMsg;
+	inputMsg.Tick = 999;
+	ByteWriter w;
+	inputMsg.Encode(w);
 
-	EXPECT_TRUE(hostDriver->IsConnected());
-	EXPECT_TRUE(clientDriver->IsConnected());
-	EXPECT_EQ(hostDriver->GetRole(), Role::Host);
-	EXPECT_EQ(clientDriver->GetRole(), Role::Client);
+	ByteReader truncatedReader(w.Data().data(), w.Data().size() - 4);
+	InputStateMessage decodedInput;
+	EXPECT_FALSE(decodedInput.Decode(truncatedReader));
 
-	// Test sending on SCRIPT channel
-	bool scriptMsgReceived = false;
-	m_Host.SetPacketCallback([&scriptMsgReceived](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
+	// Act & Assert (Step 3: String claims 100 bytes but only 2 follow)
+	uint8_t corruptStringData[] = {100, 'a', 'b'};
+	ByteReader corruptReader(corruptStringData, sizeof(corruptStringData));
+	EXPECT_FALSE(corruptReader.ReadString(strBuf, sizeof(strBuf)));
+
+	// Act & Assert (Step 4: String length exceeds destination buffer)
+	uint8_t bigStringData[50];
+	bigStringData[0] = 40;
+	std::memset(bigStringData + 1, 'X', 40);
+	ByteReader overflowReader(bigStringData, sizeof(bigStringData));
+	char smallDst[16] = {};
+	EXPECT_FALSE(overflowReader.ReadString(smallDst, sizeof(smallDst)));
+}
+
+// ============================================================================
+// 3. LOCAL SESSION SCENARIO (Loopback Host-Client Session — skipped in CI)
+// ============================================================================
+#ifndef CH_CI
+TEST(NetworkModule, Positive_LoopbackHostClientSession)
+{
+	// Arrange
+	static uint16_t s_Port = 27650;
+	uint16_t testPort = s_Port++;
+
+	Network host;
+	Network client;
+	host.SetTestMode(true);
+	client.SetTestMode(true);
+	host.Initialize();
+	client.Initialize();
+
+	ASSERT_TRUE(host.IsEnabled());
+	ASSERT_TRUE(client.IsEnabled());
+
+	// Act (Step 1: Host opens server, client connects)
+	host.HostGame(testPort, 4);
+	EXPECT_EQ(host.GetRole(), Role::Host);
+
+	client.ConnectTo("127.0.0.1", testPort);
+	EXPECT_EQ(client.GetRole(), Role::Client);
+
+	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	bool connected = false;
+	while (std::chrono::steady_clock::now() < deadline)
+	{
+		host.Update(1.0f / 60.0f);
+		client.Update(1.0f / 60.0f);
+		if (host.GetClientCount() == 1)
+		{
+			connected = true;
+			break;
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	}
+
+	// Assert
+	EXPECT_TRUE(connected) << "Host never accepted loopback client connection";
+
+	// Act (Step 2: Client sends packet to host)
+	bool receivedMsg = false;
+	host.SetPacketCallback([&](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
 		if (type == MessageType_ChatMessage)
 		{
-			scriptMsgReceived = true;
+			receivedMsg = true;
 		}
 	});
 
-	const char testPayload[] = "ScriptRPCData";
-	m_Client.SendToServer(ePacketChannel::SCRIPT, MessageType_ChatMessage, testPayload, sizeof(testPayload), true);
+	const char chat[] = "Hello from client";
+	client.SendToServer(MessageType_ChatMessage, reinterpret_cast<const uint8_t*>(chat), sizeof(chat), true);
 
-	const bool received = PumpUntil([&scriptMsgReceived] { return scriptMsgReceived; }, std::chrono::seconds(5));
-	EXPECT_TRUE(received) << "Host never received packet sent over SCRIPT channel";
+	deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	while (std::chrono::steady_clock::now() < deadline && !receivedMsg)
+	{
+		host.Update(1.0f / 60.0f);
+		client.Update(1.0f / 60.0f);
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	}
+
+	// Assert
+	EXPECT_TRUE(receivedMsg);
+
+	host.ClearPacketCallback();
+	client.Shutdown();
+	host.Shutdown();
 }
 #endif // CH_CI

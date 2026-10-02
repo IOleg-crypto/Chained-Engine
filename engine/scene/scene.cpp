@@ -5,6 +5,8 @@
 #include "engine/ui/ui_data_components.h"
 #include "engine/ui/widget_renderer.h"
 #include "engine/physics/physics.h"
+#include "engine/audio/audio.h"
+#include "engine/assets/asset_manager.h"
 #include "engine/scene/components/animation/animation_component.h"
 #include "engine/scene/components/core/hierarchy_component.h"
 #include "engine/scene/components/ui/scene_transition_component.h"
@@ -23,7 +25,7 @@
 #include "engine/scripting/scriptengine.h"
 #include "engine/scene/prefab_serializer.h"
 #include "engine/runtime/session_api.h"
-#include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 
 namespace Chained
 {
@@ -241,7 +243,7 @@ namespace Chained
 			m_ScriptingManager->OnRuntimeStop();
 		}
 
-		AudioSystem::OnRuntimeStop(*m_Registry);
+		AudioSystem::OnRuntimeStop(*m_Registry, ServiceLocator::TryGet<Audio>());
 		NetworkSystem::Reset(this);
 
 		bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
@@ -261,10 +263,13 @@ namespace Chained
 
 	void Scene::TickCommonSystems(Timestep ts)
 	{
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		auto* audioSvc = ServiceLocator::TryGet<Audio>();
+
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		AssetResolutionSystem::Update(*m_Registry);
-		AnimationSystem::Update(*m_Registry, ts);
-		AudioSystem::Update(*m_Registry);
+		AssetResolutionSystem::Update(*m_Registry, assets);
+		AnimationSystem::Update(*m_Registry, ts, assets);
+		AudioSystem::Update(*m_Registry, audioSvc);
 		m_Dispatcher.update();
 	}
 
@@ -278,17 +283,16 @@ namespace Chained
 			return;
 		}
 
-		NetworkSystem::PollNetwork(this, ts);
+		auto* net = ServiceLocator::TryGet<Network>();
+
+		NetworkSystem::PollNetwork(this, ts, net);
 
 		// Interpolate remote entities BEFORE scripts so PlayerController
 		// reads the correct velocity/grounded values for animation.
-		if (auto* net = ServiceLocator::TryGet<Network>())
+		if (net && net->IsClient())
 		{
-			if (net->IsClient())
-			{
-				float dt = static_cast<float>(ts);
-				NetworkSystem::InterpolateEntities(*m_Registry, dt);
-			}
+			float dt = static_cast<float>(ts);
+			NetworkSystem::InterpolateEntities(*m_Registry, dt);
 		}
 
 		if (m_ScriptingManager)
@@ -307,12 +311,12 @@ namespace Chained
 		}
 
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		NetworkSystem::FinalizeFrame(this, ts);
+		NetworkSystem::FinalizeFrame(this, ts, net);
 
 		if (auto target = SceneTransitionSystem::Update(*m_Registry))
 		{
 			SceneChangeRequestEvent ev(*target);
-			Application::Get().OnEvent(ev);
+			ApplicationEventProxy::Dispatch(ev);
 		}
 	}
 
@@ -362,9 +366,10 @@ namespace Chained
 				m_PhysicsStartupInitialized = true;
 			}
 
-			PhysicsBodySystem::Update(*m_Registry);
+			auto* assets = ServiceLocator::TryGet<AssetManager>();
+			PhysicsBodySystem::Update(*m_Registry, physics, assets);
 
-			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld()))
+			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld(), assets))
 			{
 				return;
 			}

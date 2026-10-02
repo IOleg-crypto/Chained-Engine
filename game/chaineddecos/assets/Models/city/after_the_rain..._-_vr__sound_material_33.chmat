@@ -1,0 +1,27 @@
+Material:
+  Name: bat5-toiture
+  AlbedoColor:
+    - 1
+    - 1
+    - 1
+    - 1
+  EmissiveColor:
+    - 0
+    - 0
+    - 0
+    - 1
+  EmissiveIntensity: 0
+  Metalness: 1
+  Roughness: 1
+  Transparent: false
+  Alpha: 1
+  FlipUV_Y: true
+  FlipUV_X: false
+  UVScale:
+    - 1
+    - 1
+  UVOffset:
+    - 0
+    - 0
+  AlbedoMap: models/city/after_the_rain..._-_vr__sound_embtex_90.png
+  NormalMap: models/city/after_the_rain..._-_vr__sound_embtex_89.png

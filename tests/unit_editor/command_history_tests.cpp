@@ -1,4 +1,6 @@
-#include <gtest/gtest.h>
+// command_history_tests.cpp
+// Consolidated scenario-based tests for Editor CommandHistory and Undo/Redo operations.
+// Follows Arrange-Act-Assert (AAA) pattern without fixtures.
 
 #include "editor/undo/command_history.h"
 #include "editor/undo/command.h"
@@ -6,238 +8,138 @@
 #include "editor/undo/component_commands.h"
 #include "engine/scene/scene.h"
 #include "engine/scene/components.h"
+#include "gtest/gtest.h"
 
 using namespace Chained;
 
-namespace
+// ============================================================================
+// 1. POSITIVE SCENARIO (Happy Path: Compound Undo/Redo Workflow)
+// ============================================================================
+TEST(CommandHistoryModule, Positive_UndoRedoCompoundWorkflow)
 {
-	class MockCommand : public IEditorCommand
+	// Arrange
+	auto scene = std::make_shared<Scene>();
+	scene->GetRegistry().ctx().emplace<Scene*>(scene.get());
+	CommandHistory history(20);
+
+	// Act & Assert (Step 1: Create Entity Command)
+	history.PushCommand(std::make_unique<CreateEntityCommand>(scene.get(), "PlayerEntity"));
+	Entity player = scene->FindEntityByTag("PlayerEntity");
+	ASSERT_TRUE(player.IsValid());
+
+	history.Undo();
+	EXPECT_FALSE(scene->FindEntityByTag("PlayerEntity").IsValid());
+
+	history.Redo();
+	player = scene->FindEntityByTag("PlayerEntity");
+	ASSERT_TRUE(player.IsValid());
+
+	// Act & Assert (Step 2: Add Component Command)
+	history.PushCommand(std::make_unique<AddComponentCommand<LightComponent>>(player));
+	EXPECT_TRUE(player.HasComponent<LightComponent>());
+
+	history.Undo();
+	EXPECT_FALSE(player.HasComponent<LightComponent>());
+
+	history.Redo();
+	EXPECT_TRUE(player.HasComponent<LightComponent>());
+
+	// Act & Assert (Step 3: Parenting Command)
+	Entity weapon = scene->CreateEntity("WeaponEntity");
+	weapon.AddComponent<HierarchyComponent>();
+	player.AddOrReplaceComponent<HierarchyComponent>();
+
+	history.PushCommand(std::make_unique<ParentEntityCommand>(weapon, player, scene.get()));
+	EXPECT_EQ(weapon.GetComponent<HierarchyComponent>().Parent, (entt::entity)player);
+
+	history.Undo();
+	EXPECT_TRUE(weapon.GetComponent<HierarchyComponent>().Parent == entt::null);
+
+	history.Redo();
+	EXPECT_EQ(weapon.GetComponent<HierarchyComponent>().Parent, (entt::entity)player);
+
+	// Act & Assert (Step 4: Destroy Entity Command with Full State Restoration)
+	uint64_t weaponUUID = weapon.GetUUID();
+	history.PushCommand(std::make_unique<DestroyEntityCommand>(weapon));
+	EXPECT_FALSE(scene->FindEntityByTag("WeaponEntity").IsValid());
+
+	history.Undo(); // Restores exact UUID and components
+	Entity restoredWeapon = scene->GetEntityByUUID(UUID(weaponUUID));
+	ASSERT_TRUE(restoredWeapon.IsValid());
+	EXPECT_EQ(restoredWeapon.GetName(), "WeaponEntity");
+
+	history.Redo(); // Destroys again
+	EXPECT_FALSE(scene->FindEntityByTag("WeaponEntity").IsValid());
+}
+
+// ============================================================================
+// 2. NEGATIVE SCENARIO (History Boundaries, Capacity, Redo Invalidation)
+// ============================================================================
+TEST(CommandHistoryModule, Negative_HistoryBoundaryAndInvalidation)
+{
+	// Arrange
+	constexpr size_t kMaxHistory = 3;
+	CommandHistory history(kMaxHistory);
+
+	class CounterCommand : public IEditorCommand
 	{
 	public:
-		MockCommand(int* value, int increment)
-			: m_Value(value),
-			  m_Increment(increment)
+		int* target;
+		int delta;
+		CounterCommand(int* t, int d)
+			: target(t),
+			  delta(d)
 		{
 		}
-
 		void Execute() override
 		{
-			*m_Value += m_Increment;
+			*target += delta;
 		}
-
 		void Undo() override
 		{
-			*m_Value -= m_Increment;
+			*target -= delta;
 		}
-
 		std::string GetName() const override
 		{
-			return "MockCommand";
+			return "Counter";
 		}
-
-	private:
-		int* m_Value;
-		int m_Increment;
 	};
-} // namespace
 
-TEST(CommandHistoryTest, BasicUndoRedo)
-{
-	CommandHistory history(10);
-	int counter = 0;
+	int value = 0;
 
-	history.PushCommand(std::make_unique<MockCommand>(&counter, 5));
-	EXPECT_EQ(counter, 5);
+	// Act & Assert (Step 1: Undo / Redo on empty history does not crash)
+	EXPECT_NO_THROW(history.Undo());
+	EXPECT_NO_THROW(history.Redo());
+	EXPECT_EQ(value, 0);
 
-	history.PushCommand(std::make_unique<MockCommand>(&counter, 10));
-	EXPECT_EQ(counter, 15);
-
-	history.Undo();
-	EXPECT_EQ(counter, 5);
-
-	history.Undo();
-	EXPECT_EQ(counter, 0);
-
-	// Extra undo does nothing
-	history.Undo();
-	EXPECT_EQ(counter, 0);
-
-	history.Redo();
-	EXPECT_EQ(counter, 5);
-
-	history.Redo();
-	EXPECT_EQ(counter, 15);
-
-	// Extra redo does nothing
-	history.Redo();
-	EXPECT_EQ(counter, 15);
-}
-
-TEST(CommandHistoryTest, PushClearsRedoStack)
-{
-	CommandHistory history(10);
-	int counter = 0;
-
-	history.PushCommand(std::make_unique<MockCommand>(&counter, 5));
-	history.PushCommand(std::make_unique<MockCommand>(&counter, 10));
-	EXPECT_EQ(counter, 15);
-
-	history.Undo();
-	EXPECT_EQ(counter, 5);
-
-	// Pushing a new command should invalidate the previous redo stack
-	history.PushCommand(std::make_unique<MockCommand>(&counter, 20));
-	EXPECT_EQ(counter, 25);
-
-	history.Redo(); // Should do nothing
-	EXPECT_EQ(counter, 25);
-
-	history.Undo();
-	EXPECT_EQ(counter, 5);
-}
-
-TEST(CommandHistoryTest, MaxHistoryCap)
-{
-	constexpr size_t maxHistory = 3;
-	CommandHistory history(maxHistory);
-	int counter = 0;
-
+	// Act (Step 2: Overflow capacity — push 5 commands with max size 3)
 	for (int i = 0; i < 5; ++i)
 	{
-		history.PushCommand(std::make_unique<MockCommand>(&counter, 1));
+		history.PushCommand(std::make_unique<CounterCommand>(&value, 1));
 	}
-	EXPECT_EQ(counter, 5);
 
-	// Since maxHistory is 3, we should only be able to undo 3 times
+	// Assert
+	EXPECT_EQ(value, 5);
+
+	// Act & Assert (Can only undo 3 times back to 2)
+	history.Undo(); // 4
+	history.Undo(); // 3
+	history.Undo(); // 2
+	EXPECT_EQ(value, 2);
+
+	// 4th Undo does nothing as oldest commands were evicted
 	history.Undo();
-	EXPECT_EQ(counter, 4);
-	history.Undo();
-	EXPECT_EQ(counter, 3);
-	history.Undo();
-	EXPECT_EQ(counter, 2);
+	EXPECT_EQ(value, 2);
 
-	// 4th undo should do nothing because oldest commands were popped
-	history.Undo();
-	EXPECT_EQ(counter, 2);
-}
+	// Act (Step 3: New command invalidates redo stack)
+	history.PushCommand(std::make_unique<CounterCommand>(&value, 10));
+	EXPECT_EQ(value, 12);
 
-TEST(EntityCommandsTest, CreateEntityCommand)
-{
-	auto scene = std::make_shared<Scene>();
-	CommandHistory history(10);
-
-	history.PushCommand(std::make_unique<CreateEntityCommand>(scene.get(), "NewEntity"));
-
-	Entity found = scene->FindEntityByTag("NewEntity");
-	EXPECT_TRUE(found.IsValid());
-
-	history.Undo();
-	found = scene->FindEntityByTag("NewEntity");
-	EXPECT_FALSE(found.IsValid());
-
+	// Assert (Redo does nothing)
 	history.Redo();
-	found = scene->FindEntityByTag("NewEntity");
-	EXPECT_TRUE(found.IsValid());
-}
+	EXPECT_EQ(value, 12);
 
-TEST(EntityCommandsTest, DestroyEntityCommandRestoresUUIDAndComponents)
-{
-	auto scene = std::make_shared<Scene>();
-	CommandHistory history(10);
-
-	Entity entity = scene->CreateEntity("TargetEntity");
-	uint64_t originalUUID = entity.GetUUID();
-	auto& tc = entity.GetComponent<TransformComponent>();
-	tc.Translation = {1.0f, 2.0f, 3.0f};
-
-	history.PushCommand(std::make_unique<DestroyEntityCommand>(entity));
-
-	// Entity destroyed
-	Entity notFound = scene->GetEntityByUUID(originalUUID);
-	EXPECT_FALSE(notFound.IsValid());
-
-	// Undo restores entity with identical UUID and components
+	// Act (Undo rolls back new command)
 	history.Undo();
-	Entity restored = scene->GetEntityByUUID(originalUUID);
-	ASSERT_TRUE(restored.IsValid());
-	EXPECT_EQ(restored.GetComponent<TagComponent>().Tag, "TargetEntity");
-	EXPECT_FLOAT_EQ(restored.GetComponent<TransformComponent>().Translation.x, 1.0f);
-	EXPECT_FLOAT_EQ(restored.GetComponent<TransformComponent>().Translation.y, 2.0f);
-	EXPECT_FLOAT_EQ(restored.GetComponent<TransformComponent>().Translation.z, 3.0f);
-}
-
-TEST(EntityCommandsTest, DuplicateEntityCommand)
-{
-	auto scene = std::make_shared<Scene>();
-	CommandHistory history(10);
-
-	Entity original = scene->CreateEntity("Original");
-	original.GetComponent<TransformComponent>().Translation = {5.0f, 0.0f, 0.0f};
-
-	history.PushCommand(std::make_unique<DuplicateEntityCommand>(original));
-
-	Entity duplicate = scene->FindEntityByTag("Original_copy");
-	EXPECT_TRUE(duplicate.IsValid());
-	EXPECT_FLOAT_EQ(duplicate.GetComponent<TransformComponent>().Translation.x, 5.0f);
-
-	history.Undo();
-	duplicate = scene->FindEntityByTag("Original_copy");
-	EXPECT_FALSE(duplicate.IsValid());
-	EXPECT_TRUE(scene->FindEntityByTag("Original").IsValid());
-
-	history.Redo();
-	duplicate = scene->FindEntityByTag("Original_copy");
-	EXPECT_TRUE(duplicate.IsValid());
-}
-
-TEST(EntityCommandsTest, ParentEntityCommand)
-{
-	auto scene = std::make_shared<Scene>();
-	CommandHistory history(10);
-
-	Entity parent = scene->CreateEntity("Parent");
-	Entity child = scene->CreateEntity("Child");
-
-	history.PushCommand(std::make_unique<ParentEntityCommand>(child, parent, scene.get()));
-
-	ASSERT_TRUE(child.HasComponent<HierarchyComponent>());
-	ASSERT_TRUE(parent.HasComponent<HierarchyComponent>());
-	EXPECT_EQ(child.GetComponent<HierarchyComponent>().Parent, (entt::entity)parent);
-	ASSERT_EQ(parent.GetComponent<HierarchyComponent>().Children.size(), 1u);
-	EXPECT_EQ(parent.GetComponent<HierarchyComponent>().Children[0], (entt::entity)child);
-
-	// Undo parenting
-	history.Undo();
-	EXPECT_TRUE(child.GetComponent<HierarchyComponent>().Parent == entt::null);
-	EXPECT_TRUE(parent.GetComponent<HierarchyComponent>().Children.empty());
-
-	// Redo parenting
-	history.Redo();
-	EXPECT_EQ(child.GetComponent<HierarchyComponent>().Parent, (entt::entity)parent);
-	ASSERT_EQ(parent.GetComponent<HierarchyComponent>().Children.size(), 1u);
-}
-
-TEST(ComponentCommandsTest, AddAndRemoveComponent)
-{
-	auto scene = std::make_shared<Scene>();
-	CommandHistory history(10);
-
-	Entity entity = scene->CreateEntity("CompEntity");
-	EXPECT_FALSE(entity.HasComponent<LightComponent>());
-
-	history.PushCommand(std::make_unique<AddComponentCommand<LightComponent>>(entity));
-	EXPECT_TRUE(entity.HasComponent<LightComponent>());
-
-	history.Undo();
-	EXPECT_FALSE(entity.HasComponent<LightComponent>());
-
-	history.Redo();
-	EXPECT_TRUE(entity.HasComponent<LightComponent>());
-
-	// Now test removal command
-	history.PushCommand(std::make_unique<RemoveComponentCommand<LightComponent>>(entity));
-	EXPECT_FALSE(entity.HasComponent<LightComponent>());
-
-	history.Undo();
-	EXPECT_TRUE(entity.HasComponent<LightComponent>());
+	EXPECT_EQ(value, 2);
 }

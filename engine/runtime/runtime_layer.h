@@ -70,11 +70,6 @@ namespace Chained
 			return m_Scene.get();
 		}
 
-		static RuntimeLayer* Get()
-		{
-			return s_Instance;
-		}
-
 		bool HasSuspendedSession() const
 		{
 			return m_SuspendedGameplayScene != nullptr;
@@ -128,8 +123,6 @@ namespace Chained
 		std::shared_ptr<Framebuffer> m_HDRFramebuffer;
 		uint32_t m_MSAAFramebufferSamples = 0;
 		bool m_IsPaused = false;
-
-		inline static RuntimeLayer* s_Instance = nullptr;
 	};
 } // namespace Chained
 

@@ -1,5 +1,5 @@
 #include "engine/scene/systems/network_system.h"
-#include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 #include "engine/core/log.h"
 #include "engine/core/service_locator.h"
 #include "engine/scene/scene.h"
@@ -181,19 +181,20 @@ namespace Chained
 			}
 		}
 
-		static void ProcessPlayerAssignMessage(PlayerAssignMessage* msg, Scene* scene, SceneNetworkContext& ctx)
+		static void ProcessPlayerAssignMessage(PlayerAssignMessage* msg, Scene* scene, SceneNetworkContext& ctx,
+											   Network* net = nullptr)
 		{
 			if (!msg || !scene)
 			{
 				return;
 			}
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net)
+			auto* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc)
 			{
 				return;
 			}
 
-			net->SetLocalNetworkID(msg->NetworkID);
+			netSvc->SetLocalNetworkID(msg->NetworkID);
 			ctx.Session.SetLocalNetworkID(msg->NetworkID);
 			CH_CORE_INFO("Network: Received PlayerAssign — local network ID is {}.", msg->NetworkID);
 
@@ -224,19 +225,19 @@ namespace Chained
 		}
 
 		static void ProcessPlayerInfoMessage(PlayerInfoMessage* msg, int clientIndex, Scene* scene,
-											 SceneNetworkContext& ctx)
+											 SceneNetworkContext& ctx, Network* net = nullptr)
 		{
 			if (!msg || !scene)
 			{
 				return;
 			}
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net)
+			auto* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc)
 			{
 				return;
 			}
 
-			uint64_t networkID = net->GetNetworkIDForConnection(clientIndex);
+			uint64_t networkID = netSvc->GetNetworkIDForConnection(clientIndex);
 			if (networkID == 0)
 			{
 				CH_CORE_WARN("Network: Received PlayerInfo for client {} but network ID is 0. Deferring.", clientIndex);
@@ -244,20 +245,20 @@ namespace Chained
 				return;
 			}
 
-			net->UpdatePlayerInfo(networkID, msg->Name, msg->SkinIndex);
-			net->BroadcastPlayerList();
+			netSvc->UpdatePlayerInfo(networkID, msg->Name, msg->SkinIndex);
+			netSvc->BroadcastPlayerList();
 			CH_CORE_INFO("Network: Updated player info for client {} (netID={}): name='{}', skin={}.", clientIndex,
 						 networkID, msg->Name, msg->SkinIndex);
 		}
 
-		static void ProcessPlayerListMessage(PlayerListMessage* msg)
+		static void ProcessPlayerListMessage(PlayerListMessage* msg, Network* net = nullptr)
 		{
 			if (!msg)
 			{
 				return;
 			}
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net)
+			auto* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc)
 			{
 				return;
 			}
@@ -274,11 +275,11 @@ namespace Chained
 				playerList.push_back(info);
 			}
 
-			net->SetPlayerListFromMessage(playerList);
+			netSvc->SetPlayerListFromMessage(playerList);
 			CH_CORE_INFO("Network: Received PlayerList ({} players).", playerList.size());
 		}
 
-		static void ProcessChatMessageMessage(Chained::ChatMessageMessage* msg)
+		static void ProcessChatMessageMessage(Chained::ChatMessageMessage* msg, Network* net = nullptr)
 		{
 			if (!msg)
 			{
@@ -289,30 +290,31 @@ namespace Chained
 			pkt.SenderName = msg->SenderName;
 			pkt.Message = msg->Message;
 
-			if (auto* net = ServiceLocator::TryGet<Network>())
+			auto* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (netSvc)
 			{
-				net->StorePendingChatMessage(pkt);
+				netSvc->StorePendingChatMessage(pkt);
 			}
 			CH_CORE_INFO("Network: Chat from '{}': {}", pkt.SenderName, pkt.Message);
 		}
 
-		static void InstallPacketCallback(Scene* scene, SceneNetworkContext& ctx)
+		static void InstallPacketCallback(Scene* scene, SceneNetworkContext& ctx, Network* net = nullptr)
 		{
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net)
+			Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc)
 			{
 				return;
 			}
 
 			s_CurrentActiveScene = scene;
 
-			if (ctx.CallbackRole == net->GetRole() && net->GetRole() != Role::Offline)
+			if (ctx.CallbackRole == netSvc->GetRole() && netSvc->GetRole() != Role::Offline)
 			{
 				return;
 			}
 
-			ctx.CallbackRole = net->GetRole();
-			net->SetPacketCallback([net](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
+			ctx.CallbackRole = netSvc->GetRole();
+			netSvc->SetPacketCallback([netSvc](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
 				ByteReader r(data, len);
 
 				// Global messages that do not require an active scene
@@ -322,10 +324,10 @@ namespace Chained
 					if (msg.Decode(r))
 					{
 						ProcessChatMessageMessage(&msg);
-						if (net->IsHost())
+						if (netSvc->IsHost())
 						{
-							net->BroadcastPacket(MessageType_ChatMessage, true,
-												 [&msg](ByteWriter& bw) { msg.Encode(bw); });
+							netSvc->BroadcastPacket(MessageType_ChatMessage, true,
+													[&msg](ByteWriter& bw) { msg.Encode(bw); });
 						}
 					}
 					return;
@@ -352,7 +354,7 @@ namespace Chained
 						if (!AreScenePathsMatching(currentPath, newPath))
 						{
 							CH_CORE_INFO("Network: Received SceneChange message to '{}'", newPath);
-							net->SetPendingSceneChange(newPath);
+							netSvc->SetPendingSceneChange(newPath);
 						}
 					}
 					return;
@@ -363,13 +365,13 @@ namespace Chained
 					PlayerAssignMessage msg;
 					if (msg.Decode(r))
 					{
-						net->SetLocalNetworkID(msg.NetworkID);
+						netSvc->SetLocalNetworkID(msg.NetworkID);
 						Scene* activeScene = s_CurrentActiveScene;
 						if (activeScene)
 						{
 							if (auto* sceneCtx = TryGetContext(activeScene))
 							{
-								ProcessPlayerAssignMessage(&msg, activeScene, *sceneCtx);
+								ProcessPlayerAssignMessage(&msg, activeScene, *sceneCtx, netSvc);
 							}
 						}
 					}
@@ -426,7 +428,7 @@ namespace Chained
 					return;
 				}
 
-				if (net->GetRole() == Role::Host)
+				if (netSvc->GetRole() == Role::Host)
 				{
 					switch (type)
 					{
@@ -437,7 +439,7 @@ namespace Chained
 							uint64_t netID = sceneCtx->Session.GetNetworkIDForPeer(clientIndex);
 							if (netID == 0)
 							{
-								netID = net->GetNetworkIDForConnection(clientIndex);
+								netID = netSvc->GetNetworkIDForConnection(clientIndex);
 							}
 							sceneCtx->Input.ProcessInputStateMessage(&msg, netID);
 						}
@@ -447,7 +449,7 @@ namespace Chained
 						PlayerInfoMessage msg;
 						if (msg.Decode(r))
 						{
-							ProcessPlayerInfoMessage(&msg, clientIndex, activeScene, *sceneCtx);
+							ProcessPlayerInfoMessage(&msg, clientIndex, activeScene, *sceneCtx, netSvc);
 						}
 						break;
 					}
@@ -474,7 +476,7 @@ namespace Chained
 									CH_CORE_INFO("Network: Client {} confirmed scene '{}' loaded matching host '{}', "
 												 "sync avatars.",
 												 clientIndex, clientScene, hostScene);
-									sceneCtx->Replication.ResyncClientEntities(clientIndex, replScene, net,
+									sceneCtx->Replication.ResyncClientEntities(clientIndex, replScene, netSvc,
 																			   sceneCtx->Session);
 								}
 								else
@@ -491,7 +493,7 @@ namespace Chained
 						break;
 					}
 				}
-				else if (net->GetRole() == Role::Client)
+				else if (netSvc->GetRole() == Role::Client)
 				{
 					switch (type)
 					{
@@ -510,25 +512,25 @@ namespace Chained
 			});
 		}
 
-		void EnsureLocalIdentity(Scene* scene)
+		void EnsureLocalIdentity(Scene* scene, Network* net)
 		{
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net || net->GetRole() == Role::Offline || !scene)
+			Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc || netSvc->GetRole() == Role::Offline || !scene)
 			{
 				return;
 			}
 
 			auto& ctx = GetOrCreateContext(scene);
-			if (net->IsHost())
+			if (netSvc->IsHost())
 			{
 				ctx.Replication.EnsureHostIdentity(scene, ctx.Session);
 			}
-			else if (net->IsClient())
+			else if (netSvc->IsClient())
 			{
 				uint64_t localNetID = ctx.Session.GetLocalNetworkID();
 				if (localNetID == 0)
 				{
-					localNetID = net->GetLocalNetworkID();
+					localNetID = netSvc->GetLocalNetworkID();
 					if (localNetID != 0)
 					{
 						ctx.Session.SetLocalNetworkID(localNetID);
@@ -558,9 +560,9 @@ namespace Chained
 			}
 		}
 
-		void Reset(Scene* scene)
+		void Reset(Scene* scene, Network* net)
 		{
-			auto* net = ServiceLocator::TryGet<Network>();
+			Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
 			if (scene)
 			{
 				if (auto* ctx = TryGetContext(scene))
@@ -568,9 +570,9 @@ namespace Chained
 					ctx->Session.Reset();
 					ctx->Input.Reset();
 					ctx->Replication.Reset();
-					if (net && net->IsClient() && net->GetLocalNetworkID() != 0)
+					if (netSvc && netSvc->IsClient() && netSvc->GetLocalNetworkID() != 0)
 					{
-						ctx->Session.SetLocalNetworkID(net->GetLocalNetworkID());
+						ctx->Session.SetLocalNetworkID(netSvc->GetLocalNetworkID());
 					}
 					ctx->CallbackRole = Role::Offline;
 					ctx->SceneLoadedPending = false;
@@ -592,28 +594,28 @@ namespace Chained
 				s_PendingSpawns.clear();
 			}
 
-			if (net && scene == nullptr)
+			if (netSvc && scene == nullptr)
 			{
-				net->ClearPendingSceneChange();
+				netSvc->ClearPendingSceneChange();
 			}
 
 			CH_CORE_INFO("NetworkSystem: session state reset.");
 		}
 
-		void CheckAndPropagateSceneChange(Scene* scene)
+		void CheckAndPropagateSceneChange(Scene* scene, Network* net)
 		{
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net || !scene)
+			Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc || !scene)
 			{
 				return;
 			}
-			if (!net->HasPendingSceneChange())
+			if (!netSvc->HasPendingSceneChange())
 			{
 				return;
 			}
 
-			std::string path = net->GetPendingSceneChange();
-			net->ClearPendingSceneChange();
+			std::string path = netSvc->GetPendingSceneChange();
+			netSvc->ClearPendingSceneChange();
 
 			std::string currentPath = scene->GetSettings().ScenePath;
 			std::filesystem::path currentP(currentPath);
@@ -622,7 +624,7 @@ namespace Chained
 			if (!currentPath.empty() && (currentPath == path || currentP.filename() == newP.filename()))
 			{
 				CH_CORE_INFO("CheckAndPropagateSceneChange: already on scene '{}', skipping reload.", path);
-				if (net->IsClient())
+				if (netSvc->IsClient())
 				{
 					GetOrCreateContext(scene).SceneLoadedPending = true;
 				}
@@ -631,13 +633,13 @@ namespace Chained
 
 			CH_CORE_INFO("CheckAndPropagateSceneChange: propagating '{}' to Application", path);
 			SceneChangeRequestEvent e(path);
-			Application::Get().OnEvent(e);
+			ApplicationEventProxy::Dispatch(e);
 		}
 
-		void PollNetwork(Scene* scene, Timestep ts)
+		void PollNetwork(Scene* scene, Timestep ts, Network* net)
 		{
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net || net->GetRole() == Role::Offline || !scene)
+			Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc || netSvc->GetRole() == Role::Offline || !scene)
 			{
 				return;
 			}
@@ -649,7 +651,7 @@ namespace Chained
 			{
 				s_ActiveReplicationScene = scene;
 				ctx.Replication.ClearPendingStates();
-				if (net->IsClient())
+				if (netSvc->IsClient())
 				{
 					ctx.SceneLoadedPending = true;
 					for (auto& spawnMsg : s_PendingSpawns)
@@ -661,9 +663,9 @@ namespace Chained
 				}
 			}
 
-			InstallPacketCallback(scene, ctx);
+			InstallPacketCallback(scene, ctx, netSvc);
 
-			if (ctx.SceneLoadedPending && net->IsClient() && net->IsConnected())
+			if (ctx.SceneLoadedPending && netSvc->IsClient() && netSvc->IsConnected())
 			{
 				ctx.SceneLoadedPending = false;
 				std::string relScenePath = NormalizeToAssetPath(scene->GetSettings().ScenePath);
@@ -672,13 +674,13 @@ namespace Chained
 				msg.ScenePath[sizeof(msg.ScenePath) - 1] = '\0';
 				ByteWriter w;
 				msg.Encode(w);
-				net->SendToServer(MessageType_SceneLoaded, w.Data().data(), w.Data().size(), true);
+				netSvc->SendToServer(MessageType_SceneLoaded, w.Data().data(), w.Data().size(), true);
 				CH_CORE_INFO("Network: Sent SceneLoaded ('{}') to host.", relScenePath);
 			}
 
-			EnsureLocalIdentity(scene);
+			EnsureLocalIdentity(scene, netSvc);
 
-			if (net->IsHost())
+			if (netSvc->IsHost())
 			{
 				std::string currentScene = scene->GetSettings().ScenePath;
 				std::vector<int> readyDeferredScenes;
@@ -695,13 +697,13 @@ namespace Chained
 					CH_CORE_INFO("Network: Processing deferred SceneLoaded for client {} (scene='{}')", clientIndex,
 								 currentScene);
 					deferredMap.erase(clientIndex);
-					ctx.Replication.ResyncClientEntities(clientIndex, scene, net, ctx.Session);
+					ctx.Replication.ResyncClientEntities(clientIndex, scene, netSvc, ctx.Session);
 				}
 
 				std::vector<std::pair<int, std::pair<std::string, uint8_t>>> readyPlayerInfo;
 				for (const auto& [clientIndex, info] : ctx.Session.GetPendingPlayerInfo())
 				{
-					uint64_t netId = net->GetNetworkIDForConnection(clientIndex);
+					uint64_t netId = netSvc->GetNetworkIDForConnection(clientIndex);
 					if (netId != 0)
 					{
 						readyPlayerInfo.emplace_back(clientIndex, info);
@@ -718,22 +720,22 @@ namespace Chained
 				}
 
 				ctx.Replication.EnsureHostIdentity(scene, ctx.Session);
-				ctx.Replication.SyncPeerAvatars(scene, net, ctx.Session);
+				ctx.Replication.SyncPeerAvatars(scene, netSvc, ctx.Session);
 			}
 
 			float dt = static_cast<float>(ts);
-			net->Update(dt);
+			netSvc->Update(dt);
 
-			if (net->IsClient())
+			if (netSvc->IsClient())
 			{
-				CheckAndPropagateSceneChange(scene);
+				CheckAndPropagateSceneChange(scene, netSvc);
 			}
 		}
 
-		void FinalizeFrame(Scene* scene, Timestep ts)
+		void FinalizeFrame(Scene* scene, Timestep ts, Network* net, Core::Input* input)
 		{
-			auto* net = ServiceLocator::TryGet<Network>();
-			if (!net || net->GetRole() == Role::Offline || !scene)
+			Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
+			if (!netSvc || netSvc->GetRole() == Role::Offline || !scene)
 			{
 				return;
 			}
@@ -751,15 +753,15 @@ namespace Chained
 
 				entt::registry& reg = scene->GetRegistry();
 
-				if (net->IsHost())
+				if (netSvc->IsHost())
 				{
 					std::unordered_map<uint64_t, uint8_t> actionFlagsMap;
-					ctx.Replication.BroadcastWorldState(reg, net, actionFlagsMap);
+					ctx.Replication.BroadcastWorldState(reg, netSvc, actionFlagsMap);
 				}
-				else if (net->IsClient())
+				else if (netSvc->IsClient())
 				{
 					float dt = static_cast<float>(ts);
-					ctx.Input.CollectAndSendInput(net, dt, scene);
+					ctx.Input.CollectAndSendInput(netSvc, dt, scene, input);
 				}
 			}
 		}

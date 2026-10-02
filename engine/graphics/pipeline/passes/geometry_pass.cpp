@@ -2,6 +2,7 @@
 #include "engine/graphics/pipeline/scene_renderer.h"
 #include "engine/graphics/pipeline/frustum.h"
 #include "engine/graphics/api/graphics_device.h"
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -10,12 +11,16 @@ namespace Chained
 	{
 		PipelineStateGuard stateGuard;
 		auto& renderer = *renderCtx.Renderer;
+		auto* device = renderCtx.Device ? renderCtx.Device : ServiceLocator::TryGet<GraphicsDevice>();
 
 		// 1. Opaque Pass — no blending with automatic GPU instancing for matching models
-		GraphicsDevice::Get().EnableDepthTest();
-		GraphicsDevice::Get().SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
-		GraphicsDevice::Get().EnableDepthMask();
-		GraphicsDevice::Get().SetBlendEnabled(false);
+		if (device)
+		{
+			device->EnableDepthTest();
+			device->SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
+			device->EnableDepthMask();
+			device->SetBlendEnabled(false);
+		}
 
 		const auto& opaqueQueue = renderer.GetOpaqueQueue();
 		for (size_t i = 0; i < opaqueQueue.size();)
@@ -52,17 +57,24 @@ namespace Chained
 		}
 
 		// 2. Transparent Pass — enable blending
-		GraphicsDevice::Get().SetBlendEnabled(true);
-		GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
-										   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
-		GraphicsDevice::Get().DisableDepthMask();
+		if (device)
+		{
+			device->SetBlendEnabled(true);
+			device->SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha, GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
+			device->DisableDepthMask();
+		}
+
 		for (const auto& item : renderer.GetTransparentQueue())
 		{
 			renderer.DrawModel(item.Asset, item.Transform, item.BoneMatrices, item.Materials, item.ShaderOverride,
 							   item.CustomUniforms, RenderPassStage::Transparent);
 		}
-		GraphicsDevice::Get().EnableDepthMask();
-		GraphicsDevice::Get().SetBlendEnabled(false);
+
+		if (device)
+		{
+			device->EnableDepthMask();
+			device->SetBlendEnabled(false);
+		}
 	}
 
 } // namespace Chained

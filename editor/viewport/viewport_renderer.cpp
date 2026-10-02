@@ -113,19 +113,19 @@ namespace Chained
 		auto mode = scene->GetSettings().Mode;
 		if (mode == BackgroundMode::Color)
 		{
-			GraphicsDevice::Get().Clear(scene->GetSettings().BackgroundColor);
+			ServiceLocator::Get<GraphicsDevice>()->Clear(scene->GetSettings().BackgroundColor);
 		}
 		else if (mode == BackgroundMode::Texture)
 		{
 			auto& path = scene->GetSettings().BackgroundTexturePath;
 			if (!path.empty())
 			{
-				GraphicsDevice::Get().Clear(scene->GetSettings().BackgroundColor);
+				ServiceLocator::Get<GraphicsDevice>()->Clear(scene->GetSettings().BackgroundColor);
 			}
 		}
 		else if (mode == BackgroundMode::Environment3D)
 		{
-			GraphicsDevice::Get().Clear({0, 0, 0, 255});
+			ServiceLocator::Get<GraphicsDevice>()->Clear({0, 0, 0, 255});
 		}
 	}
 
@@ -186,7 +186,7 @@ namespace Chained
 		}
 
 		m_ViewportFramebuffer->Bind();
-		GraphicsDevice::Get().Clear({0, 0, 0, 255});
+		ServiceLocator::Get<GraphicsDevice>()->Clear({0, 0, 0, 255});
 
 		if (auto* renderer = ServiceLocator::TryGet<Renderer>())
 		{

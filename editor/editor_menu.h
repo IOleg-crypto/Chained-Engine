@@ -14,6 +14,7 @@ namespace Chained
 	class EditorPanels;
 	class EditorSceneManager;
 	class EditorProjectManager;
+	class CommandHistory;
 	struct EditorConfig;
 
 	/// @brief Handles the top-level editor menu bar and associated overlays/settings.
@@ -29,11 +30,21 @@ namespace Chained
 							 EditorConfig* config, std::function<void()> saveConfigCallback,
 							 std::function<void()> reloadFontsCallback)
 		{
+			if (sceneManager == nullptr || projectManager == nullptr || config == nullptr)
+			{
+				CH_CORE_ERROR("[EditorMenu] SetDependencies called with null pointer(s)!");
+				return;
+			}
 			m_SceneManager = sceneManager;
 			m_ProjectManager = projectManager;
 			m_Config = config;
-			m_SaveConfigCallback = saveConfigCallback;
-			m_ReloadFontsCallback = reloadFontsCallback;
+			m_SaveConfigCallback = std::move(saveConfigCallback);
+			m_ReloadFontsCallback = std::move(reloadFontsCallback);
+		}
+
+		void SetCommandHistory(CommandHistory* commandHistory)
+		{
+			m_CommandHistory = commandHistory;
 		}
 
 		/// @brief Draws the main menu bar.
@@ -51,6 +62,7 @@ namespace Chained
 
 	private:
 		void DrawFileMenu();
+		void DrawEditMenu();
 		void DrawViewMenu(EditorPanels& panels);
 		void DrawProjectMenu(EditorPanels& panels);
 		void DrawEditorMenu();
@@ -105,6 +117,7 @@ namespace Chained
 		EditorSceneManager* m_SceneManager = nullptr;
 		EditorProjectManager* m_ProjectManager = nullptr;
 		EditorConfig* m_Config = nullptr;
+		CommandHistory* m_CommandHistory = nullptr;
 		std::function<void()> m_SaveConfigCallback;
 		std::function<void()> m_ReloadFontsCallback;
 	};

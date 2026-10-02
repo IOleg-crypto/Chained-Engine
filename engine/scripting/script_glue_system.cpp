@@ -1,6 +1,7 @@
 #include "script_glue_system.h"
 #include "engine/project/project.h"
 #include <GLFW/glfw3.h>
+#include "engine/app/application.h"
 #include <set>
 
 namespace Chained

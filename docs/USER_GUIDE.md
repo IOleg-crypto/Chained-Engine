@@ -92,6 +92,9 @@ The editor has these main areas:
 | **Console** | Engine logs and errors. |
 | **Animation Graph** | Visual state machine editor for animations. |
 
+Full input reference — including trackpad gestures for laptops — is in
+[Editor Controls](EDITOR_CONTROLS.md).
+
 ### Simulation Controls
 
 - **Play** — Runs the game inside the editor. Physics and scripts execute.

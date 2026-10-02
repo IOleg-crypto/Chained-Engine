@@ -1,5 +1,5 @@
 #include "script_glue_scene.h"
-#include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 #include "engine/runtime/session_api.h"
 
 #include "engine/scene/scene_events.h"
@@ -39,7 +39,7 @@ namespace Chained
 			return;
 		}
 		SceneChangeRequestEvent e(ch_u16_to_string(path));
-		Application::Get().OnEvent(e);
+		ApplicationEventProxy::Dispatch(e);
 	}
 
 	CH_SCRIPT_FUNC uint64_t Scene_GetPrimaryCameraEntity()

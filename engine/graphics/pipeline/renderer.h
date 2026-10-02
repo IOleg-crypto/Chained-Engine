@@ -19,6 +19,7 @@ namespace Chained
 
 	class Shader;
 	class ShaderAsset;
+	class GraphicsDevice;
 
 	/// @brief Singleton renderer facade that owns GPU resources, frame state, and low-level draw calls.
 	///
@@ -27,7 +28,7 @@ namespace Chained
 	class CH_API Renderer : public Service
 	{
 	public:
-		Renderer();
+		explicit Renderer(GraphicsDevice* device = nullptr);
 		virtual ~Renderer() override;
 
 		/// @brief Load engine-level shaders and static resources (unit meshes, fullscreen quad).
@@ -117,6 +118,7 @@ namespace Chained
 		ShaderAsset* BindShader(const std::string& name);
 
 	private:
+		GraphicsDevice* m_Device = nullptr;
 		std::unique_ptr<RendererData> m_Data;
 		LightingManager m_LightingManager;
 		GeometryFactory m_GeometryFactory;

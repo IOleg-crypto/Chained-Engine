@@ -10,6 +10,8 @@
 namespace Chained
 {
 	class IPhysicsWorld;
+	class AssetManager;
+	class Physics;
 
 	namespace PhysicsBodySystem
 	{
@@ -23,11 +25,12 @@ namespace Chained
 		};
 
 		void ApplyAutoCalculate(entt::entity entity, entt::registry& registry, ColliderComponent& collider,
-								const glm::vec3& scale);
-		bool BuildBodyDesc(entt::registry& reg, entt::entity e, PhysicsBodyDesc& outDesc);
-		void BatchInitializeBodies(entt::registry& reg, IPhysicsWorld* world);
-		void Update(entt::registry& reg);
-		bool IsStartupComplete(entt::registry& reg, IPhysicsWorld* world);
+								const glm::vec3& scale, AssetManager* am = nullptr);
+		bool BuildBodyDesc(entt::registry& reg, entt::entity e, PhysicsBodyDesc& outDesc,
+						   AssetManager* assets = nullptr);
+		void BatchInitializeBodies(entt::registry& reg, IPhysicsWorld* world, AssetManager* assets = nullptr);
+		void Update(entt::registry& reg, Physics* physics = nullptr, AssetManager* assets = nullptr);
+		bool IsStartupComplete(entt::registry& reg, IPhysicsWorld* world, AssetManager* assets = nullptr);
 	} // namespace PhysicsBodySystem
 } // namespace Chained
 

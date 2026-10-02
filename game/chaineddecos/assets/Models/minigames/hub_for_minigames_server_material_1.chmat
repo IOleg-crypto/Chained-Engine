@@ -1,0 +1,27 @@
+Material:
+  Name: Ender_Chest
+  AlbedoColor:
+    - 1
+    - 1
+    - 1
+    - 1
+  EmissiveColor:
+    - 1
+    - 1
+    - 1
+    - 1
+  EmissiveIntensity: 0
+  Metalness: 0
+  Roughness: 1
+  Transparent: false
+  Alpha: 1
+  FlipUV_Y: true
+  FlipUV_X: false
+  UVScale:
+    - 1
+    - 1
+  UVOffset:
+    - 0
+    - 0
+  AlbedoMap: models/minigames/hub_for_minigames_server_embtex_1.png
+  EmissiveMap: models/minigames/hub_for_minigames_server_embtex_1.png

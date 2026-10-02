@@ -15,7 +15,7 @@ Material:
   Roughness: 1
   Transparent: false
   Alpha: 1
-  FlipUV_Y: false
+  FlipUV_Y: true
   FlipUV_X: false
   UVScale:
     - 1

@@ -300,8 +300,9 @@ namespace Chained
 	void ViewportPanel::OnUpdate(Timestep ts)
 	{
 		bool hasImGui = ImGui::GetCurrentContext() != nullptr;
-		bool rightDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
-								  : Chained::Core::Input::IsMouseButtonDown(Chained::MouseCode::ButtonRight);
+		bool rightDown =
+			hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
+					 : Chained::ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(Chained::MouseCode::ButtonRight);
 
 #if !CH_PLATFORM_LINUX
 		// Unlock cursor if right mouse is released while locked

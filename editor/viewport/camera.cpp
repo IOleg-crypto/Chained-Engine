@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <glm/gtx/quaternion.hpp>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -29,6 +30,13 @@ namespace Chained
 	static constexpr float kZoomDistanceScale = 0.2f;
 	static constexpr float kZoomSpeedMin = 0.1f;
 	static constexpr float kZoomSpeedMax = 100.0f;
+
+	// Trackpad: one scroll notch ≈ dragging this many pixels (converted via kMouseSensitivity
+	// so ScrollPan deltas use the same units as MouseDelta-based pans).
+	static constexpr float kScrollPanPixels = 100.0f;
+	static constexpr float kScrollPanScale = kScrollPanPixels * kMouseSensitivity;
+	// Ctrl + scroll zooms in smaller steps (precision zoom for high-res touchpad scrolls).
+	static constexpr float kFineZoomScale = 0.25f;
 
 	EditorCameraController::EditorCameraController()
 	{
@@ -96,25 +104,28 @@ namespace Chained
 		bool hasImGui = ImGui::GetCurrentContext() != nullptr;
 
 		bool rightDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Right)
-								  : Core::Input::IsMouseButtonDown(MouseCode::ButtonRight);
+								  : ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(MouseCode::ButtonRight);
 		bool middleDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Middle)
-								   : Core::Input::IsMouseButtonDown(MouseCode::ButtonMiddle);
+								   : ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(MouseCode::ButtonMiddle);
 		bool leftDown = hasImGui ? ImGui::IsMouseDown(ImGuiMouseButton_Left)
-								 : Core::Input::IsMouseButtonDown(MouseCode::ButtonLeft);
+								 : ServiceLocator::Get<Core::Input>()->IsMouseButtonDown(MouseCode::ButtonLeft);
 
-		bool shiftDown =
-			hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift))
-					 : (Core::Input::IsKeyDown(KeyCode::LeftShift) || Core::Input::IsKeyDown(KeyCode::RightShift));
-		bool altDown = hasImGui
-						   ? (ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt))
-						   : (Core::Input::IsKeyDown(KeyCode::LeftAlt) || Core::Input::IsKeyDown(KeyCode::RightAlt));
+		bool shiftDown = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift))
+								  : (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftShift) ||
+									 ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightShift));
+		bool altDown = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt))
+								: (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftAlt) ||
+								   ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightAlt));
+		bool ctrlDown = hasImGui ? (ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
+								 : (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftControl) ||
+									ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::RightControl));
 
 		auto isKeyDown = [hasImGui](KeyCode coreKey, ImGuiKey imguiKey) -> bool {
 			if (hasImGui)
 			{
 				return ImGui::IsKeyDown(imguiKey);
 			}
-			return Core::Input::IsKeyDown(coreKey);
+			return ServiceLocator::Get<Core::Input>()->IsKeyDown(coreKey);
 		};
 
 		bool hasEntity = cameraEntity && cameraEntity.HasComponent<TransformComponent>() &&
@@ -171,7 +182,7 @@ namespace Chained
 			}
 			else
 			{
-				glm::vec2 raw = Core::Input::GetMouseDelta();
+				glm::vec2 raw = ServiceLocator::Get<Core::Input>()->GetMouseDelta();
 #if CH_PLATFORM_LINUX
 				raw.x = std::clamp(raw.x, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
 				raw.y = std::clamp(raw.y, -kMaxMouseDeltaPixels, kMaxMouseDeltaPixels);
@@ -241,11 +252,35 @@ namespace Chained
 		{
 			MouseRotate(delta);
 		}
-
-		float wheel = hasImGui ? ImGui::GetIO().MouseWheel : Core::Input::GetMouseWheelMove();
-		if (wheel != 0.0f && !m_DisableZoom)
+		else if (leftDown && shiftDown && !rightDown && !middleDown)
 		{
-			MouseZoom(wheel);
+			// Trackpad / map style: Shift + left-drag pans — no middle button needed.
+			MousePan(delta);
+		}
+
+		float wheel = hasImGui ? ImGui::GetIO().MouseWheel : ServiceLocator::Get<Core::Input>()->GetMouseWheelMove();
+		float wheelH = hasImGui ? ImGui::GetIO().MouseWheelH : ServiceLocator::Get<Core::Input>()->GetMouseWheelHMove();
+
+		if (wheel != 0.0f || wheelH != 0.0f)
+		{
+			if (shiftDown)
+			{
+				// Trackpad: Shift + two-finger scroll pans on both axes.
+				MousePan({wheelH * kScrollPanScale, wheel * kScrollPanScale});
+			}
+			else
+			{
+				// Horizontal scroll pans horizontally (two-finger left/right swipe).
+				if (wheelH != 0.0f)
+				{
+					MousePan({wheelH * kScrollPanScale, 0.0f});
+				}
+				// Vertical scroll zooms; Ctrl makes it fine-grained.
+				if (wheel != 0.0f && !m_DisableZoom)
+				{
+					MouseZoom(wheel * (ctrlDown ? kFineZoomScale : 1.0f));
+				}
+			}
 		}
 
 		// Write back rotation and position to the entity's TransformComponent in both

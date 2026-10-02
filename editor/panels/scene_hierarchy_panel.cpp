@@ -20,6 +20,7 @@
 #include <functional>
 #include <queue>
 #include <vector>
+#include "engine/core/service_locator.h"
 
 namespace
 {
@@ -141,7 +142,8 @@ namespace Chained
 			}
 
 			// Focus Shortcut
-			if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && Core::Input::IsKeyPressed(KeyCode::F))
+			if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
+				ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::F))
 			{
 				Entity selected = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 				if (selected)
@@ -153,7 +155,8 @@ namespace Chained
 
 			// Duplicate Shortcut
 			if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
-				Core::Input::IsKeyDown(KeyCode::LeftControl) && Core::Input::IsKeyPressed(KeyCode::D))
+				ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftControl) &&
+				ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::D))
 			{
 				Entity selected = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 				if (selected)

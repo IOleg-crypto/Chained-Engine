@@ -1,5 +1,7 @@
-﻿#ifndef CH_SESSION_API_H
+
+#ifndef CH_SESSION_API_H
 #define CH_SESSION_API_H
+#include <functional>
 
 // Lightweight header — no heavy engine includes.
 // RuntimeLayer populates these pointers in OnAttach() / destructor.
@@ -9,10 +11,10 @@
 namespace Chained::SessionAPI
 {
 	// Returns true when a suspended gameplay session is waiting to be resumed.
-	inline bool (*HasSuspendedSession)() = nullptr;
+	inline std::function<bool()> HasSuspendedSession;
 
 	// Resumes the previously suspended gameplay session.
-	inline void (*ResumeSuspendedSession)() = nullptr;
+	inline std::function<void()> ResumeSuspendedSession;
 
 } // namespace Chained::SessionAPI
 

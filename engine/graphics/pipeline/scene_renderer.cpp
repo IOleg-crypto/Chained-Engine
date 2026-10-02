@@ -89,7 +89,12 @@ namespace Chained
 			return;
 		}
 
-		GraphicsDevice::Get().EnableDepthTest();
+		auto* device = ServiceLocator::TryGet<GraphicsDevice>();
+		if (device)
+		{
+			device->EnableDepthTest();
+		}
+		m_MaterialManager.SetGraphicsDevice(device);
 
 		auto environment = options.EnvironmentOverride ? options.EnvironmentOverride : settings.Environment;
 
@@ -154,8 +159,10 @@ namespace Chained
 
 		renderer->BeginScene(camera);
 
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+
 		// Collect entities
-		m_Collector.Collect(registry, frustum, camera.Position);
+		m_Collector.Collect(registry, frustum, camera.Position, assets);
 
 		// Sort opaque queue: instancable items first, then group by asset+materials for batching, then front-to-back
 		auto& opaqueQueue = m_Collector.GetOpaqueQueue();
@@ -198,7 +205,7 @@ namespace Chained
 
 		for (auto& pass : m_RenderPasses)
 		{
-			RenderContext ctx{registry, settings, camera, options, this};
+			RenderContext ctx{registry, settings, camera, options, this, device, renderer, assets};
 			pass->Execute(ctx);
 
 			if (pass->GetName() == "ShadowPass")
