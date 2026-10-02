@@ -30,9 +30,6 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Update submodules recursively
-        run: git submodule update --init --recursive
-
       - name: Get CMake and Ninja
         uses: lukka/get-cmake@latest
 
