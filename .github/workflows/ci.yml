@@ -21,7 +21,6 @@ on:
       - "**/CMakePresets.json"
       - "cmake/**"
       - ".github/workflows/ci.yml"
-      - ".github/workflows/format.yml"
       - ".github/workflows/linux.yml"
       - ".github/workflows/windows.yml"
       - ".github/workflows/valgrind.yml"
@@ -48,7 +47,6 @@ on:
       - "**/CMakePresets.json"
       - "cmake/**"
       - ".github/workflows/ci.yml"
-      - ".github/workflows/format.yml"
       - ".github/workflows/linux.yml"
       - ".github/workflows/windows.yml"
       - ".github/workflows/valgrind.yml"
@@ -107,10 +105,6 @@ jobs:
 
           echo "matrix_mode=full" >> "$GITHUB_OUTPUT"
           echo "Mainline branch ($REF_NAME) detected -> matrix_mode=full"
-
-  format:
-    name: Format Check (Advisory)
-    uses: ./.github/workflows/format.yml
 
   linux:
     name: Linux
