@@ -2,6 +2,12 @@ name: Windows
 
 on:
   workflow_call:
+    inputs:
+      matrix_mode:
+        description: 'Matrix mode: fast (Clang Release) or full (Clang, MSVC, MinGW GCC, Debug + Release)'
+        required: false
+        default: 'fast'
+        type: string
 
 env:
   CI: true
@@ -11,35 +17,40 @@ env:
   NODE_OPTIONS: "--no-deprecation"
 
 jobs:
+  setup-matrix:
+    name: Setup Windows Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set_matrix.outputs.matrix }}
+    steps:
+      - id: set_matrix
+        run: |
+          if [[ "${{ inputs.matrix_mode }}" == "fast" ]]; then
+            # Fast CI: Windows Clang Release
+            JSON='[{"preset":"windows-clang","compiler":"clang","build_type":"Release"}]'
+          else
+            # Full CI: Clang, MSVC vs2026, and MinGW GCC across Debug & Release (6 configurations)
+            JSON='[
+              {"preset":"windows-clang","compiler":"clang","build_type":"Release"},
+              {"preset":"windows-clang","compiler":"clang","build_type":"Debug"},
+              {"preset":"windows-vs2026","compiler":"vs2026","build_type":"Release"},
+              {"preset":"windows-vs2026","compiler":"vs2026","build_type":"Debug"},
+              {"preset":"windows-gcc","compiler":"gcc","build_type":"Release"},
+              {"preset":"windows-gcc","compiler":"gcc","build_type":"Debug"}
+            ]'
+          fi
+          echo "matrix={\"include\":$JSON}" >> "$GITHUB_OUTPUT"
+
   build-windows:
     name: build (windows-latest, ${{ matrix.build_type }}, ${{ matrix.compiler }})
+    needs: [setup-matrix]
     runs-on: windows-latest
     defaults:
       run:
         shell: bash
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - preset: windows-clang
-            compiler: clang
-            build_type: Release
-          - preset: windows-clang
-            compiler: clang
-            build_type: Debug
-          - preset: windows-vs2026
-            compiler: vs2026
-            build_type: Release
-          - preset: windows-vs2026
-            compiler: vs2026
-            build_type: Debug
-          - preset: windows-gcc
-            compiler: gcc
-            build_type: Release
-          - preset: windows-gcc
-            compiler: gcc
-            build_type: Debug
-          
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -47,9 +58,6 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 1
-
-      - name: Update submodules recursively
-        run: git submodule update --init --recursive
 
       - name: Setup MSYS2
         if: "contains(matrix.preset, 'clang') || contains(matrix.preset, 'gcc')"
@@ -64,35 +72,10 @@ jobs:
         if: "contains(matrix.preset, 'msvc') || contains(matrix.preset, 'vs')"
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Setup lld-link (MSVC only)
-        if: matrix.use_lld == true
-        shell: pwsh
-        run: |
-          # LLVM is pre-installed on windows-latest; find lld-link and put it on PATH.
-          # Prefer the LLVM install that ships with VS, fall back to standalone LLVM.
-          $candidates = @(
-            "C:\Program Files\LLVM\bin",
-            "C:\Program Files (x86)\LLVM\bin"
-          )
-          $llvmBin = $candidates | Where-Object { Test-Path "$_\lld-link.exe" } | Select-Object -First 1
-          if (-not $llvmBin) {
-            # Standalone LLVM not found — install via winget (fast, no choco overhead)
-            choco install llvm --no-progress -y | Out-Null
-            $llvmBin = "C:\Program Files\LLVM\bin"
-          }
-          Write-Host "Using lld-link from: $llvmBin"
-          "$llvmBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          lld-link --version
-
       - name: Prefer MSYS2 toolchain over preinstalled MinGW
         if: "contains(matrix.preset, 'clang') || contains(matrix.preset, 'gcc')"
         shell: msys2 {0}
         run: |
-          # The windows-latest image preinstalls a MinGW-Builds GCC at C:\mingw64
-          # which shadows the MSYS2 toolchain installed above (jobs run in Git
-          # Bash, not the msys2 shell). That build's libstdc++ segfaults in
-          # std::format Debug code, and it is NOT the toolchain anyone tests
-          # against locally. Put MSYS2's mingw64/bin first on PATH.
           cygpath -w /mingw64/bin >> "$GITHUB_PATH"
 
       - name: Get CMake and Ninja
@@ -102,7 +85,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           variant: sccache
-          key: Windows-${{ matrix.preset }}-${{ matrix.build_type }}${{ matrix.use_lld == true && '-lld' || '' }}
+          key: Windows-${{ matrix.preset }}-${{ matrix.build_type }}
           max-size: 5G
 
       - name: Setup Python
@@ -140,14 +123,8 @@ jobs:
         run: |
           set -euo pipefail
           SANITIZERS_FLAG="OFF"
-          # Disable ASan on Windows Clang due to static CRT conflicts (libucrtd.lib vs clang_rt.asan)
           mkdir -p "build/${{ matrix.preset }}"
           PYTHON_EXE=$(python -c "import sys; print(sys.executable)")
-
-          LLD_FLAG=""
-          if [[ "${{ matrix.use_lld }}" == "true" ]]; then
-            LLD_FLAG="-DCMAKE_LINKER_TYPE=LLD"
-          fi
 
           cmake --preset ${{ matrix.preset }} \
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install" \
@@ -160,7 +137,6 @@ jobs:
             -DENABLE_SANITIZERS=$SANITIZERS_FLAG \
             -DENABLE_LTO=OFF \
             -DENABLE_PCH=OFF \
-            ${LLD_FLAG} \
             2>&1 | tee "build/${{ matrix.preset }}/configure.log"
 
       - name: Build
@@ -169,43 +145,48 @@ jobs:
           cmake --build "build/${{ matrix.preset }}" --config ${{ matrix.build_type }} --parallel \
             2>&1 | tee "build/${{ matrix.preset }}/build_${{ matrix.build_type }}.log"
 
-      - name: Test
-        env:
-          COREHOST_TRACE: 1
+      - name: Test (Native C++ CTest)
         run: |
           set -euo pipefail
           BUILD_DIR="${{ github.workspace }}/build/${{ matrix.preset }}"
           ctest --test-dir "$BUILD_DIR" -C "${{ matrix.build_type }}" --output-on-failure --timeout 300 --output-junit "$BUILD_DIR/junit_${{ matrix.build_type }}.xml" \
             2>&1 | tee "$BUILD_DIR/ctest_${{ matrix.build_type }}.log"
 
-      - name: Crash backtrace (gcc Debug only)
-        if: failure() && matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
-        env:
-          COREHOST_TRACE: 1
-          ENGINE_ROOT: ${{ github.workspace }}
+      - name: Test (Managed C# dotnet)
         run: |
-          # The integration tests crash with an access violation on this runner
-          # but pass locally with the identical build config. Run one failing
-          # test directly under gdb to capture the faulting module and stack.
-          BIN_DIR="build/${{ matrix.preset }}/bin/${{ matrix.build_type }}"
-          cd "$BIN_DIR"
-          gdb -batch -return-child-result \
-            -ex "set pagination off" \
-            -ex run \
-            -ex "bt" \
-            -ex "info registers" \
-            -ex "info sharedlibrary" \
-            --args ./engine_tests_integration.exe --gtest_filter=RegressionTest.CopyEntityResetsUUID || true
+          dotnet test "tests/managed/Chained.Managed.Tests.csproj" --verbosity normal
 
-      - name: Upload Artifacts
+      - name: Publish Test Results
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: 'build/${{ matrix.preset }}/**/junit_*.xml'
+          check_name: 'Windows (${{ matrix.compiler }}, ${{ matrix.build_type }}) Test Results'
+          fail_on_failure: false
+          require_tests: true
+
+      - name: Upload Logs & Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-${{ matrix.preset }}-${{ matrix.build_type }}-binaries
+          name: Windows-${{ matrix.preset }}-${{ matrix.build_type }}-logs
           if-no-files-found: ignore
           path: |
             build/${{ matrix.preset }}/**/*.log
             build/${{ matrix.preset }}/**/junit_*.xml
+          retention-days: 7
+
+      - name: Upload Release Binaries
+        if: matrix.build_type == 'Release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-${{ matrix.preset }}-Release-executables
+          if-no-files-found: ignore
+          path: |
+            build/${{ matrix.preset }}/bin/Release/*.exe
+            build/${{ matrix.preset }}/bin/Release/*.dll
+            build/${{ matrix.preset }}/bin/*.exe
+            build/${{ matrix.preset }}/bin/*.dll
             build/${{ matrix.preset }}/${{ matrix.build_type }}/*.exe
             build/${{ matrix.preset }}/${{ matrix.build_type }}/*.dll
           retention-days: 7

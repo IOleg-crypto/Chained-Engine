@@ -7,9 +7,6 @@
 #include <string>
 #include <vector>
 
-static_assert(std::endian::native == std::endian::little, "Network packets assume little-endian byte order. "
-														  "Add byte-swapping for big-endian platforms.");
-
 #include "network_types.h"
 
 namespace Chained

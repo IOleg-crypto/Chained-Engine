@@ -3,8 +3,7 @@
 #include "engine/scene/components/core/hierarchy_component.h"
 #include "gui.h"
 #include "imgui_internal.h"
-#include "editor/scene_manager.h"
-#include "layer.h"
+#include "editor/undo/command_history.h"
 #include "undo/modify_component_command.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,14 +12,11 @@ namespace Chained
 {
 
 	bool EditorGizmo::RenderAndHandle(GizmoType type, ImVec2 viewportPos, ImVec2 viewportSize,
-									  const Chained::Camera3D& camera)
+									  const Chained::Camera3D& camera, Scene* scene, Entity entity,
+									  CommandHistory* commandHistory, bool isPlayMode, bool isTransitioning)
 	{
-		auto& layer = EditorLayer::Get();
-		Scene* scene = layer.GetActiveScene().get();
-		Entity entity = layer.GetSelectedEntity();
-
-		if (!scene || !entity || !entity.HasComponent<TransformComponent>() || type == GizmoType::NONE ||
-			layer.GetSceneState() == SceneState::Play || layer.GetSceneManager().IsTransitioning())
+		if (!scene || !entity || !entity.HasComponent<TransformComponent>() || type == GizmoType::NONE || isPlayMode ||
+			isTransitioning)
 		{
 			return false;
 		}
@@ -141,11 +137,10 @@ namespace Chained
 								 glm::length(transform.Rotation - m_OldTransform.Rotation) > 0.0001f ||
 								 glm::length(transform.Scale - m_OldTransform.Scale) > 0.0001f;
 
-			if (changed)
+			if (changed && commandHistory)
 			{
-				EditorLayer::Get().GetCommandHistory().PushCommand(
-					std::make_unique<ModifyComponentCommand<TransformComponent>>(entity, m_OldTransform, transform,
-																				 "Transform Entity"));
+				commandHistory->PushCommand(std::make_unique<ModifyComponentCommand<TransformComponent>>(
+					entity, m_OldTransform, transform, "Transform Entity"));
 			}
 		}
 

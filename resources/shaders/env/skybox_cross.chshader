@@ -11,6 +11,8 @@ Uniforms:
   - u_Brightness
   - u_Contrast
   - u_VFlipped
+  - u_HFlipped
+  - u_Rotation
   - fogEnabled
   - fogColor
   - fogDensity

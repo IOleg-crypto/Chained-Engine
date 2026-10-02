@@ -65,12 +65,24 @@ namespace Chained
 			}
 			if (debugFlags.DrawColliders)
 			{
+				ImGui::Indent(12.0f);
 				const char* wireModes[] = {"Wireframe", "Solid", "Solid + Wireframe"};
 				ImGui::Combo("Visual Mode", &debugFlags.SetCollisionWireframeMode, wireModes, 3);
 				if (ImGui::IsItemHovered())
 				{
 					ImGui::SetTooltip("Choose collider display style");
 				}
+				ImGui::Checkbox("Mesh as Bounding Box", &debugFlags.MeshColliderAsBBox);
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Render complex Mesh colliders as simple boxes to prevent viewport clutter");
+				}
+				ImGui::SliderFloat("Collider Opacity", &debugFlags.ColliderAlpha, 0.1f, 1.0f, "%.2f");
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Adjust transparency of collider wireframe / fill");
+				}
+				ImGui::Unindent(12.0f);
 			}
 			ImGui::Checkbox("Lights", &debugFlags.DrawLights);
 			if (ImGui::IsItemHovered())

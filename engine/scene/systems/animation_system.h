@@ -6,9 +6,11 @@
 
 namespace Chained
 {
+	class AssetManager;
+
 	namespace AnimationSystem
 	{
-		void Update(entt::registry& reg, Timestep ts);
+		void Update(entt::registry& reg, Timestep ts, AssetManager* assets = nullptr);
 	}
 } // namespace Chained
 

@@ -4,7 +4,7 @@
 
 #include "ImGuizmo.h"
 #include "backends/imgui_impl_opengl3.h"
-#include "engine/app/application.h"
+#include "engine/core/application_event_proxy.h"
 #include "imgui.h"
 
 #include "backends/imgui_impl_glfw.h"
@@ -24,7 +24,8 @@ namespace Chained
 		CH_PROFILE_FUNCTION();
 
 		// Validate native window before creating the ImGui context to avoid leaks on failure.
-		GLFWwindow* window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
+		auto* appWindow = ApplicationEventProxy::GetWindow();
+		GLFWwindow* window = appWindow ? static_cast<GLFWwindow*>(appWindow->GetNativeWindow()) : nullptr;
 		if (!window)
 		{
 			CH_CORE_ERROR("ImGuiLayer: Failed to get native window handle!");
@@ -81,8 +82,10 @@ namespace Chained
 		CH_PROFILE_FUNCTION();
 
 		ImGuiIO& io = ImGui::GetIO();
-		io.DisplaySize =
-			ImVec2((float)Application::Get().GetWindow().GetWidth(), (float)Application::Get().GetWindow().GetHeight());
+		if (auto* w = ApplicationEventProxy::GetWindow())
+		{
+			io.DisplaySize = ImVec2((float)w->GetWidth(), (float)w->GetHeight());
+		}
 
 		// 1. Render main window
 		ImGui::Render();

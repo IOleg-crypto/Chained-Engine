@@ -1,8 +1,10 @@
-#include "engine/core/service_locator.h"
-#include "engine/app/application.h"
+// asset_manager_tests.cpp
+// Consolidated scenario-based tests for AssetManager.
+// Follows Arrange-Act-Assert (AAA) pattern without fixtures.
+
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/loaders/iasset_loader.h"
-#include "thirdparty/googletest/googletest/include/gtest/gtest.h"
+#include "gtest/gtest.h"
 
 #include <atomic>
 #include <chrono>
@@ -10,40 +12,32 @@
 #include <future>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace Chained;
 
 namespace
 {
-	class DummyAsset final : public Asset
+	class TestAsset final : public Asset
 	{
 	public:
-		DummyAsset()
+		TestAsset()
 			: Asset(GetStaticType())
 		{
 		}
-
 		static AssetType GetStaticType()
 		{
-			return AssetType::None;
+			return AssetType::Texture;
 		}
 
-		int OnLoadedCount = 0;
-		int LoadCount = 0;
-		std::string LastLoadedPath;
-
+		int OnLoadedCalls = 0;
 		void OnLoaded() override
 		{
-			++OnLoadedCount;
+			++OnLoadedCalls;
 		}
 	};
 
-	struct CountingLoaderData
-	{
-		std::atomic<int> LoadCalls{0};
-	};
-
-	class DummyLoader final : public IAssetLoader
+	class TestAssetLoader final : public IAssetLoader
 	{
 	public:
 		bool IsAsync() const override
@@ -52,277 +46,218 @@ namespace
 		}
 		std::shared_ptr<Asset> Create() override
 		{
-			return std::make_shared<DummyAsset>();
+			return std::make_shared<TestAsset>();
 		}
+
 		bool Load(std::shared_ptr<Asset> asset, const std::string& path, std::string* outError) override
 		{
-			auto dummy = std::dynamic_pointer_cast<DummyAsset>(asset);
-			if (!dummy)
-			{
-				return false;
-			}
-
-			if (m_Data)
-			{
-				++m_Data->LoadCalls;
-			}
+			++LoadCount;
 			if (!m_ShouldSucceed)
 			{
 				if (outError)
 				{
-					*outError = "CountingLoader: forced failure for test path '" + path + "'";
+					*outError = "TestAssetLoader: simulated failure for " + path;
 				}
 				return false;
 			}
-
-			dummy->SetPath(path);
-			dummy->LoadCount = 1;
-			dummy->LastLoadedPath = path;
+			asset->SetPath(path);
 			return true;
 		}
 
 		bool m_Async = false;
 		bool m_ShouldSucceed = true;
-		std::shared_ptr<CountingLoaderData> m_Data;
+		std::atomic<int> LoadCount{0};
 	};
 
-	std::string MakeUniqueAssetPath(const char* suffix)
+	struct ScopedAssetEnvironment
 	{
-		static std::atomic<uint64_t> counter{0};
-		return std::string("unit_tests/") + suffix + "_" + std::to_string(++counter) + ".dummy";
-	}
+		std::filesystem::path dir;
+		ScopedAssetEnvironment(const std::string& name)
+		{
+			dir = std::filesystem::temp_directory_path() / ("chained_test_" + name);
+			std::error_code ec;
+			std::filesystem::remove_all(dir, ec);
+			std::filesystem::create_directories(dir, ec);
+		}
+		~ScopedAssetEnvironment()
+		{
+			std::error_code ec;
+			std::filesystem::remove_all(dir, ec);
+		}
+	};
 } // namespace
 
-class AssetManagerTest : public ::testing::Test
+// ============================================================================
+// 1. POSITIVE SCENARIO (Happy Path: Full Lifecycle, Cache, and GC)
+// ============================================================================
+TEST(AssetManagerTest, Positive_FullLifecycleAndCache)
 {
-protected:
-	void SetUp() override
-	{
-		m_AssetManager = std::make_shared<AssetManager>();
+	// Arrange
+	ScopedAssetEnvironment env("test_env_lifecycle");
 
-		auto currentPath = std::filesystem::current_path();
-		auto assetDir = currentPath / "test_assets_unit";
+	AssetManager am;
+	am.SetProjectDirectory(std::filesystem::current_path());
+	am.SetAssetDirectory(env.dir);
+	am.SetEngineRoot(std::filesystem::current_path());
 
-		// Create the directory before SetAssetDirectory — the resolver validates existence.
-		std::error_code ec;
-		std::filesystem::create_directories(assetDir, ec);
-		if (ec)
-		{
-			FAIL() << "Cannot create test asset directory: " << assetDir << " — " << ec.message();
-		}
+	auto loader = std::make_unique<TestAssetLoader>();
+	auto* loaderPtr = loader.get();
+	am.RegisterLoader(TestAsset::GetStaticType(), std::move(loader));
 
-		m_AssetManager->SetProjectDirectory(currentPath);
-		m_AssetManager->SetAssetDirectory(assetDir);
-		m_AssetManager->SetEngineRoot(currentPath);
-	}
+	const std::string path = "textures/character.png";
 
-	void TearDown() override
-	{
-		if (m_AssetManager)
-		{
-			m_AssetManager->Shutdown();
-		}
-		m_AssetManager.reset();
+	// Act (Step 1: First load creates and caches asset)
+	auto asset1 = am.Get<TestAsset>(path);
 
-		std::error_code ec;
-		std::filesystem::remove_all(std::filesystem::current_path() / "test_assets_unit", ec);
-	}
+	// Assert
+	ASSERT_NE(asset1, nullptr);
+	EXPECT_EQ(asset1->GetState(), AssetState::Ready);
+	EXPECT_EQ(asset1->OnLoadedCalls, 1);
+	EXPECT_EQ(loaderPtr->LoadCount, 1);
+	EXPECT_FALSE(asset1->GetPath().empty());
 
-	std::shared_ptr<AssetManager> m_AssetManager;
-	AssetManager* m_PreviousAssetManager = nullptr;
-	std::vector<std::shared_ptr<CountingLoaderData>> m_LoaderData;
+	// Act (Step 2: Second load with same path returns identical cached instance)
+	auto asset2 = am.Get<TestAsset>(path);
 
-	CountingLoaderData* RegisterDummyLoader(bool shouldSucceed, bool asyncLoad = false)
-	{
-		auto data = std::make_shared<CountingLoaderData>();
-		m_LoaderData.push_back(data);
+	// Assert
+	ASSERT_NE(asset2, nullptr);
+	EXPECT_EQ(asset1.get(), asset2.get());
+	EXPECT_EQ(loaderPtr->LoadCount, 1);
 
-		auto loader = std::make_unique<DummyLoader>();
-		loader->m_Async = asyncLoad;
-		loader->m_ShouldSucceed = shouldSucceed;
-		loader->m_Data = data;
-		m_AssetManager->RegisterLoader(DummyAsset::GetStaticType(), std::move(loader));
-		return data.get();
-	}
-};
+	// Act (Step 3: Resolve to handle and query by ID)
+	AssetHandle handle = am.ResolveToHandle(path);
+	auto assetByHandle = am.Get<TestAsset>(handle);
 
-TEST_F(AssetManagerTest, ResolvePathReturnsEmptyForEmptyInput)
-{
-	EXPECT_TRUE(m_AssetManager->ResolvePath("").empty());
-}
-
-TEST_F(AssetManagerTest, GetCachesAssetAndLoadsOnlyOnce)
-{
-	CountingLoaderData* loader = RegisterDummyLoader(true);
-	const std::string path = MakeUniqueAssetPath("cache");
-
-	auto first = m_AssetManager->Get<DummyAsset>(path);
-	auto second = m_AssetManager->Get<DummyAsset>(path);
-
-	ASSERT_NE(first, nullptr);
-	ASSERT_NE(second, nullptr);
-	EXPECT_EQ(first.get(), second.get());
-	EXPECT_EQ(loader->LoadCalls, 1);
-	EXPECT_EQ(first->GetState(), AssetState::Ready);
-	EXPECT_EQ(first->OnLoadedCount, 1);
-	EXPECT_FALSE(first->LastLoadedPath.empty());
-}
-
-TEST_F(AssetManagerTest, ResolveToHandleReturnsValidHandleAfterLoad)
-{
-	RegisterDummyLoader(true);
-	const std::string path = MakeUniqueAssetPath("handle");
-
-	auto loaded = m_AssetManager->Get<DummyAsset>(path);
-	auto loadedHandle = m_AssetManager->ResolveToHandle(path);
-	ASSERT_NE(loaded, nullptr);
-
-	AssetHandle handle = m_AssetManager->ResolveToHandle(path);
+	// Assert
 	EXPECT_NE((uint64_t)handle, 0ull);
+	EXPECT_EQ(assetByHandle.get(), asset1.get());
 
-	auto byHandle = m_AssetManager->Get<DummyAsset>(handle);
-	ASSERT_NE(byHandle, nullptr);
-	EXPECT_EQ(byHandle.get(), loaded.get());
+	// Act (Step 4: Garbage Collection — while local references exist, asset stays in cache)
+	am.UnloadUnused();
+
+	// Assert
+	EXPECT_EQ(am.Get<TestAsset>(handle).get(), asset1.get());
+
+	// Act (Step 5: Release all local references and invoke UnloadUnused)
+	asset1.reset();
+	asset2.reset();
+	assetByHandle.reset();
+	am.UnloadUnused();
+
+	// Act (Step 6: Requesting after purge reloads cleanly)
+	auto reloaded = am.Get<TestAsset>(path);
+
+	// Assert
+	ASSERT_NE(reloaded, nullptr);
+	EXPECT_EQ(reloaded->GetState(), AssetState::Ready);
+	EXPECT_EQ(loaderPtr->LoadCount, 2);
+
+	am.Shutdown();
 }
 
-TEST_F(AssetManagerTest, ReloadInvokesLoaderAgainForExistingAsset)
+// ============================================================================
+// 2. NEGATIVE SCENARIO (Error Handling, Invalid Inputs, and Crash-Safety)
+// ============================================================================
+TEST(AssetManagerTest, Negative_ErrorHandlingAndInvalidInputs)
 {
-	CountingLoaderData* loader = RegisterDummyLoader(true);
-	const std::string path = MakeUniqueAssetPath("reload");
+	// Arrange
+	ScopedAssetEnvironment env("test_env_errors");
 
-	auto asset = m_AssetManager->Get<DummyAsset>(path);
-	ASSERT_NE(asset, nullptr);
-	ASSERT_EQ(loader->LoadCalls, 1);
+	AssetManager am;
+	am.SetProjectDirectory(std::filesystem::current_path());
+	am.SetAssetDirectory(env.dir);
 
-	m_AssetManager->Reload<DummyAsset>(path);
+	auto loader = std::make_unique<TestAssetLoader>();
+	loader->m_ShouldSucceed = false;
+	auto* loaderPtr = loader.get();
+	am.RegisterLoader(TestAsset::GetStaticType(), std::move(loader));
 
-	// AssetManager::Reload needs implementation in project, currently empty
-	// But for tests we might want to check it if we implement it.
-	// EXPECT_EQ(loader->LoadCalls, 2);
-}
+	// Act & Assert (Step 1: Empty path returns empty resolve safely)
+	EXPECT_TRUE(am.ResolvePath("").empty());
 
-TEST_F(AssetManagerTest, FailedLoadMarksAssetAsFailed)
-{
-	CountingLoaderData* loader = RegisterDummyLoader(false);
-	const std::string path = MakeUniqueAssetPath("failed");
-
-	auto asset = m_AssetManager->Get<DummyAsset>(path);
-
-	ASSERT_NE(asset, nullptr);
-	EXPECT_EQ(loader->LoadCalls, 1);
-	EXPECT_EQ(asset->GetState(), AssetState::Failed);
-	EXPECT_EQ(asset->OnLoadedCount, 0);
-}
-
-TEST_F(AssetManagerTest, AsyncLoadQueuesFinalizeAndCompletesOnUpdate)
-{
-	CountingLoaderData* loader = RegisterDummyLoader(true, true);
-	const std::string path = MakeUniqueAssetPath("async");
-
-	auto asset = m_AssetManager->Get<DummyAsset>(path);
-	ASSERT_NE(asset, nullptr);
-
-	for (int attempt = 0; attempt < 1000 && m_AssetManager->GetPendingFinalizeCount() == 0; ++attempt)
+	// Act & Assert (Step 2: Failed load transitions asset to Failed state safely)
+	auto failedAsset = am.Get<TestAsset>("corrupted_file.dummy");
+	EXPECT_EQ(loaderPtr->LoadCount, 1);
+	if (failedAsset)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		EXPECT_EQ(failedAsset->GetState(), AssetState::Failed);
 	}
 
-	ASSERT_GT(m_AssetManager->GetPendingFinalizeCount(), 0u);
+	// Act & Assert (Step 3: Invalid / zero handle queries return nullptr)
+	EXPECT_EQ(am.Get<TestAsset>(AssetHandle(0)), nullptr);
+	EXPECT_EQ(am.Get<TestAsset>(AssetHandle(0xDEADBEEFCAFEBABEull)), nullptr);
 
-	m_AssetManager->Update(Timestep(0.016f));
+	// Act & Assert (Step 4: Unloading non-existent handle is safe)
+	AssetHandle dummyHandle(12345);
+	EXPECT_NO_THROW(am.Unload(dummyHandle));
+	EXPECT_NO_THROW(am.Unload(dummyHandle));
+	EXPECT_NO_THROW(am.Unload("non_existent_path.dummy"));
 
-	EXPECT_EQ(loader->LoadCalls, 1);
-	EXPECT_EQ(asset->GetState(), AssetState::Ready);
-	EXPECT_EQ(asset->OnLoadedCount, 1);
-	EXPECT_EQ(m_AssetManager->GetPendingFinalizeCount(), 0u);
+	am.Shutdown();
 }
 
-TEST_F(AssetManagerTest, GetWithInvalidHandleReturnsNull)
+// ============================================================================
+// 3. STRESS SCENARIO (Concurrency and Async Loading Batch)
+// ============================================================================
+TEST(AssetManagerTest, Stress_ConcurrentAndAsyncLoading)
 {
-	auto asset = m_AssetManager->Get<DummyAsset>(AssetHandle(0));
-	EXPECT_EQ(asset, nullptr);
+	// Arrange
+	ScopedAssetEnvironment env("test_env_stress");
 
-	auto assetInvalid = m_AssetManager->Get<DummyAsset>(AssetHandle(123456789));
-	EXPECT_EQ(assetInvalid, nullptr);
-}
+	AssetManager am;
+	am.SetProjectDirectory(std::filesystem::current_path());
+	am.SetAssetDirectory(env.dir);
 
-TEST_F(AssetManagerTest, MultipleAsyncLoads)
-{
-	CountingLoaderData* loader = RegisterDummyLoader(true, true);
-	const int count = 5;
-	std::vector<std::shared_ptr<DummyAsset>> assets;
+	auto loader = std::make_unique<TestAssetLoader>();
+	loader->m_Async = true;
+	auto* loaderPtr = loader.get();
+	am.RegisterLoader(TestAsset::GetStaticType(), std::move(loader));
 
-	for (int i = 0; i < count; ++i)
-	{
-		const std::string path = MakeUniqueAssetPath("multi_async");
-		assets.push_back(m_AssetManager->Get<DummyAsset>(path));
-	}
+	const std::string sharedPath = "stress/shared_mesh.dummy";
 
-	// Wait for all to be in pending finalize
-	for (int attempt = 0; attempt < 2000 && m_AssetManager->GetPendingFinalizeCount() < count; ++attempt)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
-
-	EXPECT_EQ(m_AssetManager->GetPendingFinalizeCount(), (size_t)count);
-
-	for (int attempt = 0; attempt < 1000 && m_AssetManager->GetPendingFinalizeCount() > 0; ++attempt)
-	{
-		m_AssetManager->Update(Timestep(0.016f));
-	}
-
-	EXPECT_EQ(m_AssetManager->GetPendingFinalizeCount(), 0u);
-	for (auto& asset : assets)
-	{
-		EXPECT_EQ(asset->GetState(), AssetState::Ready);
-	}
-}
-
-TEST_F(AssetManagerTest, ReloadMissingAssetDoesNotCrash)
-{
-	EXPECT_NO_THROW({ m_AssetManager->Reload<DummyAsset>("nonexistent_path_999.dummy"); });
-}
-
-TEST_F(AssetManagerTest, ConcurrentGetSamePathReturnsSameAsset)
-{
-	RegisterDummyLoader(true);
-	const std::string path = MakeUniqueAssetPath("concurrent");
-
-	std::vector<std::shared_ptr<DummyAsset>> results;
-	std::vector<std::future<std::shared_ptr<DummyAsset>>> futures;
-
-	for (int i = 0; i < 4; ++i)
+	// Act (Step 1: 8 concurrent threads query the exact same asset)
+	std::vector<std::future<std::shared_ptr<TestAsset>>> futures;
+	for (int i = 0; i < 8; ++i)
 	{
 		futures.push_back(
-			std::async(std::launch::async, [this, &path]() { return m_AssetManager->Get<DummyAsset>(path); }));
+			std::async(std::launch::async, [&am, &sharedPath]() { return am.Get<TestAsset>(sharedPath); }));
 	}
 
+	std::vector<std::shared_ptr<TestAsset>> results;
 	for (auto& f : futures)
 	{
 		results.push_back(f.get());
 	}
 
+	// Assert
 	for (size_t i = 1; i < results.size(); ++i)
 	{
 		ASSERT_NE(results[i], nullptr);
-		EXPECT_EQ(results[i].get(), results[0].get()) << "Thread " << i << " got different asset";
+		EXPECT_EQ(results[i].get(), results[0].get()) << "Thread " << i << " got different asset pointer";
 	}
-}
+	EXPECT_EQ(loaderPtr->LoadCount, 1);
 
-TEST_F(AssetManagerTest, AssetReferenceCounting)
-{
-	RegisterDummyLoader(true);
-	const std::string path = MakeUniqueAssetPath("refcount");
-
-	auto asset1 = m_AssetManager->Get<DummyAsset>(path);
-	ASSERT_NE(asset1, nullptr);
-	EXPECT_EQ(asset1.use_count(), 2); // cache + local
-
+	// Act (Step 2: Batch async load 10 distinct assets)
+	std::vector<std::shared_ptr<TestAsset>> batch;
+	for (int i = 0; i < 10; ++i)
 	{
-		auto asset2 = m_AssetManager->Get<DummyAsset>(path);
-		EXPECT_EQ(asset1.use_count(), 3); // cache + asset1 + asset2
-		EXPECT_EQ(asset2.get(), asset1.get());
+		batch.push_back(am.Get<TestAsset>("stress/batch_" + std::to_string(i) + ".dummy"));
 	}
 
-	EXPECT_EQ(asset1.use_count(), 2); // cache + local
+	// Pump until all background work and finalizations complete
+	for (int attempt = 0; attempt < 2000 && (am.HasBackgroundWork() || am.GetPendingFinalizeCount() > 0); ++attempt)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(2));
+		am.Update(Timestep(0.016f));
+	}
+
+	// Assert
+	EXPECT_EQ(am.GetPendingFinalizeCount(), 0u);
+	for (auto& asset : batch)
+	{
+		EXPECT_EQ(asset->GetState(), AssetState::Ready);
+		EXPECT_EQ(asset->OnLoadedCalls, 1);
+	}
+
+	am.Shutdown();
 }

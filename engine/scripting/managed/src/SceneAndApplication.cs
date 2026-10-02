@@ -16,7 +16,23 @@ namespace Chained
         internal static unsafe delegate* unmanaged<ulong> Scene_GetPrimaryCameraEntity_Ptr;
         internal static unsafe delegate* unmanaged<ulong, ulong> Scene_CopyEntity_Ptr;
         internal static unsafe delegate* unmanaged<char*> Scene_GetCurrentScenePath_Ptr;
+        internal static unsafe delegate* unmanaged<byte> Scene_HasSuspendedSession_Ptr;
+        internal static unsafe delegate* unmanaged<void> Scene_ResumeSuspendedSession_Ptr;
 #pragma warning restore 0649
+
+        /// <summary>Returns true if there is an active gameplay scene suspended in the background.</summary>
+        public static unsafe bool HasActiveSession()
+        {
+            if (Scene_HasSuspendedSession_Ptr == null) return false;
+            return Scene_HasSuspendedSession_Ptr() != 0;
+        }
+
+        /// <summary>Resumes the suspended gameplay scene immediately.</summary>
+        public static unsafe void ResumeSession()
+        {
+            if (Scene_ResumeSuspendedSession_Ptr == null) return;
+            Scene_ResumeSuspendedSession_Ptr();
+        }
 
         /// <summary>Returns the current scene file path (e.g. 'scenes/test_platform_scene.chscene').</summary>
         public static unsafe string GetCurrentScenePath()

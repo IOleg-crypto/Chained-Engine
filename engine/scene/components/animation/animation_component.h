@@ -17,17 +17,17 @@ namespace Chained
 		float BlendDuration = 0.25f;
 		bool DefaultIsLooping = true;
 		bool PlayOnStart = true;
+		int CurrentAnimationIndex = 0;
+		int StartFrame = 0;
+		int EndFrame = -1;
+		float Speed = 1.0f;
+		bool IsLooping = true;
 
 		// --- Runtime (transient) ---
 		AssetHandle GraphAssetHandle = 0;
 		int CurrentNodeID = -1;
 		int TargetNodeID = -1; // Target node during blend
-		int CurrentAnimationIndex = 0;
 		int TargetAnimationIndex = -1;
-		int StartFrame = 0;
-		int EndFrame = -1;
-		float Speed = 1.0f;
-		bool IsLooping = true;
 
 		// Target node params (captured at transition trigger)
 		int TargetStartFrame = 0;
@@ -87,18 +87,20 @@ namespace Chained
 				.Min = 0.0f, .Max = 2.0f, .Speed = 0.05f, .Tooltip = "Time to blend between animations (in seconds)"};
 			UIMeta DefaultIsLooping = {.Tooltip = "Default loop setting (used when not graph-driven)"};
 			UIMeta PlayOnStart = {.Tooltip = "Whether the animation will play at the start of the scene"};
+			UIMeta CurrentAnimationIndex = {
+				.Hint = PropertyMeta::WidgetHint::Enum, .ReadOnly = false, .Tooltip = "Active animation clip index"};
+			UIMeta StartFrame = {.ReadOnly = false, .Tooltip = "Start frame (0 for beginning)"};
+			UIMeta EndFrame = {.ReadOnly = false, .Tooltip = "End frame (-1 for whole clip)"};
+			UIMeta Speed = {
+				.Min = 0.0f, .Max = 10.0f, .Speed = 0.05f, .ReadOnly = false, .Tooltip = "Playback speed multiplier"};
+			UIMeta IsLooping = {
+				.Hint = PropertyMeta::WidgetHint::Checkbox, .ReadOnly = false, .Tooltip = "Whether the clip loops"};
 
 			UIMeta GraphAssetHandle = {.ReadOnly = true, .Transient = true};
 			UIMeta CurrentNodeID = {.ReadOnly = true, .Transient = true};
 			UIMeta TargetNodeID = {.ReadOnly = true, .Transient = true};
 			UIMeta Variables = {.ReadOnly = false};
-			UIMeta CurrentAnimationIndex = {
-				.Hint = PropertyMeta::WidgetHint::Enum, .ReadOnly = false, .Transient = true};
 			UIMeta TargetAnimationIndex = {.ReadOnly = true, .Transient = true};
-			UIMeta StartFrame = {.ReadOnly = false, .Transient = true};
-			UIMeta EndFrame = {.ReadOnly = false, .Transient = true};
-			UIMeta Speed = {.ReadOnly = false, .Transient = true};
-			UIMeta IsLooping = {.Hint = PropertyMeta::WidgetHint::Checkbox, .ReadOnly = false, .Transient = true};
 			UIMeta TargetStartFrame = {.ReadOnly = true, .Transient = true};
 			UIMeta TargetEndFrame = {.ReadOnly = true, .Transient = true};
 			UIMeta TargetSpeed = {.ReadOnly = true, .Transient = true};

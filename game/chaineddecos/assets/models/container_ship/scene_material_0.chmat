@@ -15,7 +15,15 @@ Material:
   Roughness: 1
   Transparent: false
   Alpha: 1
-  AlbedoMap: textures/container_ship/Bridge_baseColor.png
-  NormalMap: textures/container_ship/Bridge_normal.png
-  MetallicRoughnessMap: textures/container_ship/Bridge_metallicRoughness.png
-  EmissiveMap: textures/container_ship/Bridge_emissive.png
+  FlipUV_Y: true
+  FlipUV_X: false
+  UVScale:
+    - 0
+    - 0
+  UVOffset:
+    - 0
+    - 0
+  AlbedoMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship/../../textures/container_ship/Bridge_baseColor.png
+  NormalMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship/../../textures/container_ship/Bridge_normal.png
+  MetallicRoughnessMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship/../../textures/container_ship/Bridge_metallicRoughness.png
+  EmissiveMap: D:/gitnext/Chained Decos/game/chaineddecos/assets/models/container_ship/../../textures/container_ship/Bridge_emissive.png

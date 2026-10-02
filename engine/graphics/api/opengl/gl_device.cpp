@@ -48,26 +48,21 @@ namespace Chained
 
 	void GLDevice::GetViewport(int* x, int* y, int* width, int* height) const
 	{
-		// Query GL directly rather than the state cache: Framebuffer::Bind() calls glViewport()
-		// without going through SetViewport(), so the cache can be stale. Mirrors how
-		// GetFramebufferBinding() reads the live GL state.
-		GLint vp[4] = {0, 0, 0, 0};
-		glGetIntegerv(GL_VIEWPORT, vp);
 		if (x)
 		{
-			*x = vp[0];
+			*x = m_StateCache.Viewport[0];
 		}
 		if (y)
 		{
-			*y = vp[1];
+			*y = m_StateCache.Viewport[1];
 		}
 		if (width)
 		{
-			*width = vp[2];
+			*width = m_StateCache.Viewport[2];
 		}
 		if (height)
 		{
-			*height = vp[3];
+			*height = m_StateCache.Viewport[3];
 		}
 	}
 
@@ -384,14 +379,13 @@ namespace Chained
 
 	uint32_t GLDevice::GetFramebufferBinding() const
 	{
-		GLint fbo = 0;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
-		return static_cast<uint32_t>(fbo);
+		return m_StateCache.CurrentFBO;
 	}
 
 	void GLDevice::BindFramebuffer(uint32_t fbo)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		m_StateCache.CurrentFBO = fbo;
 	}
 
 	void GLDevice::ClearDepth()

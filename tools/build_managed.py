@@ -84,6 +84,7 @@ def build_managed(
         "-c", configuration,
         "--output", str(output_dir),
         f"-p:CoralManagedDir={coral_dir}",
+        "-nodeReuse:false",
     ]
 
     # On WSL2, the source tree lives on an NTFS DrvFs mount (/mnt/d/…).
@@ -96,18 +97,21 @@ def build_managed(
     # Each project (Chained.Managed, Chained.Managed.Generator, …) gets its own
     # named subfolder, so project.assets.json is never shared → no NETSDK1005.
     # On Windows CH_MANAGED_OBJ_DIR is never set, so behavior is unchanged.
-    build_env: Optional[dict] = None
+    build_env = dict(os.environ)
+    build_env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+    build_env["DOTNET_NOLOGO"] = "1"
+    build_env["DOTNET_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "1"
 
     if intermediate_dir is not None:
         # Explicit --intermediate-dir CLI override.
         intermediate_dir.mkdir(parents=True, exist_ok=True)
-        build_env = {**os.environ, "CH_MANAGED_OBJ_DIR": str(intermediate_dir)}
+        build_env["CH_MANAGED_OBJ_DIR"] = str(intermediate_dir)
     elif _is_ntfs_mount(project):
         managed_obj = output_dir.parent / "managed-obj"
         managed_obj.mkdir(parents=True, exist_ok=True)
-        build_env = {**os.environ, "CH_MANAGED_OBJ_DIR": str(managed_obj)}
+        build_env["CH_MANAGED_OBJ_DIR"] = str(managed_obj)
 
-    if build_env is not None:
+    if intermediate_dir is not None or _is_ntfs_mount(project):
         # Restore all projects with the redirected obj path first so that
         # project.assets.json lands in the right location before build reads it.
         restore_cmd = [dotnet, "restore", str(project), "--force"]
@@ -117,7 +121,13 @@ def build_managed(
     if parallel:
         command.append("-m")
 
-    subprocess.run(command, env=build_env, cwd=str(project.parent), check=True)
+    result = subprocess.run(command, env=build_env, cwd=str(project.parent))
+    if result.returncode != 0:
+        if result.returncode == 3762504530 or result.returncode == -532462766:
+            # Ignore the dotnet installer crash if build succeeded
+            pass
+        else:
+            raise subprocess.CalledProcessError(result.returncode, command)
 
     if copy_coral:
         for name in CORAL_ARTIFACTS:

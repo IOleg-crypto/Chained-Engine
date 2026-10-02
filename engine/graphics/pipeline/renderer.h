@@ -19,6 +19,7 @@ namespace Chained
 
 	class Shader;
 	class ShaderAsset;
+	class GraphicsDevice;
 
 	/// @brief Singleton renderer facade that owns GPU resources, frame state, and low-level draw calls.
 	///
@@ -27,7 +28,7 @@ namespace Chained
 	class CH_API Renderer : public Service
 	{
 	public:
-		Renderer();
+		explicit Renderer(GraphicsDevice* device = nullptr);
 		virtual ~Renderer() override;
 
 		/// @brief Load engine-level shaders and static resources (unit meshes, fullscreen quad).
@@ -47,7 +48,8 @@ namespace Chained
 		void DrawMesh(const Mesh& mesh, const Material& material, const glm::mat4& transform);
 		void DrawMeshInstanced(const Mesh& mesh, const Material& material, const std::vector<glm::mat4>& transforms);
 		void DrawSkybox(uint32_t textureId, int skyboxMode, bool isHDR, float exposure, float brightness,
-						float contrast, const Camera3D& camera, bool flipped = false);
+						float contrast, const Camera3D& camera, bool flipY = false, bool flipX = false,
+						float rotation = 0.0f);
 		void DrawBillboard(const Camera3D& camera, uint32_t textureId, const glm::vec3& position, float size,
 						   const glm::vec4& tint);
 		void DrawSprite(uint32_t textureId, const glm::mat4& transform, const glm::vec4& tint, bool flipX = false,
@@ -77,6 +79,10 @@ namespace Chained
 		const FrameState& GetFrame() const
 		{
 			return m_Data->Frame;
+		}
+		void SetCurrentShaderId(uint32_t shaderId)
+		{
+			m_Data->Frame.CurrentShaderId = shaderId;
 		}
 
 		void SetHeadless(bool headless)
@@ -112,6 +118,7 @@ namespace Chained
 		ShaderAsset* BindShader(const std::string& name);
 
 	private:
+		GraphicsDevice* m_Device = nullptr;
 		std::unique_ptr<RendererData> m_Data;
 		LightingManager m_LightingManager;
 		GeometryFactory m_GeometryFactory;

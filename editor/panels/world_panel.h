@@ -5,10 +5,12 @@
 
 namespace Chained
 {
+	class EditorSceneManager;
+
 	class WorldPanel : public Panel
 	{
 	public:
-		WorldPanel();
+		explicit WorldPanel(EditorSceneManager* sceneManager = nullptr);
 
 	public:
 		virtual void OnImGuiRender(bool readOnly = false) override;
@@ -19,6 +21,9 @@ namespace Chained
 		void DrawPhysicsSettings(bool readOnly);
 		void DrawEnvironmentSection(bool readOnly);
 		void DrawEnvironmentSettings(std::shared_ptr<EnvironmentAsset> env, bool readOnly);
+
+	private:
+		EditorSceneManager* m_SceneManager = nullptr;
 	};
 } // namespace Chained
 

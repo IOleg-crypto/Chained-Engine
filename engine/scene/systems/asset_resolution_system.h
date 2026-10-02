@@ -5,10 +5,12 @@
 
 namespace Chained
 {
+	class AssetManager;
+
 	namespace AssetResolutionSystem
 	{
 		void RegisterObservers(entt::registry& reg);
-		void Update(entt::registry& reg);
+		void Update(entt::registry& reg, AssetManager* assets = nullptr);
 	} // namespace AssetResolutionSystem
 } // namespace Chained
 

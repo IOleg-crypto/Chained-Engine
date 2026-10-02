@@ -33,8 +33,11 @@ target_link_libraries(engine_network PUBLIC
     engine_external_entt
     enet::enet_static
     glm
-    engine_external_miniupnpc
 )
+
+if(CH_ENABLE_UPNP)
+    target_link_libraries(engine_network PUBLIC engine_external_miniupnpc)
+endif()
 
 if(WIN32)
     target_link_libraries(engine_network PUBLIC ws2_32)

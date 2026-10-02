@@ -80,6 +80,7 @@ namespace Chained
 		uint32_t DataVersion = 0;
 		uint32_t SplitSizeMB = 0;			// 0 = Single pack, >0 = Max uncompressed MB per chunk
 		std::string PackName = "resources"; // Base name for .pack files (without extension)
+		std::vector<std::string> ExcludedScenes;
 	};
 
 	struct ProjectConfig

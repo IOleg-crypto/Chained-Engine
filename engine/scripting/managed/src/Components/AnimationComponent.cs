@@ -16,6 +16,10 @@ namespace Chained
     [NativeCall("Chained.AnimationComponent", "AnimationComponent_GetNormalizedTime", "float", "ulong")]
     [NativeCall("Chained.AnimationComponent", "AnimationComponent_GetBlendDuration", "float", "ulong")]
     [NativeCall("Chained.AnimationComponent", "AnimationComponent_SetBlendDuration", "void", "ulong", "float")]
+    [NativeCall("Chained.AnimationComponent", "AnimationComponent_GetSpeed", "float", "ulong")]
+    [NativeCall("Chained.AnimationComponent", "AnimationComponent_SetSpeed", "void", "ulong", "float")]
+    [NativeCall("Chained.AnimationComponent", "AnimationComponent_PlayClip", "void", "ulong", "int", "byte", "float")]
+    [NativeCall("Chained.AnimationComponent", "AnimationComponent_Stop", "void", "ulong")]
     [NativeCall("Chained.AnimationComponent", "AnimationComponent_CrossFade", "void", "ulong", "int", "float")]
     [NativeCall("Chained.AnimationComponent", "AnimationComponent_SetFloat", "void", "ulong", "char*", "float")]
     [NativeCall("Chained.AnimationComponent", "AnimationComponent_SetBool", "void", "ulong", "char*", "byte")]
@@ -38,6 +42,12 @@ namespace Chained
         {
             get { unsafe { return AnimationComponent_GetIsLooping_Ptr != null && AnimationComponent_GetIsLooping_Ptr(Entity.ID) != 0; } }
             set { unsafe { if (AnimationComponent_SetIsLooping_Ptr != null) AnimationComponent_SetIsLooping_Ptr(Entity.ID, (byte)(value ? 1 : 0)); } }
+        }
+
+        public float Speed
+        {
+            get { unsafe { return AnimationComponent_GetSpeed_Ptr != null ? AnimationComponent_GetSpeed_Ptr(Entity.ID) : 1.0f; } }
+            set { unsafe { if (AnimationComponent_SetSpeed_Ptr != null) AnimationComponent_SetSpeed_Ptr(Entity.ID, value); } }
         }
 
         public bool IsFinished
@@ -63,6 +73,23 @@ namespace Chained
 
         public void Play() => IsPlaying = true;
         public void Pause() => IsPlaying = false;
+        public void Stop()
+        {
+            unsafe
+            {
+                if (AnimationComponent_Stop_Ptr != null)
+                    AnimationComponent_Stop_Ptr(Entity.ID);
+            }
+        }
+
+        public void PlayClip(int index, bool loop = true, float speed = 1.0f)
+        {
+            unsafe
+            {
+                if (AnimationComponent_PlayClip_Ptr != null)
+                    AnimationComponent_PlayClip_Ptr(Entity.ID, index, (byte)(loop ? 1 : 0), speed);
+            }
+        }
 
         public void CrossFade(int targetIndex, float duration = 0.25f)
         {

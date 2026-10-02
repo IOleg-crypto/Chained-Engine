@@ -2,6 +2,8 @@
 #include "engine/core/log.h"
 #include "engine/common/platform_detection.h"
 
+#ifdef CH_ENABLE_STUN
+
 #if CH_PLATFORM_WINDOWS
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -421,3 +423,35 @@ namespace Chained
 	}
 
 } // namespace Chained
+
+#else // !CH_ENABLE_STUN
+
+namespace Chained
+{
+	StunClient::~StunClient() = default;
+	void StunClient::Shutdown()
+	{
+	}
+	void StunClient::AddServer(const std::string&, uint16_t)
+	{
+	}
+	void StunClient::QueryPublicEndpoint(uint16_t, Callback callback)
+	{
+		if (callback)
+		{
+			StunResult res;
+			res.Success = false;
+			res.Error = "STUN is disabled (CH_ENABLE_STUN=OFF)";
+			callback(res);
+		}
+	}
+	StunClient::StunResult StunClient::QueryPublicEndpointSync(uint16_t, int)
+	{
+		StunResult res;
+		res.Success = false;
+		res.Error = "STUN is disabled (CH_ENABLE_STUN=OFF)";
+		return res;
+	}
+} // namespace Chained
+
+#endif // CH_ENABLE_STUN

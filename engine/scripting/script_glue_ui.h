@@ -72,6 +72,16 @@ namespace Chained
 	CH_SCRIPT_FUNC void UI_SetKeyboardFocusHere();
 	CH_SCRIPT_FUNC void UI_SetScrollHereY(float centerYRatio);
 	CH_SCRIPT_FUNC void UI_GetDisplaySize(float* outW, float* outH);
+	CH_SCRIPT_FUNC void UI_PushStyleColor(int32_t colIdx, float r, float g, float b, float a);
+	CH_SCRIPT_FUNC void UI_PopStyleColor(int32_t count);
+	CH_SCRIPT_FUNC void UI_PushStyleVarFloat(int32_t varIdx, float val);
+	CH_SCRIPT_FUNC void UI_PushStyleVarVec2(int32_t varIdx, float x, float y);
+	CH_SCRIPT_FUNC void UI_PopStyleVar(int32_t count);
+	CH_SCRIPT_FUNC void UI_Dummy(float w, float h);
+	CH_SCRIPT_FUNC uint8_t UI_IsItemHovered();
+	CH_SCRIPT_FUNC void UI_SetWindowFontScale(float scale);
+	CH_SCRIPT_FUNC uint8_t UI_SliderFloat(const Coral::UCChar* label, float* v, float v_min, float v_max);
+	CH_SCRIPT_FUNC uint8_t UI_Checkbox(const Coral::UCChar* label, uint8_t* v);
 
 } // namespace Chained
 #endif

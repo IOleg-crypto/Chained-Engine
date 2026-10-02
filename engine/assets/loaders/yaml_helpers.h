@@ -7,6 +7,23 @@
 namespace Chained
 {
 
+	inline YAML::Node Vec2ToYAML(const glm::vec2& v)
+	{
+		YAML::Node node;
+		node.push_back(v.x);
+		node.push_back(v.y);
+		return node;
+	}
+
+	inline glm::vec2 Vec2FromYAML(const YAML::Node& node, const glm::vec2& defaultVal = {0.0f, 0.0f})
+	{
+		if (!node || !node.IsSequence() || node.size() < 2)
+		{
+			return defaultVal;
+		}
+		return {node[0].as<float>(), node[1].as<float>()};
+	}
+
 	inline YAML::Node Vec4ToYAML(const glm::vec4& v)
 	{
 		YAML::Node node;

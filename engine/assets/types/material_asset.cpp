@@ -20,6 +20,10 @@ namespace Chained
 			out << YAML::Key << "Roughness" << YAML::Value << m_Material.Roughness;
 			out << YAML::Key << "Transparent" << YAML::Value << m_Material.Transparent;
 			out << YAML::Key << "Alpha" << YAML::Value << m_Material.Alpha;
+			out << YAML::Key << "FlipUV_Y" << YAML::Value << m_Material.FlipUV_Y;
+			out << YAML::Key << "FlipUV_X" << YAML::Value << m_Material.FlipUV_X;
+			out << YAML::Key << "UVScale" << YAML::Value << Vec2ToYAML(m_Material.UVScale);
+			out << YAML::Key << "UVOffset" << YAML::Value << Vec2ToYAML(m_Material.UVOffset);
 
 			if (!m_Material.AlbedoPath.empty())
 			{

@@ -4,11 +4,6 @@
 
 namespace Chained::Core
 {
-	Input* Input::GetInstance()
-	{
-		return ServiceLocator::Get<Core::Input>();
-	}
-
 	Input::Input() = default;
 
 	Input::~Input() = default;
@@ -25,250 +20,171 @@ namespace Chained::Core
 
 	void Input::ResetAll()
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return;
-		}
-		inst->m_KeyStates.fill(false);
-		inst->m_LastKeyStates.fill(false);
-		inst->m_MouseStates.fill(false);
-		inst->m_LastMouseStates.fill(false);
-		inst->m_MousePosition = {0.0f, 0.0f};
-		inst->m_LastMousePosition = {0.0f, 0.0f};
-		inst->m_MouseWheelAccumulator = 0.0f;
-		inst->m_CurrentMouseWheelDelta = 0.0f;
-		inst->m_MouseWheelHAccumulator = 0.0f;
-		inst->m_CurrentMouseWheelHDelta = 0.0f;
-		inst->m_FirstMouseUpdate = true;
+		m_KeyStates.fill(false);
+		m_LastKeyStates.fill(false);
+		m_MouseStates.fill(false);
+		m_LastMouseStates.fill(false);
+		m_MousePosition = {0.0f, 0.0f};
+		m_LastMousePosition = {0.0f, 0.0f};
+		m_MouseWheelAccumulator = 0.0f;
+		m_CurrentMouseWheelDelta = 0.0f;
+		m_MouseWheelHAccumulator = 0.0f;
+		m_CurrentMouseWheelHDelta = 0.0f;
+		m_FirstMouseUpdate = true;
 	}
 
 	void Input::Update(Timestep ts)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return;
-		}
-		inst->m_LastKeyStates = inst->m_KeyStates;
-		inst->m_LastMouseStates = inst->m_MouseStates;
-		inst->m_LastMousePosition = inst->m_MousePosition;
-		inst->m_CurrentMouseWheelDelta = inst->m_MouseWheelAccumulator;
-		inst->m_MouseWheelAccumulator = 0.0f;
-		inst->m_CurrentMouseWheelHDelta = inst->m_MouseWheelHAccumulator;
-		inst->m_MouseWheelHAccumulator = 0.0f;
+		m_LastKeyStates = m_KeyStates;
+		m_LastMouseStates = m_MouseStates;
+		m_LastMousePosition = m_MousePosition;
+		m_CurrentMouseWheelDelta = m_MouseWheelAccumulator;
+		m_MouseWheelAccumulator = 0.0f;
+		m_CurrentMouseWheelHDelta = m_MouseWheelHAccumulator;
+		m_MouseWheelHAccumulator = 0.0f;
 	}
 
 	bool Input::IsKeyPressed(KeyCode key)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return false;
-		}
 		auto code = static_cast<size_t>(key);
-		if (code >= inst->m_KeyStates.size())
+		if (code >= m_KeyStates.size())
 		{
 			return false;
 		}
-		return inst->m_KeyStates[code] && !inst->m_LastKeyStates[code];
+		return m_KeyStates[code] && !m_LastKeyStates[code];
 	}
 
 	bool Input::IsKeyDown(KeyCode key)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return false;
-		}
 		auto code = static_cast<size_t>(key);
-		if (code >= inst->m_KeyStates.size())
+		if (code >= m_KeyStates.size())
 		{
 			return false;
 		}
-		return inst->m_KeyStates[code];
+		return m_KeyStates[code];
 	}
 
 	bool Input::IsKeyReleased(KeyCode key)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return false;
-		}
 		auto code = static_cast<size_t>(key);
-		if (code >= inst->m_KeyStates.size())
+		if (code >= m_KeyStates.size())
 		{
 			return false;
 		}
-		return !inst->m_KeyStates[code] && inst->m_LastKeyStates[code];
+		return !m_KeyStates[code] && m_LastKeyStates[code];
 	}
 
 	bool Input::IsKeyUp(KeyCode key)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return true;
-		}
 		auto code = static_cast<size_t>(key);
-		if (code >= inst->m_KeyStates.size())
+		if (code >= m_KeyStates.size())
 		{
 			return true;
 		}
-		return !inst->m_KeyStates[code];
+		return !m_KeyStates[code];
 	}
 
 	bool Input::IsMouseButtonPressed(MouseCode button)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return false;
-		}
 		auto code = static_cast<size_t>(button);
-		if (code >= inst->m_MouseStates.size())
+		if (code >= m_MouseStates.size())
 		{
 			return false;
 		}
-		return inst->m_MouseStates[code] && !inst->m_LastMouseStates[code];
+		return m_MouseStates[code] && !m_LastMouseStates[code];
 	}
 
 	bool Input::IsMouseButtonDown(MouseCode button)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return false;
-		}
 		auto code = static_cast<size_t>(button);
-		if (code >= inst->m_MouseStates.size())
+		if (code >= m_MouseStates.size())
 		{
 			return false;
 		}
-		return inst->m_MouseStates[code];
+		return m_MouseStates[code];
 	}
 
 	bool Input::IsMouseButtonReleased(MouseCode button)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return false;
-		}
 		auto code = static_cast<size_t>(button);
-		if (code >= inst->m_MouseStates.size())
+		if (code >= m_MouseStates.size())
 		{
 			return false;
 		}
-		return !inst->m_MouseStates[code] && inst->m_LastMouseStates[code];
+		return !m_MouseStates[code] && m_LastMouseStates[code];
 	}
 
 	bool Input::IsMouseButtonUp(MouseCode button)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return true;
-		}
 		auto code = static_cast<size_t>(button);
-		if (code >= inst->m_MouseStates.size())
+		if (code >= m_MouseStates.size())
 		{
 			return true;
 		}
-		return !inst->m_MouseStates[code];
+		return !m_MouseStates[code];
 	}
 
 	glm::vec2 Input::GetMousePosition()
 	{
-		auto* inst = GetInstance();
-		return inst ? inst->m_MousePosition : glm::vec2{0.0f, 0.0f};
+		return m_MousePosition;
 	}
 
 	glm::vec2 Input::GetMouseDelta()
 	{
-		auto* inst = GetInstance();
-		if (!inst)
+		if (m_FirstMouseUpdate)
 		{
 			return {0.0f, 0.0f};
 		}
-		if (inst->m_FirstMouseUpdate)
-		{
-			return {0.0f, 0.0f};
-		}
-		return inst->m_MousePosition - inst->m_LastMousePosition;
+		return m_MousePosition - m_LastMousePosition;
 	}
 
 	float Input::GetMouseWheelMove()
 	{
-		auto* inst = GetInstance();
-		return inst ? inst->m_CurrentMouseWheelDelta : 0.0f;
+		return m_CurrentMouseWheelDelta;
 	}
 
 	float Input::GetMouseWheelHMove()
 	{
-		auto* inst = GetInstance();
-		return inst ? inst->m_CurrentMouseWheelHDelta : 0.0f;
+		return m_CurrentMouseWheelHDelta;
 	}
 
 	glm::vec2 Input::GetMouseScroll()
 	{
-		auto* inst = GetInstance();
-		return inst ? glm::vec2(inst->m_CurrentMouseWheelHDelta, inst->m_CurrentMouseWheelDelta) : glm::vec2(0.0f);
+		return glm::vec2(m_CurrentMouseWheelHDelta, m_CurrentMouseWheelDelta);
 	}
 
 	void Input::OnKey(KeyCode key, bool pressed)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return;
-		}
 		auto code = static_cast<size_t>(key);
-		if (code < inst->m_KeyStates.size())
+		if (code < m_KeyStates.size())
 		{
-			inst->m_KeyStates[code] = pressed;
+			m_KeyStates[code] = pressed;
 		}
 	}
 
 	void Input::OnMouseButton(MouseCode button, bool pressed)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return;
-		}
 		auto code = static_cast<size_t>(button);
-		if (code < inst->m_MouseStates.size())
+		if (code < m_MouseStates.size())
 		{
-			inst->m_MouseStates[code] = pressed;
+			m_MouseStates[code] = pressed;
 		}
 	}
 
 	void Input::OnMouseMove(float x, float y)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
+		if (m_FirstMouseUpdate)
 		{
-			return;
+			m_LastMousePosition = {x, y};
+			m_FirstMouseUpdate = false;
 		}
-		if (inst->m_FirstMouseUpdate)
-		{
-			inst->m_LastMousePosition = {x, y};
-			inst->m_FirstMouseUpdate = false;
-		}
-		inst->m_MousePosition = {x, y};
+		m_MousePosition = {x, y};
 	}
 
 	void Input::OnMouseScroll(float xOffset, float yOffset)
 	{
-		auto* inst = GetInstance();
-		if (!inst)
-		{
-			return;
-		}
-		inst->m_MouseWheelAccumulator += yOffset;
-		inst->m_MouseWheelHAccumulator += xOffset;
+		m_MouseWheelAccumulator += yOffset;
+		m_MouseWheelHAccumulator += xOffset;
 	}
 
 } // namespace Chained::Core

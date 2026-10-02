@@ -10,6 +10,8 @@ uniform float u_Exposure;
 uniform float u_Brightness;
 uniform float u_Contrast;
 uniform int u_VFlipped;
+uniform int u_HFlipped;
+uniform float u_Rotation;
 uniform vec3 u_SunDir;
 uniform int u_SunEnabled;
 uniform float u_SunIntensity;
@@ -29,8 +31,15 @@ vec2 SampleSpherical(vec3 dir)
 void main()
 {
     vec3 direction = normalize(v_Position);
+    if (u_Rotation != 0.0)
+    {
+        float s = sin(u_Rotation);
+        float c = cos(u_Rotation);
+        direction = vec3(c * direction.x + s * direction.z, direction.y, -s * direction.x + c * direction.z);
+    }
     vec2 uv = SampleSpherical(direction);
     if (u_VFlipped == 1) uv.y = 1.0 - uv.y;
+    if (u_HFlipped == 1) uv.x = 1.0 - uv.x;
 
     // Filter derivative seam: across the wrap boundary (uv.x jumping 0 -> 1),
     // derivatives jump to ~1.0 causing mipmap popping / vertical line artifact.

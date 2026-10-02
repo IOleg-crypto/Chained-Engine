@@ -2,14 +2,6 @@ Prefab: Player
 RootEntity: 10143220268921709979
 Entities:
   - Entity: 10143220268921709979
-    ManagedScriptComponent:
-      Scripts:
-        - ClassName: chaineddecos.scripts.gamehud
-        - ClassName: chaineddecos.scripts.scoreboardhud
-        - ClassName: chaineddecos.scripts.ingamechat
-        - ClassName: chaineddecos.scripts.debuginfoscript
-        - ClassName: chaineddecos.scripts.playercontroller
-        - ClassName: chaineddecos.scripts.cameracontroller
     ModelComponent:
       ModelPath: models/skeleton/scene.gltf
       ModelUUID: 0

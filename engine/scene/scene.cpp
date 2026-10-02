@@ -5,6 +5,8 @@
 #include "engine/ui/ui_data_components.h"
 #include "engine/ui/widget_renderer.h"
 #include "engine/physics/physics.h"
+#include "engine/audio/audio.h"
+#include "engine/assets/asset_manager.h"
 #include "engine/scene/components/animation/animation_component.h"
 #include "engine/scene/components/core/hierarchy_component.h"
 #include "engine/scene/components/ui/scene_transition_component.h"
@@ -22,7 +24,8 @@
 #include "scene_scripting_manager.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/scene/prefab_serializer.h"
-#include "engine/app/application.h"
+#include "engine/runtime/session_api.h"
+#include "engine/core/application_event_proxy.h"
 
 namespace Chained
 {
@@ -50,6 +53,7 @@ namespace Chained
 
 	Scene::~Scene()
 	{
+		NetworkSystem::Reset(this);
 		auto& reg = *m_Registry;
 		reg.on_destroy<IDComponent>().disconnect();
 		reg.on_destroy<HierarchyComponent>().disconnect();
@@ -239,30 +243,33 @@ namespace Chained
 			m_ScriptingManager->OnRuntimeStop();
 		}
 
-		AudioSystem::OnRuntimeStop(*m_Registry);
+		AudioSystem::OnRuntimeStop(*m_Registry, ServiceLocator::TryGet<Audio>());
+		NetworkSystem::Reset(this);
 
-		if (auto* netSys = ServiceLocator::TryGet<NetworkSystem>())
+		bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
+		if (!hasSuspended)
 		{
-			netSys->Reset();
-		}
+			if (auto* physics = ServiceLocator::TryGet<Physics>())
+			{
+				physics->ClearContext(this);
+			}
 
-		if (auto* physics = ServiceLocator::TryGet<Physics>())
-		{
-			physics->ClearContext(this);
-		}
-
-		if (auto* scripting = ServiceLocator::TryGet<ScriptEngine>())
-		{
-			scripting->SetContextScene(nullptr);
+			if (auto* scripting = ServiceLocator::TryGet<ScriptEngine>())
+			{
+				scripting->SetContextScene(nullptr);
+			}
 		}
 	}
 
 	void Scene::TickCommonSystems(Timestep ts)
 	{
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		auto* audioSvc = ServiceLocator::TryGet<Audio>();
+
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		AssetResolutionSystem::Update(*m_Registry);
-		AnimationSystem::Update(*m_Registry, ts);
-		AudioSystem::Update(*m_Registry);
+		AssetResolutionSystem::Update(*m_Registry, assets);
+		AnimationSystem::Update(*m_Registry, ts, assets);
+		AudioSystem::Update(*m_Registry, audioSvc);
 		m_Dispatcher.update();
 	}
 
@@ -276,21 +283,16 @@ namespace Chained
 			return;
 		}
 
-		auto* netSys = ServiceLocator::TryGet<NetworkSystem>();
-		if (netSys)
-		{
-			netSys->PollNetwork(this, ts);
-		}
+		auto* net = ServiceLocator::TryGet<Network>();
+
+		NetworkSystem::PollNetwork(this, ts, net);
 
 		// Interpolate remote entities BEFORE scripts so PlayerController
 		// reads the correct velocity/grounded values for animation.
-		if (auto* net = ServiceLocator::TryGet<Network>())
+		if (net && net->IsClient())
 		{
-			if (net->IsClient() && netSys)
-			{
-				float dt = static_cast<float>(ts);
-				netSys->InterpolateEntities(*m_Registry, dt);
-			}
+			float dt = static_cast<float>(ts);
+			NetworkSystem::InterpolateEntities(*m_Registry, dt);
 		}
 
 		if (m_ScriptingManager)
@@ -301,10 +303,7 @@ namespace Chained
 		TickCommonSystems(ts);
 
 		PhysicsBodySystem::Update(*m_Registry);
-		if (netSys)
-		{
-			netSys->ApplyHostInputs(*m_Registry, ts);
-		}
+		NetworkSystem::ApplyHostInputs(*m_Registry, ts);
 
 		if (auto* physics = ServiceLocator::TryGet<Physics>())
 		{
@@ -312,15 +311,12 @@ namespace Chained
 		}
 
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		if (netSys)
-		{
-			netSys->FinalizeFrame(this, ts);
-		}
+		NetworkSystem::FinalizeFrame(this, ts, net);
 
 		if (auto target = SceneTransitionSystem::Update(*m_Registry))
 		{
 			SceneChangeRequestEvent ev(*target);
-			Application::Get().OnEvent(ev);
+			ApplicationEventProxy::Dispatch(ev);
 		}
 	}
 
@@ -346,11 +342,22 @@ namespace Chained
 
 	void Scene::InitializePhysicsStartup()
 	{
+		if (m_Settings.Type == SceneType::UI)
+		{
+			m_IsStartingUp = false;
+			FinishRuntimeStart();
+			return;
+		}
+
 		if (auto* physics = ServiceLocator::TryGet<Physics>())
 		{
 			if (!m_PhysicsStartupInitialized)
 			{
-				physics->ResetWorld(this);
+				bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
+				if (!hasSuspended)
+				{
+					physics->ResetWorld(this);
+				}
 				physics->ResetAccumulator(this);
 				if (!m_Registry->ctx().contains<Physics*>())
 				{
@@ -359,9 +366,10 @@ namespace Chained
 				m_PhysicsStartupInitialized = true;
 			}
 
-			PhysicsBodySystem::Update(*m_Registry);
+			auto* assets = ServiceLocator::TryGet<AssetManager>();
+			PhysicsBodySystem::Update(*m_Registry, physics, assets);
 
-			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld()))
+			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld(), assets))
 			{
 				return;
 			}

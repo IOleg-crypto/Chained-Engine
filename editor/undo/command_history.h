@@ -19,6 +19,15 @@ namespace Chained
 		void Undo();
 		void Redo();
 
+		bool CanUndo() const
+		{
+			return !m_UndoStack.empty();
+		}
+		bool CanRedo() const
+		{
+			return !m_RedoStack.empty();
+		}
+
 	private:
 		size_t m_MaxHistory;
 		std::deque<std::unique_ptr<IEditorCommand>> m_UndoStack;

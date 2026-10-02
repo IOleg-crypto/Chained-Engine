@@ -83,6 +83,9 @@ namespace MyGame
         // integer value of the native EventType enum.
         public override void OnEvent(int eventType) { }
 
+        // Called when a new scene is loaded (primarily used by [Autoload] global scripts).
+        public virtual void OnSceneLoaded() { }
+
         // Called once when the script is torn down.
         public override void OnDestroy() { }
     }
@@ -93,6 +96,46 @@ Ordering guarantees: `OnCreate` runs one frame after instantiation, `OnStart` ru
 frame after `OnCreate`, and `OnUpdate` only begins once `OnStart` has completed. This
 staging is deliberate — it prevents `OnUpdate` from running on the same frame the
 script was created.
+
+### Global & Auto-Attached Scripts
+
+Chained Engine supports automated script discovery and lifecycle management via attributes:
+
+#### `[Autoload]` / `[GlobalScript]`
+Marks a script as a persistent global service (Singleton). The engine automatically instantiates it on startup with a global entity ID and preserves it across all scene transitions (`Scene.LoadScene`). You do **not** need to attach it to any entity in the editor.
+
+```csharp
+[Autoload]
+public class GameManager : Script
+{
+    public static GameManager Instance { get; private set; }
+    public int Score = 0;
+
+    public override void OnCreate()
+    {
+        Instance = this;
+    }
+
+    public override void OnSceneLoaded()
+    {
+        Log.Info($"New scene loaded! Current score: {Score}");
+    }
+}
+```
+
+#### `[AutoAttach("Tag")]`
+Automatically attaches the script to any entity in the scene matching the specified tag when the scene loads. Eliminates the need to manually add script components in the editor.
+
+```csharp
+[AutoAttach("Player")]
+public class PlayerController : Script
+{
+    public override void OnUpdate(float deltaTime)
+    {
+        // Controls the entity tagged "Player"
+    }
+}
+```
 
 ### Accessing the owning entity
 

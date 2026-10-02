@@ -13,11 +13,13 @@
 
 namespace Chained
 {
+	struct EditorState;
+	class EditorSceneManager;
 
 	class AnimGraphPanel : public Panel
 	{
 	public:
-		AnimGraphPanel();
+		AnimGraphPanel(EditorState* editorState = nullptr, EditorSceneManager* sceneManager = nullptr);
 		~AnimGraphPanel() override;
 
 		void OnImGuiRender(bool readOnly = false) override;
@@ -81,6 +83,9 @@ namespace Chained
 		void ApplyPreview(AnimationGraphAsset* graph, int nodeIdx, Entity entity);
 		void DrawProperties(AnimationGraphAsset* graph, Entity entity);
 		void SaveGraph(AnimationGraphAsset* graph, const std::string& path);
+
+		EditorState* m_EditorState = nullptr;
+		EditorSceneManager* m_SceneManager = nullptr;
 	};
 
 } // namespace Chained

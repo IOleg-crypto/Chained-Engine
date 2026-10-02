@@ -21,6 +21,7 @@
 #include "components/gameplay/player_component.h"
 #include "components/gameplay/spawn_component.h"
 #include "components/gameplay/network_identity_component.h"
+#include "components/gameplay/network_interpolation_component.h"
 #include "components/scripting/scripting_components.h"
 
 #endif // CH_COMPONENTS_H

@@ -30,6 +30,17 @@ namespace Chained
 
 		virtual void SetContext(const std::shared_ptr<Scene>& context)
 		{
+			if (!context)
+			{
+				CH_CORE_WARN("Panel::SetContext called with null context. This is not allowed.");
+				return;
+			}
+			if (m_Context == context)
+			{
+				CH_CORE_WARN("Panel::SetContext called with the same context. This is not allowed.");
+				return;
+			}
+
 			m_Context = context;
 		}
 

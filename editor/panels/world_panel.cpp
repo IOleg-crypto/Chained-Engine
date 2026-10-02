@@ -1,5 +1,5 @@
 #include "world_panel.h"
-#include "editor/layer.h"
+#include "editor/scene_manager.h"
 #include "editor/project/project_serializer.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/environment_asset.h"
@@ -52,7 +52,8 @@ namespace Chained
 		}
 	}
 
-	WorldPanel::WorldPanel()
+	WorldPanel::WorldPanel(EditorSceneManager* sceneManager)
+		: m_SceneManager(sceneManager)
 	{
 		m_Name = "World Settings";
 	}
@@ -262,7 +263,7 @@ namespace Chained
 
 			if (ImGui::IsItemDeactivatedAfterEdit())
 			{
-				SceneState state = EditorLayer::Get().GetSceneState();
+				SceneState state = m_SceneManager ? m_SceneManager->GetSceneState() : SceneState::Edit;
 				if (state == SceneState::Play || state == SceneState::Simulate)
 				{
 					if (auto* physics = ServiceLocator::TryGet<Physics>())
@@ -405,6 +406,9 @@ namespace Chained
 					out << YAML::Key << "Exposure" << YAML::Value << s.Skybox.Exposure;
 					out << YAML::Key << "Brightness" << YAML::Value << s.Skybox.Brightness;
 					out << YAML::Key << "Contrast" << YAML::Value << s.Skybox.Contrast;
+					out << YAML::Key << "FlipUV_Y" << YAML::Value << s.Skybox.FlipUV_Y;
+					out << YAML::Key << "FlipUV_X" << YAML::Value << s.Skybox.FlipUV_X;
+					out << YAML::Key << "Rotation" << YAML::Value << s.Skybox.Rotation;
 					out << YAML::EndMap;
 
 					out << YAML::Key << "Fog" << YAML::BeginMap;
@@ -646,6 +650,29 @@ namespace Chained
 			if (ImGui::IsItemHovered())
 			{
 				ImGui::SetTooltip("Skybox contrast. Higher values make brights brighter and darks darker");
+			}
+			DrawDragFloat("Rotation", &settings.Skybox.Rotation, 1.0f, 0.0f, 360.0f);
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Skybox horizontal rotation angle in degrees (0° to 360°)");
+			}
+
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text("Flip UV (Y)");
+			ImGui::SameLine(100);
+			ImGui::Checkbox("##SkyFlipUV_Y", &settings.Skybox.FlipUV_Y);
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Flip skybox texture vertically (invert V/Y axis)");
+			}
+
+			ImGui::AlignTextToFramePadding();
+			ImGui::Text("Flip UV (X)");
+			ImGui::SameLine(100);
+			ImGui::Checkbox("##SkyFlipUV_X", &settings.Skybox.FlipUV_X);
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Flip skybox texture horizontally (mirror U/X axis)");
 			}
 
 			if (readOnly)

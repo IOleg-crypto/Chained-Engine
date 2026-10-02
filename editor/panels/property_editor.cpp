@@ -1,9 +1,11 @@
 #include "property_editor.h"
+#include "engine/scene/components/core/tag_component.h"
+#include "engine/scene/components/core/transform_component.h"
 #include "engine/reflection/reflection_rfl.h"
 #include "engine/reflection/reflection_rfl_impl.h"
 #include "engine/scene/component_registry.h"
 #include "thirdparty/IconsFontAwesome6.h"
-#include "editor/layer.h"
+#include "editor/undo/command_history.h"
 #include "editor/undo/component_commands.h"
 #include "editor/undo/modify_component_command.h"
 #include "engine/core/service_locator.h"
@@ -29,6 +31,10 @@
 #include "engine/ui/ui_font_registry.h"
 #include "engine/ui/widget_renderer.h"
 
+namespace
+{
+	static Chained::CommandHistory* s_CommandHistory = nullptr;
+}
 namespace Chained
 {
 
@@ -348,11 +354,8 @@ namespace Chained
 				comp.Reflect(props);
 			}
 
-			if (ui.HasStarted())
-			{
-				s_InitialStates[e] = entity.GetComponent<T>();
-			}
-
+			// Finish first: consume the stored baseline before a same-frame
+			// activation of another field overwrites it.
 			if (ui.HasFinished())
 			{
 				if (s_InitialStates.contains(e))
@@ -360,11 +363,19 @@ namespace Chained
 					auto oldState = s_InitialStates[e];
 					auto newState = comp;
 
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<ModifyComponentCommand<T>>(entity, oldState, newState, "Modify " + name));
+					if (s_CommandHistory)
+					{
+						s_CommandHistory->PushCommand(
+							std::make_unique<ModifyComponentCommand<T>>(entity, oldState, newState, "Modify " + name));
+					}
 
 					s_InitialStates.erase(e);
 				}
+			}
+
+			if (ui.HasStarted())
+			{
+				s_InitialStates[e] = entity.GetComponent<T>();
 			}
 
 			return props.HasChanged();
@@ -391,20 +402,25 @@ namespace Chained
 					return false;
 				},
 				[&]() {
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<RemoveComponentCommand<T>>(entity));
+					if (s_CommandHistory)
+					{
+						s_CommandHistory->PushCommand(std::make_unique<RemoveComponentCommand<T>>(entity));
+					}
+					else
+					{
+						entity.RemoveComponent<T>();
+					}
 				});
 		}
 	}
 
-	void PropertyEditor::DrawGenericReflection(const ComponentMetadata& metadata, Entity entity)
+	void PropertyEditor::DrawGenericReflection(entt::id_type typeId, const ComponentMetadata& metadata, Entity entity)
 	{
-		// Use a stable hash of the component name as the tree node ID
-		// to avoid ImGui ID collisions when multiple generic components are rendered
-		entt::id_type stableId = static_cast<entt::id_type>(std::hash<std::string>{}(metadata.Name));
-
+		// Pass the real EnTT type hash so that DrawComponentInternal's
+		// canDeleteComponent guard correctly identifies protected components
+		// (TagComponent, TransformComponent, ControlComponent).
 		DrawComponentInternal(
-			stableId, metadata.Name, metadata.Icon, entity,
+			typeId, metadata.Name, metadata.Icon, entity,
 			[&]() {
 				UIProperties ui;
 				metadata.ReflectInternal(entity, ui, ReflectionMode::UI);
@@ -449,11 +465,25 @@ namespace Chained
 		override.Add = [](Entity e) {
 			if (!e.HasComponent<T>())
 			{
-				EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<AddComponentCommand<T>>(e));
+				if (s_CommandHistory)
+				{
+					s_CommandHistory->PushCommand(std::make_unique<AddComponentCommand<T>>(e));
+				}
+				else
+				{
+					e.AddComponent<T>();
+				}
 			}
 		};
 		override.Remove = [](Entity e) {
-			EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<RemoveComponentCommand<T>>(e));
+			if (s_CommandHistory)
+			{
+				s_CommandHistory->PushCommand(std::make_unique<RemoveComponentCommand<T>>(e));
+			}
+			else
+			{
+				e.RemoveComponent<T>();
+			}
 		};
 		ComponentRegistry::OverrideMetadata(typeId, override);
 	}
@@ -473,10 +503,22 @@ namespace Chained
 
 	// --- Implementation ---
 
-	void PropertyEditor::Init()
+	void PropertyEditor::SetCommandHistory(CommandHistory* commandHistory)
 	{
-		// --- Core Components ---
+		if (commandHistory == nullptr)
+		{
+			CH_CORE_WARN("PropertyEditor::SetCommandHistory — commandHistory is nullptr. Undo/Redo will be disabled.");
+		}
+		s_CommandHistory = commandHistory;
+	}
+
+	void PropertyEditor::Init(CommandHistory* commandHistory)
+	{
+		s_CommandHistory = commandHistory;
+		// --- Core Components --- cannot be added or removed manually
+		ComponentRegistry::SetAllowAdd(entt::type_hash<TagComponent>::value(), false);
 		ComponentRegistry::SetAllowAdd(entt::type_hash<TransformComponent>::value(), false);
+		ComponentRegistry::SetAllowAdd(entt::type_hash<ControlComponent>::value(), false);
 
 		RegisterCustom<LightComponent>(
 			"Light",
@@ -850,13 +892,180 @@ namespace Chained
 				UIProperties ui;
 				Properties props(ui);
 
+				auto* am = ServiceLocator::TryGet<AssetManager>();
+				std::shared_ptr<ModelAsset> modelAsset = nullptr;
+				if (am && entity.HasComponent<ModelComponent>())
+				{
+					const auto& mc = entity.GetComponent<ModelComponent>();
+					if (!mc.ModelPath.empty())
+					{
+						modelAsset = am->Get<ModelAsset>(mc.ModelPath);
+						if (!modelAsset)
+						{
+							auto handle = am->ResolveToHandle(mc.ModelPath);
+							if (handle != AssetHandle(0))
+							{
+								modelAsset = am->Get<ModelAsset>(handle);
+							}
+						}
+					}
+				}
+
+				// --- Mode Indicator ---
+				bool isGraphDriven = comp.IsGraphDriven();
+				if (isGraphDriven)
+				{
+					ImGui::TextColored(ImVec4(0.3f, 0.8f, 0.9f, 1.0f), "Mode: Animation Graph");
+				}
+				else
+				{
+					ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Mode: Direct Clip (Standalone)");
+				}
+				ImGui::Spacing();
+
+				// --- Standalone Clip Properties ---
+				if (modelAsset && modelAsset->GetAnimationCount() > 0)
+				{
+					const auto& rawAnims = modelAsset->GetAnimations();
+					int animCount = static_cast<int>(rawAnims.size());
+
+					if (comp.CurrentAnimationIndex < 0 || comp.CurrentAnimationIndex >= animCount)
+					{
+						comp.CurrentAnimationIndex = 0;
+					}
+
+					std::string previewName = rawAnims[comp.CurrentAnimationIndex].name;
+					if (previewName.empty())
+					{
+						previewName = "Clip " + std::to_string(comp.CurrentAnimationIndex);
+					}
+					previewName +=
+						" (" + std::to_string(rawAnims[comp.CurrentAnimationIndex].frameCount) + " frames, " +
+						std::to_string(static_cast<int>(rawAnims[comp.CurrentAnimationIndex].frameRate)) + " fps)";
+
+					if (ImGui::BeginCombo("Animation Clip", previewName.c_str()))
+					{
+						for (int i = 0; i < animCount; ++i)
+						{
+							bool isSelected = (comp.CurrentAnimationIndex == i);
+							std::string clipLabel =
+								rawAnims[i].name.empty() ? ("Clip " + std::to_string(i)) : rawAnims[i].name;
+							clipLabel += " (" + std::to_string(rawAnims[i].frameCount) + " f, " +
+										 std::to_string(static_cast<int>(rawAnims[i].frameRate)) + " fps)";
+
+							if (ImGui::Selectable(clipLabel.c_str(), isSelected))
+							{
+								comp.CurrentAnimationIndex = i;
+								comp.CurrentFrame = 0;
+								comp.FrameTimeCounter = 0.0f;
+								comp.IsFinished = false;
+								changed = true;
+							}
+							if (isSelected)
+							{
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+						ImGui::EndCombo();
+					}
+				}
+				else
+				{
+					if (ui.Property("Animation Index", comp.CurrentAnimationIndex))
+					{
+						comp.CurrentFrame = 0;
+						comp.FrameTimeCounter = 0.0f;
+						comp.IsFinished = false;
+						changed = true;
+					}
+				}
+
+				if (ui.Property("Speed", comp.Speed, PropertyMeta(0.0f, 10.0f, 0.05f)))
+				{
+					changed = true;
+				}
+
+				if (ui.Property("Loop", comp.IsLooping))
+				{
+					comp.DefaultIsLooping = comp.IsLooping;
+					changed = true;
+				}
+
+				if (ui.Property("Play On Start", comp.PlayOnStart))
+				{
+					changed = true;
+				}
+
+				// Frame range
+				int startFrame = comp.StartFrame;
+				if (ui.Property("Start Frame", startFrame))
+				{
+					comp.StartFrame = startFrame;
+					changed = true;
+				}
+				int endFrame = comp.EndFrame;
+				if (ui.Property("End Frame", endFrame))
+				{
+					comp.EndFrame = endFrame;
+					changed = true;
+				}
+
+				if (ImGui::Button("Full Frame Range"))
+				{
+					comp.StartFrame = 0;
+					comp.EndFrame = -1;
+					changed = true;
+				}
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Reset frame range to entire animation clip");
+				}
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::TextDisabled("Preview & Playback");
+
+				// Play / Pause / Stop controls
+				if (ImGui::Button(comp.IsPlaying ? " Pause " : " Play "))
+				{
+					comp.IsPlaying = !comp.IsPlaying;
+				}
+				ImGui::SameLine();
+				if (ImGui::Button(" Stop "))
+				{
+					comp.IsPlaying = false;
+					comp.CurrentFrame = comp.StartFrame >= 0 ? comp.StartFrame : 0;
+					comp.FrameTimeCounter = 0.0f;
+				}
+
+				// Scrubber
+				int totalFrames = 100;
+				if (modelAsset && comp.CurrentAnimationIndex >= 0 &&
+					comp.CurrentAnimationIndex < modelAsset->GetAnimationCount())
+				{
+					totalFrames = modelAsset->GetAnimations()[comp.CurrentAnimationIndex].frameCount;
+				}
+				int maxF = (totalFrames > 0) ? (totalFrames - 1) : 100;
+				int curF = comp.CurrentFrame;
+				if (ImGui::SliderInt("Frame", &curF, 0, maxF))
+				{
+					comp.CurrentFrame = curF;
+					comp.FrameTimeCounter = 0.0f;
+				}
+
+				ImGui::TextDisabled("Time: %.2fs / %.2fs  (Frame %d / %d)", comp.CurrentTime, comp.Duration,
+									comp.CurrentFrame, totalFrames);
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Text("Animation Graph (Optional)");
+
 				if (ui.File("Graph Path", comp.GraphPath, ".chag"))
 				{
 					comp.GraphAssetHandle = AssetHandle(0);
 					changed = true;
 				}
 
-				auto* am = ServiceLocator::TryGet<AssetManager>();
 				if (ImGui::Button("New Graph"))
 				{
 					std::string baseName = "anim_graph";
@@ -937,17 +1146,24 @@ namespace Chained
 					ImGui::SetTooltip("Duplicate the current animation graph");
 				}
 
-				if (ui.Property("Blend Duration", comp.BlendDuration, PropertyMeta(0.0f, 10.0f, 0.01f)))
+				if (!comp.GraphPath.empty())
 				{
-					changed = true;
-				}
-				if (ui.Property("Default Loop", comp.DefaultIsLooping))
-				{
-					changed = true;
-				}
-				if (ui.Property("Play On Start", comp.PlayOnStart))
-				{
-					changed = true;
+					ImGui::SameLine();
+					if (ImGui::Button("Clear Graph"))
+					{
+						comp.GraphPath.clear();
+						comp.GraphAssetHandle = AssetHandle(0);
+						changed = true;
+					}
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::SetTooltip("Detach the animation graph and return to direct clip mode");
+					}
+
+					if (ui.Property("Blend Duration", comp.BlendDuration, PropertyMeta(0.0f, 10.0f, 0.01f)))
+					{
+						changed = true;
+					}
 				}
 
 				return changed;
@@ -1335,42 +1551,61 @@ namespace Chained
 												 ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap |
 												 ImGuiTreeNodeFlags_FramePadding;
 
-		ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
+		float contentRegionWidth = ImGui::GetContentRegionAvail().x;
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{4, 4});
+
 		float lineHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
 
-		// Header Background Color
 		ImGui::PushStyleColor(ImGuiCol_Header, {0.2f, 0.25f, 0.35f, 0.8f});
 		ImGui::PushStyleColor(ImGuiCol_HeaderActive, {0.3f, 0.4f, 0.6f, 1.0f});
 		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, {0.25f, 0.35f, 0.5f, 1.0f});
 
 		std::string headerName = (icon ? std::string(icon) + " " : "") + name;
-		bool open = ImGui::TreeNodeEx((void*)typeId, treeNodeFlags, headerName.c_str());
+
+		bool open = ImGui::TreeNodeEx((void*)typeId, treeNodeFlags, "%s", headerName.c_str());
 
 		ImGui::PopStyleColor(3);
-		ImGui::PopStyleVar();
-
-		// Right-aligned settings button
-		ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.7f);
-		ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
-		if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
-		{
-			ImGui::OpenPopup("ComponentSettings");
-		}
-		ImGui::PopStyleColor();
 
 		bool removed = false;
-		if (ImGui::BeginPopup("ComponentSettings"))
+
+		// Components that must never be removed via the Inspector
+		const bool canDeleteComponent = typeId != entt::type_hash<TagComponent>::value() &&
+										typeId != entt::type_hash<TransformComponent>::value() &&
+										typeId != entt::type_hash<ControlComponent>::value();
+
+		if (canDeleteComponent)
 		{
-			if (ImGui::MenuItem("Remove Component"))
+			ImGui::PushID((void*)typeId);
+
+			ImGui::SameLine(contentRegionWidth - lineHeight * 0.8f);
+
+			ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.3f, 0.35f, 0.45f, 0.8f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.2f, 0.25f, 0.35f, 0.8f});
+
+			if (ImGui::Button(ICON_FA_GEAR, ImVec2{lineHeight, lineHeight}))
 			{
-				remover();
-				removed = true;
+				ImGui::OpenPopup("ComponentSettings");
 			}
 
-			ImGui::EndPopup();
+			ImGui::PopStyleColor(3);
+
+			if (ImGui::BeginPopup("ComponentSettings"))
+			{
+				if (ImGui::MenuItem("Remove Component"))
+				{
+					remover();
+					removed = true;
+				}
+
+				ImGui::EndPopup();
+			}
+
+			ImGui::PopID();
 		}
+
+		ImGui::PopStyleVar();
 
 		if (open)
 		{
@@ -1380,6 +1615,7 @@ namespace Chained
 				contentDrawer();
 				EditorGUI::EndPropertyGrid();
 			}
+
 			ImGui::TreePop();
 			ImGui::Spacing();
 		}
@@ -1416,7 +1652,7 @@ namespace Chained
 				}
 				else if (metadata.IsReflective && metadata.ReflectInternal)
 				{
-					DrawGenericReflection(metadata, entity);
+					DrawGenericReflection(id, metadata, entity);
 				}
 				ImGui::PopID();
 			}

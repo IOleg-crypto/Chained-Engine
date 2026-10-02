@@ -1,6 +1,6 @@
 #include "scene_hierarchy_panel.h"
 #include "editor/events.h"
-#include "editor/layer.h"
+#include "editor/scene_manager.h"
 #include "editor/types.h"
 #include "editor/undo/command_history.h"
 #include "engine/app/application.h"
@@ -20,6 +20,7 @@
 #include <functional>
 #include <queue>
 #include <vector>
+#include "engine/core/service_locator.h"
 
 namespace
 {
@@ -66,7 +67,11 @@ namespace
 
 namespace Chained
 {
-	SceneHierarchyPanel::SceneHierarchyPanel()
+	SceneHierarchyPanel::SceneHierarchyPanel(EditorState* editorState, CommandHistory* commandHistory,
+											 EditorSceneManager* sceneManager)
+		: m_EditorState(editorState),
+		  m_CommandHistory(commandHistory),
+		  m_SceneManager(sceneManager)
 	{
 		m_Name = "Scene Hierarchy";
 	}
@@ -91,7 +96,7 @@ namespace Chained
 			m_DrawnEntities.clear();
 			m_EntitiesToDestroyPending.clear();
 
-			bool isTransitioning = EditorLayer::Get().GetSceneManager().IsTransitioning();
+			bool isTransitioning = m_SceneManager ? m_SceneManager->IsTransitioning() : false;
 			ImGui::BeginDisabled(readOnly || isTransitioning);
 
 			std::string filter = m_SearchBuffer;
@@ -137,9 +142,10 @@ namespace Chained
 			}
 
 			// Focus Shortcut
-			if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && Core::Input::IsKeyPressed(KeyCode::F))
+			if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
+				ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::F))
 			{
-				Entity selected = EditorLayer::Get().GetEditorState().SelectedEntity;
+				Entity selected = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 				if (selected)
 				{
 					ViewportFocusEntityEvent e(selected);
@@ -149,13 +155,16 @@ namespace Chained
 
 			// Duplicate Shortcut
 			if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) &&
-				Core::Input::IsKeyDown(KeyCode::LeftControl) && Core::Input::IsKeyPressed(KeyCode::D))
+				ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftControl) &&
+				ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::D))
 			{
-				Entity selected = EditorLayer::Get().GetEditorState().SelectedEntity;
+				Entity selected = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 				if (selected)
 				{
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<DuplicateEntityCommand>(selected));
+					if (m_CommandHistory)
+					{
+						m_CommandHistory->PushCommand(std::make_unique<DuplicateEntityCommand>(selected));
+					}
 				}
 			}
 
@@ -177,8 +186,11 @@ namespace Chained
 					Entity sourceEntity = m_Context->GetEntityByUUID(droppedUUID);
 					if (sourceEntity)
 					{
-						EditorLayer::Get().GetCommandHistory().PushCommand(
-							std::make_unique<ParentEntityCommand>(sourceEntity, Entity{}, m_Context.get()));
+						if (m_CommandHistory)
+						{
+							m_CommandHistory->PushCommand(
+								std::make_unique<ParentEntityCommand>(sourceEntity, Entity{}, m_Context.get()));
+						}
 					}
 				}
 				ImGui::EndDragDropTarget();
@@ -196,7 +208,18 @@ namespace Chained
 				Entity entity(ent, &m_Context->GetRegistry());
 				if (entity.IsValid())
 				{
-					EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<DestroyEntityCommand>(entity));
+					if (m_CommandHistory)
+					{
+						m_CommandHistory->PushCommand(std::make_unique<DestroyEntityCommand>(entity, m_EditorState));
+					}
+					else
+					{
+						if (m_EditorState && m_EditorState->SelectedEntity == entity)
+						{
+							m_EditorState->SelectedEntity = {};
+						}
+						m_Context->DestroyEntity(entity);
+					}
 				}
 			}
 			m_EntitiesToDestroyPending.clear();
@@ -272,7 +295,7 @@ namespace Chained
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
 		std::string label = std::string(GetEntityIcon(entity)) + "  " + tag;
 
-		auto selectedEntity = EditorLayer::Get().GetEditorState().SelectedEntity;
+		Entity selectedEntity = m_EditorState ? m_EditorState->SelectedEntity : Entity{};
 		ImGuiTreeNodeFlags flags = ((selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0);
 		flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 
@@ -321,8 +344,11 @@ namespace Chained
 				Entity sourceEntity = m_Context->GetEntityByUUID(droppedUUID);
 				if (sourceEntity && sourceEntity != entity && !IsDescendant(entity, sourceEntity))
 				{
-					EditorLayer::Get().GetCommandHistory().PushCommand(
-						std::make_unique<ParentEntityCommand>(sourceEntity, entity, m_Context.get()));
+					if (m_CommandHistory)
+					{
+						m_CommandHistory->PushCommand(
+							std::make_unique<ParentEntityCommand>(sourceEntity, entity, m_Context.get()));
+					}
 				}
 			}
 			ImGui::EndDragDropTarget();
@@ -347,7 +373,10 @@ namespace Chained
 			}
 			if (ImGui::MenuItem(ICON_FA_COPY " Duplicate", "Ctrl+D"))
 			{
-				EditorLayer::Get().GetCommandHistory().PushCommand(std::make_unique<DuplicateEntityCommand>(entity));
+				if (m_CommandHistory)
+				{
+					m_CommandHistory->PushCommand(std::make_unique<DuplicateEntityCommand>(entity));
+				}
 			}
 			ImGui::Separator();
 			if (ImGui::MenuItem(ICON_FA_TRASH " Delete Entity", "Del"))
@@ -479,8 +508,18 @@ namespace Chained
 				{
 					if (ImGui::MenuItem(p.label))
 					{
-						EditorLayer::Get().GetCommandHistory().PushCommand(
-							std::make_unique<CreateEntityCommand>(m_Context.get(), p.label, p.mesh));
+						if (m_CommandHistory)
+						{
+							m_CommandHistory->PushCommand(
+								std::make_unique<CreateEntityCommand>(m_Context.get(), p.label, p.mesh));
+						}
+						else
+						{
+							auto entity = m_Context->CreateEntity(p.label);
+							auto& mc = entity.AddComponent<ModelComponent>();
+							mc.ModelPath = p.mesh;
+							SelectEntity(entity, m_Context.get());
+						}
 					}
 					if (ImGui::IsItemHovered())
 					{

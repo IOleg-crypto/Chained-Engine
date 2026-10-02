@@ -22,11 +22,17 @@ namespace Chained
 	class Scene;
 	struct Camera3D;
 	class Event;
+	class EditorSceneManager;
+	struct EditorState;
+	struct EditorConfig;
+	class CommandHistory;
 
 	class ViewportPanel : public Panel
 	{
 	public:
-		ViewportPanel(ImVec2& editorViewportSize);
+		ViewportPanel(ImVec2& editorViewportSize, EditorSceneManager* sceneManager = nullptr,
+					  EditorState* editorState = nullptr, const EditorConfig* config = nullptr,
+					  CommandHistory* commandHistory = nullptr);
 		~ViewportPanel() override;
 
 		void OnImGuiRender(bool readOnly = false) override;
@@ -74,6 +80,10 @@ namespace Chained
 		std::pair<SceneType, BackgroundMode> m_LastSceneState = {SceneType::Default, BackgroundMode::Environment3D};
 
 		ImVec2& m_EditorViewportSize;
+		EditorSceneManager* m_SceneManager = nullptr;
+		EditorState* m_EditorState = nullptr;
+		const EditorConfig* m_Config = nullptr;
+		CommandHistory* m_CommandHistory = nullptr;
 
 	private:
 		void HandleResize(const ImVec2& viewportSize, Scene* activeScene);

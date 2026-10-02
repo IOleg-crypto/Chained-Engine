@@ -23,7 +23,7 @@ namespace Chained
 	struct ChainedAssetHeader
 	{
 		uint32_t magic = 0x43484153;
-		uint32_t version = 3;
+		uint32_t version = 5; // v5: mesh float arrays stored as float16 (half-float) — ~2× smaller
 		uint32_t dataStructSize = sizeof(PendingModelData);
 		uint64_t sourceHash = 0;
 		bool compressed = false;
@@ -47,7 +47,7 @@ namespace Chained
 		bool Load(std::shared_ptr<Asset> asset, const std::string& resolvedPath,
 				  std::string* outError = nullptr) override;
 
-		PendingModelData LoadMeshDataFromDisk(const std::filesystem::path& path, int samplingFPS = 30);
+		static PendingModelData LoadMeshDataFromDisk(const std::filesystem::path& path, int samplingFPS = 30);
 	};
 } // namespace Chained
 

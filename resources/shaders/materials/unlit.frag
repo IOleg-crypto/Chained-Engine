@@ -14,16 +14,17 @@ out vec4 finalColor;
 
 void main()
 {
+    vec2 uv = ProcessUV(fragTexCoord);
     vec4 baseColor = colDiffuse * fragColor;
     if (useTexture == 1)
     {
-        baseColor *= texture(texture0, fragTexCoord);
+        baseColor *= texture(texture0, uv);
     }
     
     vec3 emissiveComp = colEmissive.rgb;
     if (useEmissiveTexture == 1)
     {
-        emissiveComp *= texture(texture1, fragTexCoord).rgb;
+        emissiveComp *= texture(texture1, uv).rgb;
     }
     emissiveComp *= emissiveIntensity;
 

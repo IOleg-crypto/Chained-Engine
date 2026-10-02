@@ -30,15 +30,36 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/pack/CMakeLists.txt")
     set(PACK_BUILD_UTILITIES OFF CACHE BOOL "" FORCE)
     set(PACK_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
+    # Enable ZSTD multithreading so ZSTDMT is compiled into libzstd_static.
+    # This allows ParallelPacker to use ZSTD_c_nbWorkers >= 1 for per-file
+    # parallel compression without modifying thirdparty/ sources.
+    set(ZSTD_MULTITHREAD_SUPPORT ON CACHE BOOL "" FORCE)
+
     add_subdirectory("${CMAKE_SOURCE_DIR}/thirdparty/pack"
         "${CMAKE_BINARY_DIR}/vendor/pack" EXCLUDE_FROM_ALL)
+
+    # Find platform threads (pthreads on Linux/macOS, native on Windows)
+    # Required by ZSTDMT and our own parallel compress thread pool.
+    find_package(Threads REQUIRED)
 
     if(TARGET pack-static)
         if(TARGET lz4_static)
             target_link_libraries(pack-static PUBLIC lz4_static)
+            # Expose lz4hc.h and xxhash.h (LZ4 ships xxhash) so editor_core
+            # can use them directly without modifying thirdparty/.
+            target_include_directories(lz4_static PUBLIC
+                $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/thirdparty/pack/libraries/lz4/lib>
+            )
         endif()
         if(TARGET libzstd_static)
-            target_link_libraries(pack-static PUBLIC libzstd_static)
+            target_link_libraries(pack-static PUBLIC libzstd_static Threads::Threads)
+            # Expose zstd.h and the common/ headers (xxhash.h, zstd_errors.h) so
+            # editor_core can call ZSTD_CCtx_setParameter / ZSTD_compressStream2
+            # for per-file ZSTDMT and Long-Range Matching.
+            target_include_directories(libzstd_static PUBLIC
+                $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/thirdparty/pack/libraries/zstd/lib>
+                $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/thirdparty/pack/libraries/zstd/lib/common>
+            )
         endif()
         if(TARGET mpio-static)
             target_link_libraries(pack-static PUBLIC mpio-static)

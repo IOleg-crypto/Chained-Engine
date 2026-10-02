@@ -13,15 +13,23 @@ endif()
 
 project(ChainedDecos LANGUAGES CXX C)
 
-
-
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(CH_CI "Set to ON for CI environments" OFF)
 option(CH_NETWORKING "Enable networking features in the editor" ON)
+option(CH_ENABLE_UPNP "Enable UPnP automatic port forwarding" ON)
+option(CH_ENABLE_STUN "Enable STUN client for public endpoint discovery" ON)
 
 if(CH_CI)
     add_compile_definitions(CH_CI)
+endif()
+
+if(CH_ENABLE_UPNP)
+    add_compile_definitions(CH_ENABLE_UPNP)
+endif()
+
+if(CH_ENABLE_STUN)
+    add_compile_definitions(CH_ENABLE_STUN)
 endif()
 
 # Global library definitions

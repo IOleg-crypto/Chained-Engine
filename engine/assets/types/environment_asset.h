@@ -25,6 +25,9 @@ namespace Chained
 		float Exposure = 1.0f;
 		float Brightness = 0.0f;
 		float Contrast = 1.0f;
+		bool FlipUV_Y = false;
+		bool FlipUV_X = false;
+		float Rotation = 0.0f;
 	};
 
 	struct FogSettings

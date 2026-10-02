@@ -1,5 +1,4 @@
 #include "panels.h"
-#include "layer.h"
 #include "panels/console_panel.h"
 #include "panels/content_browser_panel.h"
 #include "panels/world_panel.h"
@@ -17,19 +16,23 @@
 namespace Chained
 {
 
-	void EditorPanels::Init()
+	void EditorPanels::Init(EditorSceneManager* sceneManager, EditorState* editorState, const EditorConfig* config,
+							ImVec2* viewportSize, CommandHistory* commandHistory)
 	{
-		Register<ViewportPanel>(EditorLayer::Get().GetViewportSizeRef());
-		Register<SceneHierarchyPanel>();
-		Register<InspectorPanel>();
-		Register<ContentBrowserPanel>();
+		static ImVec2 s_FallbackViewportSize(1280, 720);
+		Register<ViewportPanel>(viewportSize ? *viewportSize : s_FallbackViewportSize, sceneManager, editorState,
+								config, commandHistory);
+
+		Register<SceneHierarchyPanel>(editorState, commandHistory, sceneManager);
+		Register<InspectorPanel>(sceneManager);
+		Register<ContentBrowserPanel>(sceneManager, config);
 		Register<ConsolePanel>();
-		Register<WorldPanel>();
+		Register<WorldPanel>(sceneManager);
 		Register<EffectsPanel>();
-		Register<MaterialPanel>();
+		Register<MaterialPanel>(sceneManager);
 		Register<ProfilerPanel>();
 		Register<ProjectSettingsPanel>();
-		Register<AnimGraphPanel>();
+		Register<AnimGraphPanel>(editorState, sceneManager);
 		Register<NetworkPanel>();
 	}
 
@@ -76,6 +79,12 @@ namespace Chained
 
 	void EditorPanels::SetContext(const std::shared_ptr<Scene>& context)
 	{
+		if (!context || m_Context == context)
+		{
+			return;
+		}
+
+		m_Context = context;
 		for (auto& panel : m_Panels)
 		{
 			panel->SetContext(context);

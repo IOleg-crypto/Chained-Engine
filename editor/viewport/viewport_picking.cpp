@@ -1,9 +1,10 @@
 #include "viewport_picking.h"
-#include "editor/layer.h"
+#include "editor/types.h"
 #include "editor/scene_picking.h"
 #include "editor/viewport/gizmo.h"
 #include "editor/viewport/ui_manipulator.h"
 #include "editor/events.h"
+#include "editor/project/editor_settings.h"
 #include "engine/scene/components.h"
 #include "engine/scene/scene.h"
 #include "engine/ui/widget_renderer.h"
@@ -26,17 +27,17 @@ namespace Chained
 	}
 
 	Entity ViewportPicking::HandleIconPicking(Scene* scene, const Camera3D& camera, const ImVec2& mousePos,
-											  const ImVec2& viewportSize, const ImVec2& viewportScreenPos)
+											  const ImVec2& viewportSize, const ImVec2& viewportScreenPos,
+											  const EditorConfig* config)
 	{
-		if (!EditorLayer::Get().GetConfig().ShowEditorIcons)
+		if (config && !config->ShowEditorIcons)
 		{
 			return {};
 		}
 
-		const auto& editorCfg = EditorLayer::Get().GetConfig();
-		const float iconMin = editorCfg.IconSizeMin;
-		const float iconMax = editorCfg.IconSizeMax;
-		const float iconScale = editorCfg.IconSizeScale;
+		const float iconMin = config ? config->IconSizeMin : 0.5f;
+		const float iconMax = config ? config->IconSizeMax : 2.0f;
+		const float iconScale = config ? config->IconSizeScale : 0.05f;
 
 		const glm::mat4 vp = camera.ProjectionMatrix * camera.ViewMatrix;
 
@@ -119,9 +120,10 @@ namespace Chained
 	}
 
 	void ViewportPicking::HandlePicking(Scene* scene, const ImVec2& viewportSize, const ImVec2& viewportScreenPos,
-										EditorGizmo& gizmo, EditorUIManipulator& uiManipulator, const Camera3D& camera)
+										EditorGizmo& gizmo, EditorUIManipulator& uiManipulator, const Camera3D& camera,
+										SceneState sceneState, bool isTransitioning, const EditorConfig* config)
 	{
-		if (EditorLayer::Get().GetSceneManager().IsTransitioning())
+		if (isTransitioning)
 		{
 			return;
 		}
@@ -130,7 +132,6 @@ namespace Chained
 		bool isDragging = uiManipulator.IsActive();
 		bool isGizmoDragging = gizmo.IsDragging();
 		bool isGizmoHovered = gizmo.IsHovered();
-		SceneState sceneState = EditorLayer::Get().GetSceneManager().GetSceneState();
 		ImVec2 mousePos = ImGui::GetMousePos();
 		bool mouseInViewport =
 			(mousePos.x >= viewportScreenPos.x && mousePos.x <= viewportScreenPos.x + viewportSize.x &&
@@ -174,7 +175,7 @@ namespace Chained
 			// Icon Picking
 			if (!bestHit)
 			{
-				bestHit = HandleIconPicking(scene, camera, mousePos, viewportSize, viewportScreenPos);
+				bestHit = HandleIconPicking(scene, camera, mousePos, viewportSize, viewportScreenPos, config);
 			}
 
 			// 3D Picking

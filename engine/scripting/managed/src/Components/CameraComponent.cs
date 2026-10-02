@@ -11,6 +11,8 @@ namespace Chained
     [NativeCall("Chained.CameraComponent", "Camera_GetRight", "void", "ulong", "Vector3*")]
     [NativeCall("Chained.CameraComponent", "Camera_GetOrbit", "void", "ulong", "float*", "float*", "float*")]
     [NativeCall("Chained.CameraComponent", "Camera_SetOrbit", "void", "ulong", "float", "float", "float")]
+    [NativeCall("Chained.CameraComponent", "Camera_SetFreeFly", "void", "ulong", "Vector3*", "float", "float")]
+    [NativeCall("Chained.CameraComponent", "Camera_UpdateFreeFly", "void", "ulong", "float", "float", "float", "float", "float", "float", "float")]
     public partial class CameraComponent : Component
     {
         public Vector3 Forward
@@ -52,6 +54,22 @@ namespace Chained
         public void SetOrbit(float yaw, float pitch, float distance)
         {
             unsafe { if (Camera_SetOrbit_Ptr != null) Camera_SetOrbit_Ptr(Entity.ID, yaw, pitch, distance); }
+        }
+
+        public void SetFreeFly(Vector3 position, float yaw, float pitch)
+        {
+            unsafe
+            {
+                if (Camera_SetFreeFly_Ptr != null) Camera_SetFreeFly_Ptr(Entity.ID, &position, yaw, pitch);
+            }
+        }
+
+        public void UpdateFreeFly(float forwardInput, float rightInput, float upInput, float deltaYaw, float deltaPitch, float speed, float dt)
+        {
+            unsafe
+            {
+                if (Camera_UpdateFreeFly_Ptr != null) Camera_UpdateFreeFly_Ptr(Entity.ID, forwardInput, rightInput, upInput, deltaYaw, deltaPitch, speed, dt);
+            }
         }
     }
 }

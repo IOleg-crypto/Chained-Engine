@@ -1,6 +1,7 @@
 #include "engine/platform/backends/glfw/glfw_window.h"
 #include "engine/common/engine_assert.h"
 #include "engine/common/platform_detection.h"
+#include "engine/core/events/input_events.h"
 #include "engine/core/events/window_events.h"
 #include "engine/core/input.h"
 
@@ -10,16 +11,16 @@
 #include <GLFW/glfw3.h>
 #include <glad/gl.h>
 #include <stb_image.h>
+#include "engine/core/service_locator.h"
 
 namespace Chained
 {
 
 	static bool s_GLFWInitialized = false;
 
-	std::unique_ptr<Window> Window::Create(const WindowProperties& properties)
+	std::unique_ptr<Window> Window::Create(const WindowProperties& properties, Core::Input* input)
 	{
-
-		return std::make_unique<GlfwWindow>(properties);
+		return std::make_unique<GlfwWindow>(properties, input);
 	}
 
 	static void GLFWErrorCallback(int error, const char* description)
@@ -27,9 +28,9 @@ namespace Chained
 		CH_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
 	}
 
-	GlfwWindow::GlfwWindow(const WindowProperties& properties)
+	GlfwWindow::GlfwWindow(const WindowProperties& properties, Core::Input* input)
 	{
-		Init(properties);
+		Init(properties, input);
 	}
 
 	GlfwWindow::~GlfwWindow()
@@ -37,8 +38,9 @@ namespace Chained
 		Shutdown();
 	}
 
-	void GlfwWindow::Init(const WindowProperties& properties)
+	void GlfwWindow::Init(const WindowProperties& properties, Core::Input* input)
 	{
+		m_Input = input; // Caller must inject via SetInput() after Input service is registered
 		int initialWidth = properties.Width;
 		int initialHeight = properties.Height;
 		m_Title = properties.Title;
@@ -107,72 +109,119 @@ namespace Chained
 		m_FramebufferHeight = (uint32_t)fbHeight;
 
 		glfwSetFramebufferSizeCallback(m_WindowHandle, [](GLFWwindow* window, int width, int height) {
-			auto& glWindow = *(GlfwWindow*)glfwGetWindowUserPointer(window);
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (!userPtr)
+			{
+				return;
+			}
 
-			glWindow.m_FramebufferWidth = (uint32_t)width;
-			glWindow.m_FramebufferHeight = (uint32_t)height;
+			userPtr->m_FramebufferWidth = (uint32_t)width;
+			userPtr->m_FramebufferHeight = (uint32_t)height;
 
 			int winWidth, winHeight;
 			glfwGetWindowSize(window, &winWidth, &winHeight);
-			glWindow.SetSizeDirect(winWidth, winHeight);
+			userPtr->SetSizeDirect(winWidth, winHeight);
 
 			// Keep the event on logical window size; framebuffer dimensions are used only for OpenGL viewport state.
 			WindowResizeEvent event(winWidth, winHeight);
-			if (glWindow.m_EventCallback)
+			if (userPtr->m_EventCallback)
 			{
-				glWindow.m_EventCallback(event);
+				userPtr->m_EventCallback(event);
 			}
 
 			glViewport(0, 0, width, height);
 		});
 		glfwSetWindowCloseCallback(m_WindowHandle, [](GLFWwindow* window) {
-			auto& glWindow = *(GlfwWindow*)glfwGetWindowUserPointer(window);
-			WindowCloseEvent event;
-			if (glWindow.m_EventCallback)
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (!userPtr)
 			{
-				glWindow.m_EventCallback(event);
+				return;
+			}
+			WindowCloseEvent event;
+			if (userPtr->m_EventCallback)
+			{
+				userPtr->m_EventCallback(event);
 			}
 		});
 
 		glfwSetScrollCallback(m_WindowHandle, [](GLFWwindow* window, double xOffset, double yOffset) {
-			Core::Input::OnMouseScroll((float)xOffset, (float)yOffset);
-			auto* userPtr = glfwGetWindowUserPointer(window);
-			if (userPtr && static_cast<GlfwWindow*>(userPtr)->m_ForwardToImGui)
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (!userPtr)
+			{
+				return;
+			}
+			if (userPtr->m_Input)
+			{
+				userPtr->m_Input->OnMouseScroll((float)xOffset, (float)yOffset);
+			}
+			if (userPtr->m_ForwardToImGui)
 			{
 				ImGui_ImplGlfw_ScrollCallback(window, xOffset, yOffset);
 			}
 		});
 
 		glfwSetKeyCallback(m_WindowHandle, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-			Core::Input::OnKey(GlfwInputMapper::MapKey(key), action != GLFW_RELEASE);
-			auto* userPtr = glfwGetWindowUserPointer(window);
-			if (userPtr && static_cast<GlfwWindow*>(userPtr)->m_ForwardToImGui)
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (!userPtr)
+			{
+				return;
+			}
+			const KeyCode mapped = GlfwInputMapper::MapKey(key);
+			if (userPtr->m_Input)
+			{
+				userPtr->m_Input->OnKey(mapped, action != GLFW_RELEASE);
+			}
+
+			if (action == GLFW_PRESS || action == GLFW_REPEAT)
+			{
+				if (userPtr->m_EventCallback)
+				{
+					KeyPressedEvent event(mapped, action == GLFW_REPEAT);
+					userPtr->m_EventCallback(event);
+				}
+			}
+
+			if (userPtr->m_ForwardToImGui)
 			{
 				ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 			}
 		});
 
 		glfwSetMouseButtonCallback(m_WindowHandle, [](GLFWwindow* window, int button, int action, int mods) {
-			Core::Input::OnMouseButton(GlfwInputMapper::MapMouseButton(button), action != GLFW_RELEASE);
-			auto* userPtr = glfwGetWindowUserPointer(window);
-			if (userPtr && static_cast<GlfwWindow*>(userPtr)->m_ForwardToImGui)
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (!userPtr)
+			{
+				return;
+			}
+			if (userPtr->m_Input)
+			{
+				userPtr->m_Input->OnMouseButton(GlfwInputMapper::MapMouseButton(button), action != GLFW_RELEASE);
+			}
+			if (userPtr->m_ForwardToImGui)
 			{
 				ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 			}
 		});
 
 		glfwSetCursorPosCallback(m_WindowHandle, [](GLFWwindow* window, double xpos, double ypos) {
-			Core::Input::OnMouseMove((float)xpos, (float)ypos);
-			auto* userPtr = glfwGetWindowUserPointer(window);
-			if (userPtr && static_cast<GlfwWindow*>(userPtr)->m_ForwardToImGui)
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (!userPtr)
+			{
+				return;
+			}
+			if (userPtr->m_Input)
+			{
+				userPtr->m_Input->OnMouseMove((float)xpos, (float)ypos);
+			}
+			if (userPtr->m_ForwardToImGui)
 			{
 				ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
 			}
 		});
 
 		glfwSetCharCallback(m_WindowHandle, [](GLFWwindow* window, unsigned int c) {
-			auto* userPtr = glfwGetWindowUserPointer(window);
-			if (userPtr && static_cast<GlfwWindow*>(userPtr)->m_ForwardToImGui)
+			auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+			if (userPtr && userPtr->m_ForwardToImGui)
 			{
 				ImGui_ImplGlfw_CharCallback(window, c);
 			}
@@ -181,7 +230,11 @@ namespace Chained
 		glfwSetWindowFocusCallback(m_WindowHandle, [](GLFWwindow* window, int focused) {
 			if (!focused)
 			{
-				Core::Input::ResetAll();
+				auto* userPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(window));
+				if (userPtr && userPtr->m_Input)
+				{
+					userPtr->m_Input->ResetAll();
+				}
 			}
 		});
 
@@ -234,12 +287,20 @@ namespace Chained
 
 	void GlfwWindow::SetTitle(const std::string& title)
 	{
+		if (title.empty())
+		{
+			return;
+		}
 		m_Title = title;
 		glfwSetWindowTitle(m_WindowHandle, m_Title.c_str());
 	}
 
 	void GlfwWindow::SetSize(int width, int height)
 	{
+		if (width <= 0 || height <= 0)
+		{
+			return;
+		}
 		m_Width = (uint32_t)width;
 		m_Height = (uint32_t)height;
 		glfwSetWindowSize(m_WindowHandle, (int)m_Width, (int)m_Height);
@@ -427,6 +488,11 @@ namespace Chained
 
 	void GlfwWindow::SetTargetFramesPerSecond(int framesPerSecond)
 	{
+		if (framesPerSecond <= 0)
+		{
+			CH_CORE_WARN("SetTargetFramesPerSecond called with non-positive value: {}. Ignoring.", framesPerSecond);
+			return;
+		}
 		m_TargetFPS = framesPerSecond;
 	}
 
@@ -453,6 +519,10 @@ namespace Chained
 
 	void GlfwWindow::SetClipboardText(const std::string& text)
 	{
+		if (text.empty())
+		{
+			return;
+		}
 		glfwSetClipboardString(m_WindowHandle, text.c_str());
 	}
 

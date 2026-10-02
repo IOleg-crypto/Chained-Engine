@@ -1,4 +1,6 @@
 #include "scene_manager.h"
+#include "editor/types.h"
+#include "editor/project_manager.h"
 #include "engine/audio/audio.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/common/thread_pool.h"
@@ -9,15 +11,23 @@
 #include "engine/scene/scene.h"
 #include "engine/scene/scene_events.h"
 #include "engine/scene/scene_serializer.h"
-#include "layer.h"
 
 namespace Chained
 {
+	EditorSceneManager::EditorSceneManager(EditorConfig* config, EditorState* editorState,
+										   EditorProjectManager* projectManager,
+										   std::function<void()> saveConfigCallback)
+		: m_Config(config),
+		  m_EditorState(editorState),
+		  m_ProjectManager(projectManager),
+		  m_SaveConfigCallback(std::move(saveConfigCallback))
+	{
+	}
 
 	void EditorSceneManager::NewScene()
 	{
-		auto& cfg = EditorLayer::Get().GetConfig();
-		if (cfg.ConfirmOnSceneClose && m_SceneDirty)
+		bool confirm = m_Config ? m_Config->ConfirmOnSceneClose : false;
+		if (confirm && m_SceneDirty)
 		{
 			m_PendingNewScene = true;
 			return;
@@ -37,8 +47,8 @@ namespace Chained
 
 	void EditorSceneManager::OpenScene(const std::filesystem::path& path)
 	{
-		auto& cfg = EditorLayer::Get().GetConfig();
-		if (cfg.ConfirmOnSceneClose && m_SceneDirty)
+		bool confirm = m_Config ? m_Config->ConfirmOnSceneClose : false;
+		if (confirm && m_SceneDirty)
 		{
 			m_PendingOpenScene = true;
 			m_PendingOpenPath = path;
@@ -127,7 +137,10 @@ namespace Chained
 			audio->StopAll();
 		}
 
-		EditorLayer::Get().GetEditorState().SelectedEntity = {};
+		if (m_EditorState)
+		{
+			m_EditorState->SelectedEntity = {};
+		}
 
 		m_EditorScene = scene;
 		if (m_EditorScene)
@@ -226,12 +239,11 @@ namespace Chained
 			}
 
 			// Map SelectedEntity back to the editor scene
-			auto& editorState = EditorLayer::Get().GetEditorState();
-			if (editorState.SelectedEntity)
+			if (m_EditorState && m_EditorState->SelectedEntity)
 			{
-				UUID uuid = editorState.SelectedEntity.GetUUID();
+				UUID uuid = m_EditorState->SelectedEntity.GetUUID();
 				Entity editorEntity = m_EditorScene ? m_EditorScene->GetEntityByUUID(uuid) : Entity{};
-				editorState.SelectedEntity = editorEntity;
+				m_EditorState->SelectedEntity = editorEntity;
 			}
 
 			CH_CORE_INFO("Editor: Play Mode Stopped");
@@ -256,6 +268,7 @@ namespace Chained
 
 	void EditorSceneManager::OnUpdate(Timestep ts)
 	{
+		(void)ts;
 		switch (m_Transition.state)
 		{
 		case TransitionState::None:
@@ -402,20 +415,22 @@ namespace Chained
 			}
 
 			// Map SelectedEntity to the play/simulate scene so the Inspector shows and modifies running state!
-			auto& editorState = EditorLayer::Get().GetEditorState();
-			if (editorState.SelectedEntity)
+			if (m_EditorState && m_EditorState->SelectedEntity)
 			{
-				UUID uuid = editorState.SelectedEntity.GetUUID();
+				UUID uuid = m_EditorState->SelectedEntity.GetUUID();
 				Entity playEntity = m_RuntimeScene->GetEntityByUUID(uuid);
 				if (playEntity)
 				{
-					editorState.SelectedEntity = playEntity;
+					m_EditorState->SelectedEntity = playEntity;
 				}
 			}
 		}
 		else
 		{
-			EditorLayer::Get().GetEditorState().SelectedEntity = {};
+			if (m_EditorState)
+			{
+				m_EditorState->SelectedEntity = {};
+			}
 			m_EditorScene = loadResult.scene;
 		}
 
@@ -463,8 +478,6 @@ namespace Chained
 			return;
 		}
 
-		auto& layer = EditorLayer::Get();
-
 		if (auto project = Project::GetActive(); project && project->GetEnvironment())
 		{
 			bool hasEnvironment = targetScene->GetSettings().Environment &&
@@ -494,7 +507,10 @@ namespace Chained
 			OnSceneOpened(e);
 		}
 
-		layer.GetEditorState().SelectedEntity = {};
+		if (m_EditorState)
+		{
+			m_EditorState->SelectedEntity = {};
+		}
 		m_LoadingStatus = "";
 		m_Transition = {};
 		CH_CORE_INFO("Editor: Scene transition complete.");
@@ -522,11 +538,20 @@ namespace Chained
 		{
 			project->SetActiveScenePath(std::filesystem::relative(e.GetPath(), project->GetConfig().ProjectDirectory));
 
-			auto& layer = EditorLayer::Get();
-			layer.GetProjectManager().SaveProject();
+			if (m_ProjectManager)
+			{
+				m_ProjectManager->SaveProject();
+			}
 
-			layer.GetConfig().LastScenePath = e.GetPath();
-			layer.SaveConfig();
+			if (m_Config)
+			{
+				m_Config->LastScenePath = e.GetPath();
+			}
+
+			if (m_SaveConfigCallback)
+			{
+				m_SaveConfigCallback();
+			}
 			return true;
 		}
 		return false;

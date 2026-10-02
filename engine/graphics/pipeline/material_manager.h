@@ -10,6 +10,7 @@ namespace Chained
 
 	class Shader;
 	class ModelAsset;
+	class GraphicsDevice;
 	struct Model;
 
 	/// @brief Centralizes material resolution and GPU binding.
@@ -18,20 +19,31 @@ namespace Chained
 	class CH_API MaterialManager
 	{
 	public:
-		MaterialManager() = default;
+		explicit MaterialManager(GraphicsDevice* device = nullptr)
+			: m_Device(device)
+		{
+		}
 		~MaterialManager() = default;
+
+		void SetGraphicsDevice(GraphicsDevice* device)
+		{
+			m_Device = device;
+		}
 
 		/// @brief Resolve the material for a specific mesh using a 3-tier fallback:
 		///   1. Caller-supplied @p materials vector
 		///   2. ModelAsset embedded materials
 		///   3. Model struct embedded materials
 		///   Returns a default Material if nothing matches.
-		Material Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
-						 ModelAsset* modelAsset = nullptr) const;
+		const Material& Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
+								ModelAsset* modelAsset = nullptr) const;
 
 		/// @brief Bind all PBR textures and uniforms for the given material to the shader.
 		/// Resolves lazy-loaded textures via AssetManager when shared_ptr is null.
 		void Bind(Shader* shader, const Material& material, int meshIndex, const Model& model) const;
+
+	private:
+		GraphicsDevice* m_Device = nullptr;
 	};
 
 } // namespace Chained

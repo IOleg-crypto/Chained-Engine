@@ -4,6 +4,7 @@
 
 #include <basisu_comp.h>
 #include <basisu_enc.h>
+#include <basisu_frontend.h>
 #include <stb_image.h>
 
 #include <algorithm>
@@ -62,7 +63,7 @@ namespace Chained
 	}
 
 	bool TextureCompressor::CompressToKTX2(const fs::path& srcPath, const fs::path& dstPath, bool flipY,
-										   bool isNormalMap)
+										   bool isNormalMap, PackMode mode, unsigned int basisThreads)
 	{
 		try
 		{
@@ -77,33 +78,65 @@ namespace Chained
 				return false;
 			}
 
-			// job_pool is required by basis_compressor::init regardless of m_multithreading
-			// Using 1 thread because parallel dispatch happens at the image level (ProcessTextures)
-			basisu::job_pool jpool(1);
+			// Use specified threads for BasisU internal encoding (defaults to 2)
+			unsigned int numThreads = std::max(1u, basisThreads);
+			basisu::job_pool jpool(numThreads);
 
 			basisu::basis_compressor_params params;
 			params.m_create_ktx2_file = true;
-			params.m_mip_gen = false; // No mipmap bloat: saves 33% per texture as runtime loads mip 0
+			params.m_mip_gen = false;
 			params.m_y_flip = flipY;
-			params.m_multithreading = false; // Multithreading is managed across images
+			params.m_multithreading = true; // Use jpool's threads internally
 			params.m_pJob_pool = &jpool;
 
 			if (isNormalMap)
 			{
-				// High-precision UASTC + Zstd level 9 for normal/bump maps
 				params.m_uastc = true;
-				params.m_rdo_uastc_ldr_4x4 = false;
-				params.m_pack_uastc_ldr_4x4_flags = basisu::cPackUASTCLevelFastest;
-				params.m_ktx2_uastc_supercompression = basist::KTX2_SS_ZSTANDARD;
-				params.m_ktx2_zstd_supercompression_level = 9;
+				if (mode == PackMode::Max)
+				{
+					// High-precision UASTC + Zstd lvl22 for normal/bump maps with RDO
+					params.m_rdo_uastc_ldr_4x4 = true;
+					params.m_rdo_uastc_ldr_4x4_dict_size = 4096;					   // Good balance of size/speed
+					params.m_pack_uastc_ldr_4x4_flags = basisu::cPackUASTCLevelSlower; // Not VerySlow to avoid hanging
+					params.m_ktx2_uastc_supercompression = basist::KTX2_SS_ZSTANDARD;
+					params.m_ktx2_zstd_supercompression_level = 22;
+				}
+				else
+				{
+					// Fast high-precision UASTC + Zstd level 9
+					params.m_rdo_uastc_ldr_4x4 = false;
+					params.m_pack_uastc_ldr_4x4_flags = basisu::cPackUASTCLevelFastest;
+					params.m_ktx2_uastc_supercompression = basist::KTX2_SS_ZSTANDARD;
+					params.m_ktx2_zstd_supercompression_level = 9;
+				}
 				params.m_perceptual = false;
 			}
 			else
 			{
-				// Ultra-compact ETC1S / BasisLZ for Albedo, Diffuse, UI, and color textures (5x-10x smaller)
 				params.m_uastc = false;
-				params.m_etc1s_compression_level = 2; // Fast encoding
-				params.m_quality_level = 128;
+				if (mode == PackMode::Max)
+				{
+					// Max-compressed ETC1S: level 4 gives 98% of the compression of 6, but is 10x faster
+					params.m_etc1s_compression_level = 4;
+					params.m_quality_level = 192; // 192 is visually lossless, 255 is overkill and slow
+
+					// OOM Prevention: 4K+ textures with Alpha eat massive RAM during RDO at level 4.
+					// Cap to level 2 (which is still very good) to prevent BasisU memory allocation failures.
+					if (width >= 4096 || height >= 4096)
+					{
+						params.m_etc1s_compression_level = 2;
+						params.m_quality_level = 160;
+					}
+
+					params.m_no_endpoint_rdo = false; // Enable endpoint RDO
+					params.m_no_selector_rdo = false; // Enable selector RDO
+				}
+				else
+				{
+					// Ultra-compact ETC1S / BasisLZ for Albedo, Diffuse, UI, and color textures
+					params.m_etc1s_compression_level = 2; // Fast encoding
+					params.m_quality_level = 128;
+				}
 				params.m_perceptual = true;
 			}
 
@@ -150,7 +183,7 @@ namespace Chained
 		}
 	}
 
-	bool TextureCompressor::ProcessTextures(const fs::path& projectDir, std::vector<PackItem>& items,
+	bool TextureCompressor::ProcessTextures(const fs::path& projectDir, std::vector<PackItem>& items, PackMode mode,
 											ExportProgressCallback onProgress, const std::atomic<bool>* cancelFlag)
 	{
 		fs::path cacheDir = projectDir / ".texture_cache";
@@ -187,9 +220,10 @@ namespace Chained
 			const bool isNormal = IsNormalMap(items[i].PackKey);
 			const bool flipY = !isUi; // Scene textures flip Y for OpenGL; UI textures remain unflipped
 
-			// Cache key includes: pack key, flipY, normal map flag, version tag
+			// Cache key includes: pack key, flipY, normal map flag, version tag, and pack mode
+			std::string modeTag = (mode == PackMode::Max) ? "|max" : "|fast";
 			std::string cacheKey = items[i].PackKey.generic_string() + (flipY ? "|flip" : "|noflip") +
-								   (isNormal ? "|norm" : "|color") + "|v4_nomip";
+								   (isNormal ? "|norm" : "|color") + "|v4_nomip" + modeTag;
 			std::string ktxName = std::to_string(std::hash<std::string>{}(cacheKey)) + ".ktx2";
 			fs::path ktxPath = cacheDir / ktxName;
 
@@ -214,9 +248,17 @@ namespace Chained
 			return true;
 		}
 
-		CH_CORE_INFO("TextureCompressor: Compressing {} textures to KTX2...", jobs.size());
+		const unsigned int hw = std::max(1u, std::thread::hardware_concurrency());
 
-		const unsigned int threadCount = std::min<unsigned int>(std::max(1u, std::thread::hardware_concurrency()), 4u);
+		// OOM Prevention: BasisU UASTC encoding uses ~1GB+ RAM per 4K texture.
+		// Uncapped parallel workers (hw/2) on a 32-thread CPU will crash on 16GB-32GB systems.
+		// Solution: Cap parallel files strictly to 2 to bound RAM usage, and scale BasisU internal threads to fill CPU
+		// cores.
+		unsigned int fileWorkers = std::min(2u, std::max(1u, hw / 4));
+		unsigned int basisThreads = std::max(2u, hw / std::max(1u, fileWorkers));
+
+		CH_CORE_INFO("TextureCompressor: Compressing {} textures to KTX2 ({} files parallel, {} Basis threads/file)...",
+					 jobs.size(), fileWorkers, basisThreads);
 
 		std::atomic<size_t> completed{0};
 		std::atomic<bool> abortJobs{false};
@@ -232,7 +274,7 @@ namespace Chained
 				}
 
 				const auto& job = jobs[j];
-				if (CompressToKTX2(job.src, job.dst, job.flipY, job.isNormal))
+				if (CompressToKTX2(job.src, job.dst, job.flipY, job.isNormal, mode, basisThreads))
 				{
 					std::lock_guard<std::mutex> lock(resultMutex);
 					items[job.itemIndex].Source = job.dst;
@@ -252,9 +294,9 @@ namespace Chained
 
 		std::vector<std::thread> workers;
 		const size_t totalJobs = jobs.size();
-		const size_t chunkSize = (totalJobs + threadCount - 1) / threadCount;
+		const size_t chunkSize = (totalJobs + fileWorkers - 1) / fileWorkers;
 
-		for (unsigned int t = 0; t < threadCount; ++t)
+		for (unsigned int t = 0; t < fileWorkers; ++t)
 		{
 			size_t start = t * chunkSize;
 			size_t end = std::min(start + chunkSize, totalJobs);

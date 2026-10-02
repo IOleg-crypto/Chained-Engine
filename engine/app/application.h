@@ -67,7 +67,7 @@ namespace Chained
 
 	private:
 		void InitializePlatform();
-		void RegisterCoreServices();
+		void RegisterCoreServices() const;
 		void RegisterRuntimeServices();
 		void RegisterGameplayServices();
 

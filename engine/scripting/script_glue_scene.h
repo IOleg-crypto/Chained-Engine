@@ -2,9 +2,7 @@
 #define SCRIPT_GLUE_SCENE_H
 #include "script_glue_internal.h"
 #include "engine/core/log.h"
-#include "engine/app/application.h"
 #include "engine/assets/asset_manager.h"
-#include "engine/app/application.h"
 #include "engine/scene/scene_events.h"
 
 namespace Chained
@@ -14,6 +12,8 @@ namespace Chained
 	CH_SCRIPT_FUNC void Scene_LoadScene(const Coral::UCChar* path);
 	CH_SCRIPT_FUNC uint64_t Scene_GetPrimaryCameraEntity();
 	CH_SCRIPT_FUNC const Coral::UCChar* Scene_GetCurrentScenePath();
+	CH_SCRIPT_FUNC uint8_t Scene_HasSuspendedSession();
+	CH_SCRIPT_FUNC void Scene_ResumeSuspendedSession();
 
 } // namespace Chained
 #endif

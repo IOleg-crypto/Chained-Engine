@@ -8,6 +8,7 @@
 #include "engine/scripting/scriptengine_services.h"
 #include "engine/scripting/script_glue_internal.h"
 #include "engine/scripting/script_interop_pointers.h"
+#include "engine/runtime/session_api.h"
 #include <Coral/String.hpp>
 #include <Coral/Type.hpp>
 
@@ -128,12 +129,16 @@ namespace Chained
 				.disconnect<&SceneScriptingManager::OnManagedScriptDestroyed>(this);
 		}
 
-		auto ctx = AcquireScriptEngine();
-		if (ctx.engine && ctx.scriptEngineType && !m_ReloadInProgress)
+		bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
+		if (!hasSuspended)
 		{
-			if (g_ScriptClearAll)
+			auto ctx = AcquireScriptEngine();
+			if (ctx.engine && ctx.scriptEngineType && !m_ReloadInProgress)
 			{
-				g_ScriptClearAll();
+				if (g_ScriptClearAll)
+				{
+					g_ScriptClearAll();
+				}
 			}
 		}
 

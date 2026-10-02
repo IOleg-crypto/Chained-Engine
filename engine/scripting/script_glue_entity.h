@@ -98,6 +98,10 @@ namespace Chained
 	CH_SCRIPT_FUNC float AnimationComponent_GetNormalizedTime(uint64_t entityID);
 	CH_SCRIPT_FUNC float AnimationComponent_GetBlendDuration(uint64_t entityID);
 	CH_SCRIPT_FUNC void AnimationComponent_SetBlendDuration(uint64_t entityID, float blendDuration);
+	CH_SCRIPT_FUNC float AnimationComponent_GetSpeed(uint64_t entityID);
+	CH_SCRIPT_FUNC void AnimationComponent_SetSpeed(uint64_t entityID, float speed);
+	CH_SCRIPT_FUNC void AnimationComponent_PlayClip(uint64_t entityID, int index, uint8_t isLooping, float speed);
+	CH_SCRIPT_FUNC void AnimationComponent_Stop(uint64_t entityID);
 	CH_SCRIPT_FUNC void AnimationComponent_CrossFade(uint64_t entityID, int targetIndex, float blendDuration);
 
 	// ── AnimationComponent graph variables ──────────────────────────────

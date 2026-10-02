@@ -18,7 +18,7 @@ namespace Chained::PhysicsBodySystem
 	static constexpr size_t kMaxRetryPerFrame = 16;
 
 	void ApplyAutoCalculate(entt::entity entity, entt::registry& registry, ColliderComponent& collider,
-							const glm::vec3& scale)
+							const glm::vec3& scale, AssetManager* am)
 	{
 		std::string modelPath = collider.ModelPath;
 		if (modelPath.empty())
@@ -40,20 +40,22 @@ namespace Chained::PhysicsBodySystem
 			return;
 		}
 
-		auto* am = ServiceLocator::TryGet<AssetManager>();
-		if (!am)
+		AssetManager* assets = am ? am
+								  : (registry.ctx().contains<AssetManager*>() ? *registry.ctx().find<AssetManager*>()
+																			  : ServiceLocator::TryGet<AssetManager>());
+		if (!assets)
 		{
 			return;
 		}
 
-		auto handle = am->ResolveToHandle(modelPath);
+		auto handle = assets->ResolveToHandle(modelPath);
 		if (handle == AssetHandle(0))
 		{
 			// Asset not loaded yet — transient state during streaming, not an error
 			return;
 		}
 
-		auto asset = am->Get<ModelAsset>(handle);
+		auto asset = assets->Get<ModelAsset>(handle);
 		if (!asset || asset->GetState() != AssetState::Ready)
 		{
 			// If asset has permanently failed, retry a limited number of times
@@ -65,7 +67,7 @@ namespace Chained::PhysicsBodySystem
 				{
 					CH_CORE_WARN("PhysicsBodySystem: Retrying failed model '{}' for entity={}", modelPath,
 								 (uint32_t)entity);
-					am->RetryFailedAsset(handle, AssetType::Model);
+					assets->RetryFailedAsset(handle, AssetType::Model);
 				}
 			}
 			// Asset loading in progress — expected transient state
@@ -95,7 +97,7 @@ namespace Chained::PhysicsBodySystem
 					  collider.Offset.y, collider.Offset.z, collider.Radius, collider.Height);
 	}
 
-	bool BuildBodyDesc(entt::registry& reg, entt::entity e, PhysicsBodyDesc& outDesc)
+	bool BuildBodyDesc(entt::registry& reg, entt::entity e, PhysicsBodyDesc& outDesc, AssetManager* assets)
 	{
 		if (!reg.all_of<TransformComponent, RigidBodyComponent>(e))
 		{
@@ -180,13 +182,16 @@ namespace Chained::PhysicsBodySystem
 				}
 			}
 
-			auto* assets = ServiceLocator::TryGet<AssetManager>();
-			if (!assets)
+			AssetManager* assetMgr =
+				assets ? assets
+					   : (reg.ctx().contains<AssetManager*>() ? *reg.ctx().find<AssetManager*>()
+															  : ServiceLocator::TryGet<AssetManager>());
+			if (!assetMgr)
 			{
 				return false;
 			}
 
-			auto modelAsset = assets->Get<ModelAsset>(modelPath);
+			auto modelAsset = assetMgr->Get<ModelAsset>(modelPath);
 			if (!modelAsset || !modelAsset->IsReady())
 			{
 				return false;
@@ -339,7 +344,7 @@ namespace Chained::PhysicsBodySystem
 		}
 	}
 
-	void BatchInitializeBodies(entt::registry& reg, IPhysicsWorld* world)
+	void BatchInitializeBodies(entt::registry& reg, IPhysicsWorld* world, AssetManager* assets)
 	{
 		std::vector<PhysicsBodyDesc> descs;
 		std::vector<entt::entity> entities;
@@ -368,11 +373,11 @@ namespace Chained::PhysicsBodySystem
 
 			if (collider->AutoCalculate)
 			{
-				ApplyAutoCalculate(entity, reg, *collider, view.get<TransformComponent>(entity).Scale);
+				ApplyAutoCalculate(entity, reg, *collider, view.get<TransformComponent>(entity).Scale, assets);
 			}
 
 			PhysicsBodyDesc desc;
-			if (!BuildBodyDesc(reg, entity, desc))
+			if (!BuildBodyDesc(reg, entity, desc, assets))
 			{
 				continue;
 			}
@@ -437,32 +442,42 @@ namespace Chained::PhysicsBodySystem
 						  [](const PhysicsBodyDesc& d) { return d.IsKinematic; }));
 	}
 
-	void Update(entt::registry& reg)
+	void Update(entt::registry& reg, Physics* physics, AssetManager* assets)
 	{
 		CH_PROFILE_FUNCTION();
 
-		if (!reg.ctx().contains<Physics*>())
+		Physics* phys = physics;
+		if (!phys)
+		{
+			if (reg.ctx().contains<Physics*>())
+			{
+				phys = *reg.ctx().find<Physics*>();
+			}
+			else
+			{
+				phys = ServiceLocator::TryGet<Physics>();
+			}
+		}
+
+		if (!phys || !phys->GetWorld())
 		{
 			return;
 		}
 
-		auto* physics = *reg.ctx().find<Physics*>();
-		if (!physics || !physics->GetWorld())
-		{
-			return;
-		}
-
-		BatchInitializeBodies(reg, physics->GetWorld());
+		BatchInitializeBodies(reg, phys->GetWorld(), assets);
 	}
 
-	bool IsStartupComplete(entt::registry& reg, IPhysicsWorld* world)
+	bool IsStartupComplete(entt::registry& reg, IPhysicsWorld* world, AssetManager* assets)
 	{
 		if (world && world->HasPendingShapeBakes())
 		{
 			return false;
 		}
 
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		AssetManager* assetMgr = assets
+									 ? assets
+									 : (reg.ctx().contains<AssetManager*>() ? *reg.ctx().find<AssetManager*>()
+																			: ServiceLocator::TryGet<AssetManager>());
 
 		auto bodyView = reg.view<RigidBodyComponent, ColliderComponent>();
 		for (auto entity : bodyView)
@@ -485,9 +500,9 @@ namespace Chained::PhysicsBodySystem
 					}
 				}
 
-				if (!modelPath.empty() && assets)
+				if (!modelPath.empty() && assetMgr)
 				{
-					auto modelAsset = assets->Get<ModelAsset>(modelPath);
+					auto modelAsset = assetMgr->Get<ModelAsset>(modelPath);
 					if (!modelAsset || modelAsset->GetState() == AssetState::Loading ||
 						modelAsset->GetState() == AssetState::None)
 					{

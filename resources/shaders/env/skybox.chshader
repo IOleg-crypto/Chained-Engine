@@ -7,6 +7,8 @@ Uniforms:
   - u_View
   - u_Panorama
   - u_VFlipped
+  - u_HFlipped
+  - u_Rotation
   - u_Exposure
   - u_Brightness
   - u_Contrast
