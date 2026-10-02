@@ -90,7 +90,7 @@ namespace Chained
 		}
 
 		AddFontsToAtlas();
-		EditorGUI::ApplyTheme(m_Config.FontSize);
+		EditorGUI::ApplyTheme();
 
 		if (auto* widgetRenderer = ServiceLocator::TryGet<WidgetRenderer>())
 		{

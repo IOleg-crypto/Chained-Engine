@@ -141,31 +141,30 @@ namespace Chained::AssetResolutionSystem
 		reg.on_update<ModelComponent>().connect<+[](entt::registry& r, entt::entity e) { ResolveModel(r, e); }>();
 	}
 
-	void Update(entt::registry& reg, AssetManager* assets)
+	void Update(entt::registry& reg)
 	{
 		CH_PROFILE_FUNCTION();
 
-		// Resolve asset manager: injected pointer takes priority, fall back to ServiceLocator
-		AssetManager* assetsMgr = assets ? assets : ServiceLocator::TryGet<AssetManager>();
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
 
 		reg.view<SpriteComponent>().each([&](auto entity, auto& sprite) {
 			if (sprite.TextureHandle == AssetHandle(0) && (sprite.TextureUUID != 0 || !sprite.TexturePath.empty()))
 			{
-				ResolveSprite(reg, entity, assetsMgr);
+				ResolveSprite(reg, entity, assets);
 			}
 		});
 
 		reg.view<ShaderComponent>().each([&](auto entity, auto& shader) {
 			if (shader.ShaderHandle == AssetHandle(0) && (shader.ShaderUUID != 0 || !shader.ShaderPath.empty()))
 			{
-				ResolveShader(reg, entity, assetsMgr);
+				ResolveShader(reg, entity, assets);
 			}
 		});
 
 		reg.view<ModelComponent>().each([&](auto entity, auto& model) {
 			if (model.ModelHandle == AssetHandle(0) && (model.ModelUUID != 0 || !model.ModelPath.empty()))
 			{
-				ResolveModel(reg, entity, assetsMgr);
+				ResolveModel(reg, entity, assets);
 			}
 		});
 	}

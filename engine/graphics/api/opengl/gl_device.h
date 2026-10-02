@@ -66,7 +66,6 @@ namespace Chained
 			PolygonMode PolyMode = PolygonMode::Fill;
 
 			int Viewport[4] = {0, 0, 800, 600};
-			uint32_t CurrentFBO = 0;
 
 			DepthFunc DepthFunction = DepthFunc::Less;
 			BlendFactor SrcBlend = BlendFactor::One;

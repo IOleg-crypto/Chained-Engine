@@ -312,11 +312,6 @@ namespace Chained
 
 	void Physics::ClearContext(Scene* scene)
 	{
-		if (!scene)
-		{
-			return;
-		}
-
 		auto& registry = scene->GetRegistry();
 
 		if (m_World)

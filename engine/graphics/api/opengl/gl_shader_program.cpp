@@ -2,7 +2,6 @@
 #include "engine/graphics/api/graphics_device.h"
 
 #include <glad/gl.h>
-#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -78,10 +77,7 @@ namespace Chained
 		if (m_RendererID > 0)
 		{
 			uint32_t id = m_RendererID;
-			if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
-			{
-				gd->EnqueueResourceDeletion([id]() { glDeleteProgram(id); });
-			}
+			GraphicsDevice::EnqueueResourceDeletion([id]() { glDeleteProgram(id); });
 		}
 	}
 

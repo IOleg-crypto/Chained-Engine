@@ -29,8 +29,7 @@ namespace Chained
 		void Resize(uint32_t width, uint32_t height, bool forceRecreate = false);
 
 		// Full two-pass render: HDR pass → resolve → post-process into viewport FBO.
-		void RenderScene(Scene* scene, const Camera3D& camera, bool showEditorIcons = false,
-						 const struct EditorConfig* config = nullptr);
+		void RenderScene(Scene* scene, const Camera3D& camera);
 
 		// Clears the HDR framebuffer with the scene's background color/mode.
 		void ClearBackground(Scene* scene);
@@ -40,8 +39,7 @@ namespace Chained
 
 		// Renders billboard editor icons (cameras, lights, spawns, audio) into the
 		// currently-bound HDR framebuffer. Called during the HDR pass.
-		void RenderEditorIcons(entt::registry& registry, const Camera3D& camera,
-							   const struct EditorConfig* config = nullptr);
+		void RenderEditorIcons(entt::registry& registry, const Camera3D& camera);
 
 		// Accessors
 		std::shared_ptr<Framebuffer> GetViewportFramebuffer() const

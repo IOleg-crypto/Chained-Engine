@@ -9,9 +9,6 @@
 namespace Chained
 {
 	class Scene;
-	class EditorSceneManager;
-	struct EditorState;
-	class CommandHistory;
 
 	struct GizmoBtn
 	{
@@ -27,13 +24,9 @@ namespace Chained
 	class ViewportToolbar
 	{
 	public:
-		ViewportToolbar(EditorGizmo& gizmo, EditorCameraController& camera, EditorSceneManager* sceneManager = nullptr,
-						EditorState* editorState = nullptr, CommandHistory* commandHistory = nullptr)
+		ViewportToolbar(EditorGizmo& gizmo, EditorCameraController& camera)
 			: m_Gizmo(gizmo),
-			  m_CameraController(camera),
-			  m_SceneManager(sceneManager),
-			  m_EditorState(editorState),
-			  m_CommandHistory(commandHistory)
+			  m_CameraController(camera)
 		{
 		}
 
@@ -46,15 +39,12 @@ namespace Chained
 	private:
 		void DrawGizmoButtons();
 		void DrawCameraSelector(Scene* scene);
-		void DrawSnapSection(Scene* scene);
+		void DrawSnapSection();
 		void DrawTransformSpaceToggle();
 		void DrawScriptReloadButton();
 
 		EditorGizmo& m_Gizmo;
 		EditorCameraController& m_CameraController;
-		EditorSceneManager* m_SceneManager = nullptr;
-		EditorState* m_EditorState = nullptr;
-		CommandHistory* m_CommandHistory = nullptr;
 	};
 
 } // namespace Chained

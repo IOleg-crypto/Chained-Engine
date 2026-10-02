@@ -2,25 +2,23 @@
 #define CH_PROJECT_SELECTOR_UI_H
 
 #include "editor/project_manager.h"
-#include "engine/assets/types/texture_asset.h"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
 namespace Chained
 {
-	struct EditorConfig;
+	class TextureAsset;
 
 	class ProjectSelectorUI
 	{
 	public:
-		ProjectSelectorUI(EditorProjectManager& projectManager, const EditorConfig& config);
+		ProjectSelectorUI(EditorProjectManager& projectManager);
 
 		void OnImGuiRender();
 
 	private:
 		EditorProjectManager& m_ProjectManager;
-		const EditorConfig& m_Config;
 
 		std::shared_ptr<TextureAsset> m_NewProjectIcon = nullptr;
 		std::shared_ptr<TextureAsset> m_OpenProjectIcon = nullptr;

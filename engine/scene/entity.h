@@ -50,19 +50,8 @@ namespace Chained
 			return m_Registry->get<T>(m_EntityHandle);
 		}
 
-		template <typename T> const T& GetComponent() const
-		{
-			CH_CORE_ASSERT(HasComponent<T>(), "Entity does not have component!");
-			return m_Registry->get<const T>(m_EntityHandle);
-		}
-
 		// Returns true when the entity currently owns the requested component.
 		template <typename T> bool HasComponent()
-		{
-			return m_Registry && m_Registry->all_of<T>(m_EntityHandle);
-		}
-
-		template <typename T> bool HasComponent() const
 		{
 			return m_Registry && m_Registry->all_of<T>(m_EntityHandle);
 		}
@@ -125,17 +114,13 @@ namespace Chained
 		{
 			return m_Registry;
 		}
-		const entt::registry* GetRegistryPtr() const
-		{
-			return m_Registry;
-		}
 
-		UUID GetUUID() const
+		UUID GetUUID()
 		{
 			return GetComponent<IDComponent>().ID;
 		}
 
-		const std::string& GetName() const
+		const std::string& GetName()
 		{
 			return GetComponent<TagComponent>().Tag;
 		}

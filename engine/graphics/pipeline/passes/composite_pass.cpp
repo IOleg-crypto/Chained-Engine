@@ -22,7 +22,7 @@ namespace Chained
 		const auto& env = ctx.Renderer->GetEnvironment();
 
 		// Delegate fog uniform upload to LightingManager to avoid duplication.
-		auto* renderer = ctx.MainRenderer ? ctx.MainRenderer : ServiceLocator::TryGet<Renderer>();
+		auto* renderer = ServiceLocator::TryGet<Renderer>();
 		if (!renderer)
 		{
 			return;

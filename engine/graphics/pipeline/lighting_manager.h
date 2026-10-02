@@ -12,7 +12,6 @@ namespace Chained
 {
 
 	class Shader;
-	class GraphicsDevice;
 
 	/// @brief Owns all per-frame lighting and shadow state.
 	/// Centralizes light array management, SSBO upload, and uniform binding
@@ -20,16 +19,8 @@ namespace Chained
 	class CH_API LightingManager
 	{
 	public:
-		explicit LightingManager(GraphicsDevice* device = nullptr)
-			: m_Device(device)
-		{
-		}
+		LightingManager() = default;
 		~LightingManager() = default;
-
-		void SetGraphicsDevice(GraphicsDevice* device)
-		{
-			m_Device = device;
-		}
 
 		/// @brief Initialize GPU resources (SSBO). Call after GraphicsDevice is ready.
 		void Initialize();
@@ -81,7 +72,6 @@ namespace Chained
 	private:
 		LightingData m_Lighting;
 		ShadowState m_Shadow;
-		GraphicsDevice* m_Device = nullptr;
 	};
 
 } // namespace Chained

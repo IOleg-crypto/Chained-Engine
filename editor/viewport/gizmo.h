@@ -4,7 +4,6 @@
 #include "engine/graphics/camera_types.h"
 #include "engine/scene/components.h"
 #include "engine/scene/scene.h"
-#include "editor/undo/command_history.h"
 #include <imgui.h>
 #include <ImGuizmo.h>
 
@@ -28,9 +27,7 @@ namespace Chained
 
 		// Render and handle gizmo interaction
 		// true if the gizmo is being used (captured mouse)
-		bool RenderAndHandle(GizmoType type, ImVec2 viewportPos, ImVec2 viewportSize, const Camera3D& camera,
-							 Scene* scene = nullptr, Entity entity = {}, CommandHistory* commandHistory = nullptr,
-							 bool isPlayMode = false, bool isTransitioning = false);
+		bool RenderAndHandle(GizmoType type, ImVec2 viewportPos, ImVec2 viewportSize, const Camera3D& camera);
 
 		void Set2DMode(bool enabled)
 		{

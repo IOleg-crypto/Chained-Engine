@@ -8,12 +8,10 @@
 
 namespace Chained
 {
-	class EditorSceneManager;
-
 	class MaterialPanel : public Panel
 	{
 	public:
-		MaterialPanel(EditorSceneManager* sceneManager = nullptr);
+		MaterialPanel();
 		virtual void OnImGuiRender(bool readOnly = false) override;
 		virtual void OnEvent(Event& e) override;
 		virtual void SetContext(const std::shared_ptr<Scene>& context) override;
@@ -24,7 +22,6 @@ namespace Chained
 		void DeleteMaterials();
 
 	private:
-		EditorSceneManager* m_SceneManager = nullptr;
 		Entity m_SelectedEntity;
 		std::vector<Material> m_Materials;
 		std::string m_LoadedModelPath; ///< Model path whose materials are currently in m_Materials.

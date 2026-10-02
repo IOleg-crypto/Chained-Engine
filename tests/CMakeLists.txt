@@ -4,7 +4,6 @@
 
 add_subdirectory(unit)
 add_subdirectory(integration)
-add_subdirectory(unit_editor)
 
 # Optional: run unit tests as part of default 'test' target
 # Integration tests run manually or on CI schedule

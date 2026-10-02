@@ -1,8 +1,6 @@
-#include "engine/core/service_locator.h"
 #ifndef CH_GRAPHICS_DEVICE_H
 #define CH_GRAPHICS_DEVICE_H
 
-#include "engine/core/service.h"
 #include "engine/common/color.h"
 #include "engine/common/engine_assert.h"
 #include <functional>
@@ -12,7 +10,7 @@ namespace Chained
 {
 	class VertexArray;
 
-	class GraphicsDevice : public Service
+	class GraphicsDevice
 	{
 	public:
 		enum class DepthFunc
@@ -66,12 +64,8 @@ namespace Chained
 	public:
 		virtual ~GraphicsDevice() = default;
 
-		virtual void Initialize() override
-		{
-			Init();
-		}
 		virtual void Init() = 0;
-		virtual void Shutdown() override
+		virtual void Shutdown()
 		{
 		}
 		virtual void SetViewport(int x, int y, int width, int height) = 0;
@@ -136,13 +130,20 @@ namespace Chained
 
 		/// Enqueue a GPU resource deletion command safely from any thread.
 		/// The deletion will be executed on the main render thread where the GPU context is active.
-		void EnqueueResourceDeletion(std::function<void()> deleter);
+		static void EnqueueResourceDeletion(std::function<void()> deleter);
 
 		/// Process all pending GPU resource deletions (called on the main render thread).
-		void ProcessResourceDeletions();
+		static void ProcessResourceDeletions();
 
-		/// Destroy the device instance. Must be called after Shutdown() and before
-		/// the OpenGL context (window) is destroyed.
+		static GraphicsDevice& Get()
+		{
+			CH_ASSERT(s_Instance, "GraphicsDevice::Get() called before Set() or after Shutdown()!");
+			return *s_Instance;
+		}
+		static void Set(std::unique_ptr<GraphicsDevice> device)
+		{
+			s_Instance = device.release();
+		}
 		static API GetAPI()
 		{
 			return s_API;
@@ -154,11 +155,8 @@ namespace Chained
 		static std::unique_ptr<GraphicsDevice> Create();
 
 	private:
+		static GraphicsDevice* s_Instance;
 		static API s_API;
-
-	private:
-		std::mutex m_DeletionMutex;
-		std::vector<std::function<void()>> m_DeletionQueue;
 	};
 
 	/// RAII guard that saves and restores GPU pipeline state (depth, blend, cull, polygon mode).
@@ -167,11 +165,11 @@ namespace Chained
 	{
 	public:
 		PipelineStateGuard()
-			: m_DepthTest(ServiceLocator::Get<GraphicsDevice>()->IsDepthTestEnabled()),
-			  m_DepthMask(ServiceLocator::Get<GraphicsDevice>()->IsDepthMaskEnabled()),
-			  m_Blend(ServiceLocator::Get<GraphicsDevice>()->IsBlendEnabled()),
-			  m_Cull(ServiceLocator::Get<GraphicsDevice>()->IsCullFaceEnabled()),
-			  m_PolyMode(ServiceLocator::Get<GraphicsDevice>()->GetPolygonMode())
+			: m_DepthTest(GraphicsDevice::Get().IsDepthTestEnabled()),
+			  m_DepthMask(GraphicsDevice::Get().IsDepthMaskEnabled()),
+			  m_Blend(GraphicsDevice::Get().IsBlendEnabled()),
+			  m_Cull(GraphicsDevice::Get().IsCullFaceEnabled()),
+			  m_PolyMode(GraphicsDevice::Get().GetPolygonMode())
 		{
 		}
 
@@ -182,12 +180,11 @@ namespace Chained
 
 		~PipelineStateGuard()
 		{
-			ServiceLocator::Get<GraphicsDevice>()->SetDepthTest(m_DepthTest);
-			ServiceLocator::Get<GraphicsDevice>()->SetDepthMask(m_DepthMask);
-			ServiceLocator::Get<GraphicsDevice>()->SetBlendEnabled(m_Blend);
-			ServiceLocator::Get<GraphicsDevice>()->SetCullMode(m_Cull ? GraphicsDevice::CullMode::Back
-																	  : GraphicsDevice::CullMode::None);
-			ServiceLocator::Get<GraphicsDevice>()->SetPolygonMode(m_PolyMode);
+			GraphicsDevice::Get().SetDepthTest(m_DepthTest);
+			GraphicsDevice::Get().SetDepthMask(m_DepthMask);
+			GraphicsDevice::Get().SetBlendEnabled(m_Blend);
+			GraphicsDevice::Get().SetCullMode(m_Cull ? GraphicsDevice::CullMode::Back : GraphicsDevice::CullMode::None);
+			GraphicsDevice::Get().SetPolygonMode(m_PolyMode);
 		}
 
 		PipelineStateGuard(const PipelineStateGuard&) = delete;
@@ -196,30 +193,30 @@ namespace Chained
 		// Fluent builder methods for configuring state changes
 		PipelineStateGuard& WithDepthTest()
 		{
-			ServiceLocator::Get<GraphicsDevice>()->EnableDepthTest();
+			GraphicsDevice::Get().EnableDepthTest();
 			return *this;
 		}
 		PipelineStateGuard& WithoutDepthTest()
 		{
-			ServiceLocator::Get<GraphicsDevice>()->DisableDepthTest();
-			ServiceLocator::Get<GraphicsDevice>()->DisableDepthMask();
+			GraphicsDevice::Get().DisableDepthTest();
+			GraphicsDevice::Get().DisableDepthMask();
 			return *this;
 		}
 		PipelineStateGuard& WithBlend()
 		{
-			ServiceLocator::Get<GraphicsDevice>()->SetBlendEnabled(true);
-			ServiceLocator::Get<GraphicsDevice>()->SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
-																GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
+			GraphicsDevice::Get().SetBlendEnabled(true);
+			GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
+											   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
 			return *this;
 		}
 		PipelineStateGuard& WithCullNone()
 		{
-			ServiceLocator::Get<GraphicsDevice>()->SetCullMode(GraphicsDevice::CullMode::None);
+			GraphicsDevice::Get().SetCullMode(GraphicsDevice::CullMode::None);
 			return *this;
 		}
 		PipelineStateGuard& WithWireframeMode()
 		{
-			ServiceLocator::Get<GraphicsDevice>()->SetPolygonMode(GraphicsDevice::PolygonMode::Line);
+			GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Line);
 			return *this;
 		}
 

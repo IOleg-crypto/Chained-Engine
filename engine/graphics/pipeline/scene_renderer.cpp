@@ -14,6 +14,7 @@
 #include "engine/graphics/pipeline/material_manager.h"
 #include "engine/scene/components.h"
 #include "engine/scene/entity.h"
+#include "engine/graphics/nametag_system.h"
 #include "engine/core/platform.h"
 
 #include "engine/graphics/pipeline/passes/composite_pass.h"
@@ -27,13 +28,6 @@ namespace Chained
 	static glm::vec4 ColorToVec4(const Color& c)
 	{
 		return {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
-	}
-
-	static SceneRenderer::NametagRenderFn s_NametagRenderer = nullptr;
-
-	void SceneRenderer::SetNametagRenderer(NametagRenderFn fn)
-	{
-		s_NametagRenderer = fn;
 	}
 
 	SceneRenderer::SceneRenderer()
@@ -89,12 +83,7 @@ namespace Chained
 			return;
 		}
 
-		auto* device = ServiceLocator::TryGet<GraphicsDevice>();
-		if (device)
-		{
-			device->EnableDepthTest();
-		}
-		m_MaterialManager.SetGraphicsDevice(device);
+		GraphicsDevice::Get().EnableDepthTest();
 
 		auto environment = options.EnvironmentOverride ? options.EnvironmentOverride : settings.Environment;
 
@@ -159,20 +148,12 @@ namespace Chained
 
 		renderer->BeginScene(camera);
 
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
-
 		// Collect entities
-		m_Collector.Collect(registry, frustum, camera.Position, assets);
+		m_Collector.Collect(registry, frustum, camera.Position);
 
-		// Sort opaque queue: instancable items first, then group by asset+materials for batching, then front-to-back
+		// Sort opaque queue front-to-back for early-Z rejection and group by shader/model
 		auto& opaqueQueue = m_Collector.GetOpaqueQueue();
 		std::sort(opaqueQueue.begin(), opaqueQueue.end(), [](const auto& a, const auto& b) {
-			bool aInstancable = a.BoneMatrices.empty() && !a.ShaderOverride && a.CustomUniforms.empty();
-			bool bInstancable = b.BoneMatrices.empty() && !b.ShaderOverride && b.CustomUniforms.empty();
-			if (aInstancable != bInstancable)
-			{
-				return aInstancable > bInstancable;
-			}
 			if (a.ShaderOverride != b.ShaderOverride)
 			{
 				return a.ShaderOverride < b.ShaderOverride;
@@ -180,20 +161,6 @@ namespace Chained
 			if (a.Asset != b.Asset)
 			{
 				return a.Asset < b.Asset;
-			}
-			// Group items with identical material overrides together so geometry_pass can batch them
-			if (a.Materials.size() != b.Materials.size())
-			{
-				return a.Materials.size() < b.Materials.size();
-			}
-			for (size_t k = 0; k < a.Materials.size(); ++k)
-			{
-				uint64_t hashA = a.Materials[k].GetHash();
-				uint64_t hashB = b.Materials[k].GetHash();
-				if (hashA != hashB)
-				{
-					return hashA < hashB;
-				}
 			}
 			return a.Distance < b.Distance;
 		});
@@ -205,7 +172,7 @@ namespace Chained
 
 		for (auto& pass : m_RenderPasses)
 		{
-			RenderContext ctx{registry, settings, camera, options, this, device, renderer, assets};
+			RenderContext ctx{registry, settings, camera, options, this};
 			pass->Execute(ctx);
 
 			if (pass->GetName() == "ShadowPass")
@@ -229,10 +196,7 @@ namespace Chained
 			dbg->RenderDebug(registry, settings, camera, options, *renderer);
 		}
 
-		if (s_NametagRenderer)
-		{
-			s_NametagRenderer(registry, camera);
-		}
+		NametagSystem::DrawNametags(registry, camera);
 
 		renderer->EndScene();
 
@@ -252,22 +216,27 @@ namespace Chained
 		}
 		auto view = registry.view<TransformComponent, SpriteComponent>();
 
-		m_SpriteRenderQueue.clear();
+		struct SpriteEntry
+		{
+			entt::entity Entity;
+			int ZOrder;
+		};
+
+		std::vector<SpriteEntry> sortedSprites;
 		for (auto entity : view)
 		{
-			m_SpriteRenderQueue.push_back(SpriteEntry{entity, registry.get<SpriteComponent>(entity).ZOrder});
+			sortedSprites.push_back(SpriteEntry{entity, registry.get<SpriteComponent>(entity).ZOrder});
 		}
 
-		std::sort(m_SpriteRenderQueue.begin(), m_SpriteRenderQueue.end(),
-				  [](const SpriteEntry& a, const SpriteEntry& b) {
-					  if (a.ZOrder != b.ZOrder)
-					  {
-						  return a.ZOrder < b.ZOrder;
-					  }
-					  return a.Entity < b.Entity;
-				  });
+		std::sort(sortedSprites.begin(), sortedSprites.end(), [](const SpriteEntry& a, const SpriteEntry& b) {
+			if (a.ZOrder != b.ZOrder)
+			{
+				return a.ZOrder < b.ZOrder;
+			}
+			return a.Entity < b.Entity;
+		});
 
-		for (const auto& entry : m_SpriteRenderQueue)
+		for (const auto& entry : sortedSprites)
 		{
 			auto& transform = registry.get<TransformComponent>(entry.Entity);
 			auto& sprite = registry.get<SpriteComponent>(entry.Entity);
@@ -331,7 +300,7 @@ namespace Chained
 
 			const auto& mesh = model.Meshes[i];
 
-			const Material& material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
+			Material material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
 
 			bool isTransparent = material.Transparent || material.AlbedoColor.a < 0.99f;
 			if (pass == RenderPassStage::Opaque && isTransparent)
@@ -377,9 +346,12 @@ namespace Chained
 				m_MaterialManager.Bind(activeShader, material, i, model);
 			}
 
-			renderer->SetCurrentShaderId(activeShader->GetNativeHandle());
+			uint32_t originalID = material.ShaderID;
+			material.ShaderID = activeShader->GetNativeHandle();
+
 			activeShader->Bind();
 			renderer->DrawMesh(mesh, material, transform * inst.localTransform);
+			material.ShaderID = originalID;
 		}
 	}
 
@@ -410,7 +382,7 @@ namespace Chained
 
 			const auto& mesh = model.Meshes[i];
 
-			const Material& material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
+			Material material = m_MaterialManager.Resolve(i, model, materials, modelAsset);
 
 			bool isTransparent = material.Transparent || material.AlbedoColor.a < 0.99f;
 			if (pass == RenderPassStage::Opaque && isTransparent)
@@ -449,7 +421,8 @@ namespace Chained
 				m_MaterialManager.Bind(activeShader, material, i, model);
 			}
 
-			renderer->SetCurrentShaderId(activeShader->GetNativeHandle());
+			uint32_t originalID = material.ShaderID;
+			material.ShaderID = activeShader->GetNativeHandle();
 
 			// Precompute all instance matrices: worldTransform * localTransform
 			std::vector<glm::mat4> instanceTransforms(transforms.size());
@@ -459,6 +432,7 @@ namespace Chained
 			}
 
 			renderer->DrawMeshInstanced(mesh, material, instanceTransforms);
+			material.ShaderID = originalID;
 		}
 	}
 

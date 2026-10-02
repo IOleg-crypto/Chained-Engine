@@ -16,6 +16,10 @@
 namespace Chained
 {
 	enum WidgetType : int;
+}
+
+namespace Chained
+{
 	class SceneScriptingManager;
 	class Event;
 

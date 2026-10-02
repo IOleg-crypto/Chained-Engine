@@ -21,31 +21,33 @@ namespace Chained::Core
 		void Shutdown() override;
 
 		// Static API — primary interface for engine-wide access
-		void Update(Timestep ts);
-		void ResetAll();
+		static void Update(Timestep ts);
+		static void ResetAll();
 
-		bool IsKeyPressed(KeyCode key);
-		bool IsKeyDown(KeyCode key);
-		bool IsKeyReleased(KeyCode key);
-		bool IsKeyUp(KeyCode key);
+		static bool IsKeyPressed(KeyCode key);
+		static bool IsKeyDown(KeyCode key);
+		static bool IsKeyReleased(KeyCode key);
+		static bool IsKeyUp(KeyCode key);
 
-		bool IsMouseButtonPressed(MouseCode button);
-		bool IsMouseButtonDown(MouseCode button);
-		bool IsMouseButtonReleased(MouseCode button);
-		bool IsMouseButtonUp(MouseCode button);
+		static bool IsMouseButtonPressed(MouseCode button);
+		static bool IsMouseButtonDown(MouseCode button);
+		static bool IsMouseButtonReleased(MouseCode button);
+		static bool IsMouseButtonUp(MouseCode button);
 
-		glm::vec2 GetMousePosition();
-		glm::vec2 GetMouseDelta();
-		float GetMouseWheelMove();
-		float GetMouseWheelHMove();
-		glm::vec2 GetMouseScroll();
+		static glm::vec2 GetMousePosition();
+		static glm::vec2 GetMouseDelta();
+		static float GetMouseWheelMove();
+		static float GetMouseWheelHMove();
+		static glm::vec2 GetMouseScroll();
 
-		void OnKey(KeyCode key, bool pressed);
-		void OnMouseButton(MouseCode button, bool pressed);
-		void OnMouseMove(float x, float y);
-		void OnMouseScroll(float xOffset, float yOffset);
+		static void OnKey(KeyCode key, bool pressed);
+		static void OnMouseButton(MouseCode button, bool pressed);
+		static void OnMouseMove(float x, float y);
+		static void OnMouseScroll(float xOffset, float yOffset);
 
 	private:
+		static Input* GetInstance();
+
 		std::array<bool, 512> m_KeyStates{};
 		std::array<bool, 512> m_LastKeyStates{};
 		std::array<bool, 16> m_MouseStates{};

@@ -7,13 +7,11 @@
 
 namespace Chained
 {
-	class EditorSceneManager;
-	struct EditorConfig;
 
 	class ContentBrowserPanel : public Panel
 	{
 	public:
-		ContentBrowserPanel(EditorSceneManager* sceneManager = nullptr, const EditorConfig* config = nullptr);
+		ContentBrowserPanel();
 		~ContentBrowserPanel() override;
 
 		void OnImGuiRender(bool readOnly = false) override;
@@ -70,9 +68,6 @@ namespace Chained
 		bool m_OpenRenamePopup = false;
 		bool m_OpenDeletePopup = false;
 		bool m_PendingRefresh = false;
-
-		EditorSceneManager* m_SceneManager = nullptr;
-		const EditorConfig* m_Config = nullptr;
 	};
 
 } // namespace Chained

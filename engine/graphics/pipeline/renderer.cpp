@@ -4,6 +4,7 @@
 #include "engine/graphics/api/graphics_device.h"
 #include "engine/graphics/api/renderer_types.h"
 #include "engine/graphics/pipeline/shader_storage.h"
+#include "engine/assets/asset_manager.h"
 
 #include "engine/core/service_locator.h"
 #include "engine/graphics/api/buffer.h"
@@ -11,7 +12,6 @@
 #include "engine/graphics/api/vertex_array.h"
 #include "engine/assets/types/environment_asset.h"
 #include "engine/assets/types/shader_asset.h"
-#include "engine/scene/systems/nametag_system.h"
 
 #include <variant> // Added for type-safe variant visitation
 
@@ -26,17 +26,11 @@ namespace Chained
 			CH_CORE_INFO("[Renderer] Headless mode enabled, skipping OpenGL initialization.");
 			return;
 		}
-		if (!m_Device)
-		{
-			m_Device = ServiceLocator::TryGet<GraphicsDevice>();
-		}
-		if (m_Device)
-		{
-			m_Device->Init();
-		}
+
+		GraphicsDevice::Set(GraphicsDevice::Create());
+		GraphicsDevice::Get().Init();
 
 		// Initialize lighting subsystem (SSBO + state)
-		m_LightingManager.SetGraphicsDevice(m_Device);
 		m_LightingManager.Initialize();
 
 		// Initialize UBOs (must be before methods that reference them)
@@ -64,9 +58,6 @@ namespace Chained
 		shaders.LoadOrGet("Skinned");
 		shaders.LoadOrGet("Unlit");
 		shaders.LoadOrGet("Billboard");
-		shaders.LoadOrGet("Nametag");
-
-		NametagSystem::Init();
 
 		m_ResourcesLoaded = true;
 		CH_CORE_INFO("[Renderer] LoadEngineResources done. {} shader(s) loaded.", shaders.GetNames().size());
@@ -81,7 +72,6 @@ namespace Chained
 			return;
 		}
 
-		NametagSystem::Shutdown();
 		CleanupSkybox();
 
 		m_LightingManager.Shutdown();
@@ -91,10 +81,11 @@ namespace Chained
 
 		m_Data->Instancing.SSBO.reset();
 		m_Data->Instancing.Capacity = 0;
+
+		GraphicsDevice::Get().Shutdown();
 	}
 
-	Renderer::Renderer(GraphicsDevice* device)
-		: m_Device(device)
+	Renderer::Renderer()
 	{
 		m_Data = std::make_unique<RendererData>();
 		m_Data->Shaders = std::make_unique<ShaderStorage>();
@@ -139,18 +130,12 @@ namespace Chained
 	{
 		Color chColor((unsigned char)(color.r * 255), (unsigned char)(color.g * 255), (unsigned char)(color.b * 255),
 					  (unsigned char)(color.a * 255));
-		if (m_Device)
-		{
-			m_Device->Clear(chColor);
-		}
+		GraphicsDevice::Get().Clear(chColor);
 	}
 
 	void Renderer::SetViewport(int x, int y, int width, int height)
 	{
-		if (m_Device)
-		{
-			m_Device->SetViewport(x, y, width, height);
-		}
+		GraphicsDevice::Get().SetViewport(x, y, width, height);
 	}
 
 	void Renderer::DrawMesh(const Mesh& mesh, const Material& material, const glm::mat4& transform)
@@ -196,16 +181,16 @@ namespace Chained
 		}
 
 		// Bind VAO and Draw
-		if (mesh.VAO && m_Device)
+		if (mesh.VAO)
 		{
 			mesh.VAO->Bind();
 			if (mesh.TriangleCount > 0 && mesh.VAO->GetIndexBuffer())
 			{
-				m_Device->DrawIndexed(mesh.VAO, mesh.TriangleCount * 3);
+				GraphicsDevice::Get().DrawIndexed(mesh.VAO, mesh.TriangleCount * 3);
 			}
 			else
 			{
-				m_Device->DrawArrays(mesh.VertexCount);
+				GraphicsDevice::Get().DrawArrays(mesh.VertexCount);
 			}
 		}
 	}
@@ -261,26 +246,23 @@ namespace Chained
 		shader->SetInt("u_IsInstanced", 1);
 
 		// Bind mesh VAO and draw instanced
-		if (m_Device)
+		mesh.VAO->Bind();
+		if (mesh.TriangleCount > 0 && mesh.VAO->GetIndexBuffer())
 		{
-			mesh.VAO->Bind();
-			if (mesh.TriangleCount > 0 && mesh.VAO->GetIndexBuffer())
-			{
-				m_Device->DrawIndexedInstanced(mesh.VAO, (uint32_t)transforms.size(), mesh.TriangleCount * 3);
-			}
-			else
-			{
-				m_Device->DrawArraysInstanced(mesh.VertexCount, (uint32_t)transforms.size());
-			}
+			GraphicsDevice::Get().DrawIndexedInstanced(mesh.VAO, (uint32_t)transforms.size(), mesh.TriangleCount * 3);
+		}
+		else
+		{
+			GraphicsDevice::Get().DrawArraysInstanced(mesh.VertexCount, (uint32_t)transforms.size());
 		}
 
 		shader->SetInt("u_IsInstanced", 0);
 	}
 
 	void Renderer::DrawSkybox(uint32_t textureId, int skyboxMode, bool isHDR, float exposure, float brightness,
-							  float contrast, const Camera3D& camera, bool flipY, bool flipX, float rotation)
+							  float contrast, const Camera3D& camera, bool flipped)
 	{
-		if (textureId == 0 || !m_Device)
+		if (textureId == 0)
 		{
 			return;
 		}
@@ -296,9 +278,9 @@ namespace Chained
 		}
 
 		// 1. Prepare Render State
-		m_Device->SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
-		m_Device->SetCullMode(GraphicsDevice::CullMode::None);
-		m_Device->DisableDepthMask();
+		GraphicsDevice::Get().SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
+		GraphicsDevice::Get().SetCullMode(GraphicsDevice::CullMode::None);
+		GraphicsDevice::Get().DisableDepthMask();
 
 		// 2. Setup Uniforms
 		shaderAsset->GetShader()->Bind();
@@ -312,9 +294,7 @@ namespace Chained
 		shaderAsset->GetShader()->SetFloat("u_Brightness", brightness);
 		shaderAsset->GetShader()->SetFloat("u_Contrast", contrast);
 		shaderAsset->GetShader()->SetInt("u_IsHDR", isHDR ? 1 : 0);
-		shaderAsset->GetShader()->SetInt("u_VFlipped", flipY ? 1 : 0);
-		shaderAsset->GetShader()->SetInt("u_HFlipped", flipX ? 1 : 0);
-		shaderAsset->GetShader()->SetFloat("u_Rotation", glm::radians(rotation));
+		shaderAsset->GetShader()->SetInt("u_VFlipped", flipped ? 1 : 0);
 
 		// 3. Bind Textures and Draw Mesh
 		const char* texUniform = "u_Panorama";
@@ -329,7 +309,7 @@ namespace Chained
 			texUniform = "u_CrossMap";
 		}
 
-		m_Device->SetTexture(0, textureId, texFlags != 0);
+		GraphicsDevice::Get().SetTexture(0, textureId, texFlags != 0);
 		shaderAsset->GetShader()->SetInt(texUniform, 0);
 
 		auto& model = (skyboxMode == 0) ? m_Data->Skybox.SkyboxSphereModel : m_Data->Skybox.SkyboxCubeModel;
@@ -338,21 +318,21 @@ namespace Chained
 			auto& mesh = model->Meshes[0];
 			mesh.VAO->Bind();
 			uint32_t indexCount = (skyboxMode == 0) ? mesh.TriangleCount * 3 : 36;
-			m_Device->DrawIndexed(mesh.VAO, indexCount);
+			GraphicsDevice::Get().DrawIndexed(mesh.VAO, indexCount);
 			mesh.VAO->Unbind();
 		}
 
 		// 4. Restore Render State
-		m_Device->SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
-		m_Device->SetCullMode(GraphicsDevice::CullMode::Back);
-		m_Device->EnableDepthMask();
+		GraphicsDevice::Get().SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
+		GraphicsDevice::Get().SetCullMode(GraphicsDevice::CullMode::Back);
+		GraphicsDevice::Get().EnableDepthMask();
 	}
 
 	void Renderer::DrawBillboard(const Camera3D& camera, uint32_t textureId, const glm::vec3& position, float size,
 								 const glm::vec4& tint)
 	{
 		auto billboardShaderAsset = m_Data->Shaders->LoadOrGet("Billboard");
-		if (!billboardShaderAsset || !billboardShaderAsset->GetShader() || textureId == 0 || !m_Device)
+		if (!billboardShaderAsset || !billboardShaderAsset->GetShader() || textureId == 0)
 		{
 			return;
 		}
@@ -381,7 +361,7 @@ namespace Chained
 		shader->SetMatrix("mvp", m_Data->Frame.Proj * m_Data->Frame.View * model);
 		shader->SetVec4("colDiffuse", tint);
 
-		m_Device->SetTexture(0, textureId);
+		GraphicsDevice::Get().SetTexture(0, textureId);
 		shader->SetInt("texture0", 0);
 
 		PipelineStateGuard stateGuard;
@@ -389,26 +369,31 @@ namespace Chained
 
 		auto& quadVAO = m_GeometryFactory.GetQuad();
 		quadVAO->Bind();
-		m_Device->DrawIndexed(quadVAO, 6);
+		GraphicsDevice::Get().DrawIndexed(quadVAO, 6);
 		quadVAO->Unbind();
 	}
 
 	void Renderer::ApplyPostProcessing(uint32_t screenTextureId, uint32_t depthTextureId, const Camera3D& camera,
 									   ShaderAsset* overrideShader, const std::vector<ShaderUniform>& uniforms)
 	{
-		std::shared_ptr<Shader> shader = nullptr;
+		std::shared_ptr<ShaderAsset> shaderAsset = nullptr;
 
-		if (overrideShader && overrideShader->GetShader())
+		if (overrideShader)
 		{
-			shader = overrideShader->GetShader();
+			if (auto* am = ServiceLocator::TryGet<AssetManager>())
+			{
+				auto handle = am->ResolveToHandle(overrideShader->GetPath());
+				shaderAsset = am->Get<ShaderAsset>(handle);
+			}
 		}
-		else if (auto defaultShaderAsset = m_Data->Shaders->LoadOrGet("PostProcess"))
+		else
 		{
-			shader = defaultShaderAsset->GetShader();
+			shaderAsset = m_Data->Shaders->LoadOrGet("PostProcess");
 		}
 
-		if (shader)
+		if (shaderAsset && shaderAsset->GetShader())
 		{
+			auto shader = shaderAsset->GetShader();
 			shader->Bind();
 
 			// Safe extraction of diagnostic float values from variant
@@ -425,10 +410,8 @@ namespace Chained
 			}
 			if (diagIntensity > 0.001f)
 			{
-				const char* shaderName = (overrideShader && !overrideShader->GetPath().empty())
-											 ? overrideShader->GetPath().c_str()
-											 : "PostProcess";
-				CH_CORE_TRACE("[RENDER DIAG] Applying shader '{}', Intensity={}", shaderName, diagIntensity);
+				CH_CORE_TRACE("[RENDER DIAG] Applying shader '{}', Intensity={}", shaderAsset->GetPath(),
+							  diagIntensity);
 			}
 
 			// 1. Set System Uniforms
@@ -450,24 +433,21 @@ namespace Chained
 			ApplyShaderUniforms(shader.get(), uniforms);
 
 			// 3. Bind Textures
-			if (m_Device)
-			{
-				m_Device->SetTexture(0, screenTextureId);
-				shader->SetInt("texture0", 0);
+			GraphicsDevice::Get().SetTexture(0, screenTextureId);
+			shader->SetInt("texture0", 0);
 
-				m_Device->SetTexture(1, depthTextureId);
-				shader->SetInt("texture1", 1);
+			GraphicsDevice::Get().SetTexture(1, depthTextureId);
+			shader->SetInt("texture1", 1);
 
-				m_Device->DisableDepthTest();
+			GraphicsDevice::Get().DisableDepthTest();
 
-				auto& fsQuad = m_GeometryFactory.GetFullscreenQuad();
-				fsQuad->Bind();
-				m_Device->DrawIndexed(fsQuad, 6);
-				fsQuad->Unbind();
+			auto& fsQuad = m_GeometryFactory.GetFullscreenQuad();
+			fsQuad->Bind();
+			GraphicsDevice::Get().DrawIndexed(fsQuad, 6);
+			fsQuad->Unbind();
 
-				m_Device->EnableDepthTest();
-				m_Device->SetCullMode(GraphicsDevice::CullMode::Back);
-			}
+			GraphicsDevice::Get().EnableDepthTest();
+			GraphicsDevice::Get().SetCullMode(GraphicsDevice::CullMode::Back);
 		}
 	}
 
@@ -506,7 +486,7 @@ namespace Chained
 	void Renderer::DrawSprite(uint32_t textureId, const glm::mat4& transform, const glm::vec4& tint, bool flipX,
 							  bool flipY)
 	{
-		if (textureId == 0 || !m_Device)
+		if (textureId == 0)
 		{
 			return;
 		}
@@ -530,7 +510,7 @@ namespace Chained
 
 		auto& quadVAO = m_GeometryFactory.GetQuad();
 		quadVAO->Bind();
-		m_Device->DrawIndexed(quadVAO, 6);
+		GraphicsDevice::Get().DrawIndexed(quadVAO, 6);
 		quadVAO->Unbind();
 	}
 

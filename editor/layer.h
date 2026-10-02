@@ -28,6 +28,11 @@ namespace Chained
 	class EditorLayer : public Layer
 	{
 	public:
+		static EditorLayer& Get()
+		{
+			return *s_Instance;
+		}
+
 		EditorLayer();
 		virtual ~EditorLayer();
 
@@ -102,21 +107,10 @@ namespace Chained
 		}
 		void OnViewportResized(const ImVec2& size)
 		{
-			if (size.x > 0 && size.y > 0)
-			{
-				m_ViewportSize = size;
-			}
-			else
-			{
-				CH_CORE_WARN("EditorLayer: Ignoring invalid viewport resize to ({}, {})", size.x, size.y);
-			}
+			m_ViewportSize = size;
 		}
 		void SetLastScenePath(const std::string& path)
 		{
-			if (path.empty())
-			{
-				return;
-			}
 			m_Config.LastScenePath = path;
 		}
 
@@ -166,6 +160,8 @@ namespace Chained
 		// as IsMouseClicked this frame) does not leak through to game widgets.
 		SceneState m_PrevSceneState = SceneState::Edit;
 		bool m_SuppressNextUIInput = false;
+
+		static inline EditorLayer* s_Instance = nullptr;
 	};
 } // namespace Chained
 

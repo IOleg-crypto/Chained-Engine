@@ -9,14 +9,13 @@ namespace Chained
 {
 	struct Camera3D;
 	class TextureAsset;
-	struct EditorConfig;
 
 	// Renders billboard editor icons for cameras, lights, spawns, and audio sources.
 	// Icons are rendered directly into the currently-bound framebuffer (HDR pass).
 	namespace ViewportIcons
 	{
 		// Renders all icon categories. Called during the HDR render pass.
-		void RenderAll(entt::registry& registry, const Camera3D& camera, const EditorConfig* config = nullptr);
+		void RenderAll(entt::registry& registry, const Camera3D& camera);
 
 		void RenderLightIcons(entt::registry& registry, const Camera3D& camera, float iconMin, float iconMax,
 							  float iconScale);

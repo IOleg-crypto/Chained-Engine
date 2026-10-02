@@ -1,5 +1,4 @@
 #include "engine/app/application.h"
-#include "engine/core/application_event_proxy.h"
 #include "engine/graphics/api/graphics_device.h"
 #include "engine/core/profiler.h"
 #include "engine/core/platform.h"
@@ -19,6 +18,7 @@
 #include "engine/core/input.h"
 #include "engine/scripting/scriptengine.h"
 #include "engine/networking/network_service.h"
+#include "engine/scene/systems/network_system.h"
 
 namespace Chained
 {
@@ -32,7 +32,6 @@ namespace Chained
 	{
 		CH_ASSERT(!s_Instance);
 		s_Instance = this;
-		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent));
 
 		Log::Init();
 		ComponentRegistry::RegisterEngineComponents();
@@ -43,17 +42,7 @@ namespace Chained
 		}
 
 		InitializePlatform();
-		// Re-register with the now-valid Window pointer (m_Window is created inside InitializePlatform).
-		ApplicationEventProxy::Register(CH_BIND_EVENT_FN(Application::OnEvent), m_Window.get());
 		RegisterCoreServices();
-
-		// Inject Input into the window now that the service is registered —
-		// InitializePlatform() runs before RegisterCoreServices() so Input wasn't available then.
-		if (m_Window)
-		{
-			m_Window->InjectInput(ServiceLocator::TryGet<Core::Input>());
-		}
-
 		RegisterRuntimeServices();
 		RegisterGameplayServices();
 
@@ -86,7 +75,7 @@ namespace Chained
 		const bool isHeadless = m_Specification.Headless;
 		if (!isHeadless)
 		{
-			m_Window = Window::Create(m_Specification.Window, ServiceLocator::TryGet<Core::Input>());
+			m_Window = Window::Create(m_Specification.Window);
 			m_Window->SetEventCallback(CH_BIND_EVENT_FN(Application::OnEvent));
 		}
 		else
@@ -95,7 +84,7 @@ namespace Chained
 		}
 	}
 
-	void Application::RegisterCoreServices() const
+	void Application::RegisterCoreServices()
 	{
 		unsigned int threads = std::thread::hardware_concurrency();
 		if (threads == 0)
@@ -145,13 +134,10 @@ namespace Chained
 		const bool isHeadless = m_Specification.Headless;
 		if (!isHeadless)
 		{
-			ServiceLocator::Provide<GraphicsDevice>([] { return GraphicsDevice::Create(); });
-			ServiceLocator::Provide<Renderer>(
-				[] { return std::make_unique<Renderer>(ServiceLocator::TryGet<GraphicsDevice>()); });
+			ServiceLocator::Provide<Renderer>([] { return std::make_unique<Renderer>(); });
 			ServiceLocator::Provide<UIFontRegistry>([] { return std::make_unique<UIFontRegistry>(); });
 			ServiceLocator::Provide<WidgetRenderer>([] { return std::make_unique<WidgetRenderer>(); });
-			ServiceLocator::Provide<DebugRenderer>(
-				[] { return std::make_unique<DebugRenderer>(ServiceLocator::TryGet<GraphicsDevice>()); });
+			ServiceLocator::Provide<DebugRenderer>([] { return std::make_unique<DebugRenderer>(); });
 		}
 	}
 
@@ -165,6 +151,7 @@ namespace Chained
 				[=] { return std::make_unique<ScriptEngine>(m_Specification.EnableScripting); });
 		}
 		ServiceLocator::Provide<Network>([] { return std::make_unique<Network>(); });
+		ServiceLocator::Provide<NetworkSystem>([] { return std::make_unique<NetworkSystem>(); });
 	}
 
 	Application::~Application()
@@ -172,13 +159,13 @@ namespace Chained
 
 		m_LayerStack.reset();
 
+		// WARNING: OpenGL resources held by the Project (like Environment maps)
+		// MUST be released before the OpenGL context is destroyed (via m_Window.reset()).
+		// Setting Active Project to nullptr invokes destructors cleanly.
 		Project::SetActive(nullptr);
 
-		if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
-		{
-			gd->ProcessResourceDeletions();
-		}
 		ServiceLocator::Shutdown();
+		GraphicsDevice::ProcessResourceDeletions();
 		m_Window.reset();
 		// Log::Shutdown() MUST come after m_Window.reset(): ~GlfwWindow::Shutdown() emits
 		// CH_CORE_INFO("Glfw Window Closed"). If the core logger were reset first, that log
@@ -209,7 +196,7 @@ namespace Chained
 			}
 
 			// Process any GPU resource deletions queued from worker threads
-			ServiceLocator::Get<GraphicsDevice>()->ProcessResourceDeletions();
+			GraphicsDevice::ProcessResourceDeletions();
 
 			if (m_Window && m_Window->GetWidth() > 0 && m_Window->GetHeight() > 0)
 			{
@@ -238,7 +225,7 @@ namespace Chained
 					layer->OnUpdate(m_Timer.DeltaTime);
 				}
 
-				ServiceLocator::Get<Core::Input>()->Update(m_Timer.DeltaTime);
+				Core::Input::Update(m_Timer.DeltaTime);
 
 				for (auto& layer : *m_LayerStack)
 				{

@@ -1,0 +1,186 @@
+Scene: Untitled Scene
+Background:
+  Mode: 2
+  Color: [0, 123, 0, 124]
+  TexturePath: ""
+Canvas:
+  ReferenceResolution: [1920, 1080]
+  ScaleMode: 0
+  MatchWidthOrHeight: 0.5
+EnvironmentPath: environments/new_environment.chenv
+Lighting:
+  Direction: [-1, -1, -1]
+  LightColor: [255, 255, 255, 255]
+  Ambient: 0.300000012
+Skybox:
+  TexturePath: skyboxes/Starry night preview4.png
+  Mode: 0
+  Exposure: 1
+  Brightness: 0
+  Contrast: 1
+Fog:
+  Enabled: true
+  Color: [130, 130, 130, 255]
+  Density: 0.00999999978
+  Start: 10
+  End: 100
+DebugSettings:
+  DiagnosticMode: 0
+  DrawColliders: false
+  DrawHierarchy: false
+  DrawCollisionModelBox: false
+  DrawGrid: false
+  DrawSelection: true
+  DrawLights: true
+  DrawSpawnZones: true
+Entities:
+  - Entity: 1283719283719285
+    TagComponent:
+      Tag: Arena
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    ModelComponent:
+      ModelHandle: 0
+      ModelPath: models/arena.glb
+      Materials:
+        []
+    ColliderComponent:
+      Type: 257
+      Enabled: true
+      Offset: [-43.8236694, -68.8881912, -46.1545258]
+      Size: [86.6819458, 94.478302, 89.0095215]
+      Radius: 0.5
+      Height: 2
+      ModelHandle: 0
+      ModelPath: models/arena.glb
+      AutoCalculate: true
+  - Entity: 1283719283719287
+    TagComponent:
+      Tag: Entity
+    TransformComponent:
+      Translation: [28.8506241, 16.7000008, 27.7648582]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ModelComponent:
+      ModelHandle: 0
+      ModelPath: ""
+      Materials:
+        []
+    SpawnComponent:
+      SpawnZoneSize: [1, 1, 1]
+      SpawnTextureHandle: 0
+      SpawnTexturePath: environments/boxes/playerspawntexture.png
+      RenderSpawnZoneInScene: true
+  - Entity: 1326311650816898569
+    TagComponent:
+      Tag: Player
+    TransformComponent:
+      Translation: [0.741465449, 5.18291473, 100.064888]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ModelComponent:
+      ModelHandle: 0
+      ModelPath: models/city/after_the_rain..._-_vr__sound.glb
+      Materials:
+        []
+    ColliderComponent:
+      Type: 258
+      Enabled: true
+      Offset: [0, 0, -0.293091357]
+      Size: [2.48000002, 5.67999983, 7.4000001]
+      Radius: 0.25
+      Height: 2
+      ModelHandle: 0
+      ModelPath: models/player_low.glb
+      AutoCalculate: true
+    RigidBodyComponent:
+      Mass: 2.9000001
+      UseGravity: true
+      IsKinematic: false
+    PlayerComponent:
+      MovementSpeed: 15
+      LookSensitivity: 0.899999976
+      JumpForce: 10
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: chaineddecos.scripts.gamehud
+        - ClassName: chaineddecos.scripts.playercontroller
+        - ClassName: chaineddecos.scripts.playerfall
+        - ClassName: chaineddecos.scripts.spawnzone
+        - ClassName: chaineddecos.scripts.spawnzone
+  - Entity: 1283719283719289
+    TagComponent:
+      Tag: Entity
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 6428169142076434776
+    TagComponent:
+      Tag: stairsaw
+    TransformComponent:
+      Translation: [-50.6539459, 0.631593704, 10.243227]
+      Rotation: [-3.14159083, 1.55226898, -3.14159083]
+      Scale: [0.999882996, 1, 0.97942549]
+    ModelComponent:
+      ModelHandle: 0
+      ModelPath: models/stairs.glb
+      Materials:
+        []
+    ColliderComponent:
+      Type: 257
+      Enabled: true
+      Offset: [-17.087841, -4.29592609, -11.3028545]
+      Size: [34.1756821, 8.59185219, 22.6057091]
+      Radius: 0.5
+      Height: 2
+      ModelHandle: 0
+      ModelPath: models/stairs.glb
+      AutoCalculate: true
+  - Entity: 7935884460455885952
+    TagComponent:
+      Tag: Camera
+    TransformComponent:
+      Translation: [-75.8884048, 25.9009342, 87.4832993]
+      Rotation: [-11.0000238, -57.3987541, 0]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      Primary: true
+      FixedAspectRatio: false
+      IsOrbitCamera: true
+      OrbitDistance: 32
+      OrbitYaw: 1.80052602
+      OrbitPitch: 13.4000015
+      LookSensitivity: 0.899999976
+      TargetEntityTag: Player
+      Projection:
+        Projection: 0
+        VerticalFOV: 60
+        Near: 0.1
+        Far: 1000
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: chaineddecos.scripts.cameracontroller
+  - Entity: 14689743047800951365
+    TagComponent:
+      Tag: SceneCamera
+    TransformComponent:
+      Translation: [42.2146225, 28.3946991, 76.4796829]
+      Rotation: [-30.3999996, 66.4000092, 0]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      Primary: true
+      FixedAspectRatio: false
+      IsOrbitCamera: false
+      OrbitDistance: 10
+      OrbitYaw: 0
+      OrbitPitch: 20
+      LookSensitivity: 0.899999976
+      TargetEntityTag: Player
+      Projection:
+        Projection: 0
+        VerticalFOV: 60
+        Near: 0.01
+        Far: 1000

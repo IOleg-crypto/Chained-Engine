@@ -66,10 +66,6 @@ namespace Chained
 			{
 				return "";
 			}
-			if (texPath.front() == '*')
-			{
-				return texPath;
-			}
 			if (assetManager && assetManager->FileExists(texPath))
 			{
 				return texPath;
@@ -79,32 +75,32 @@ namespace Chained
 				return texPath;
 			}
 			std::filesystem::path p1 = modelDir / texPath;
-			if (assetManager && assetManager->FileExists(p1.generic_string()))
+			if (assetManager && assetManager->FileExists(p1.string()))
 			{
-				return p1.generic_string();
+				return p1.string();
 			}
 			if (std::filesystem::exists(p1))
 			{
-				return p1.generic_string();
+				return p1.string();
 			}
-			std::string filename = std::filesystem::path(texPath).filename().generic_string();
+			std::string filename = std::filesystem::path(texPath).filename().string();
 			std::filesystem::path p2 = modelDir / filename;
-			if (assetManager && assetManager->FileExists(p2.generic_string()))
+			if (assetManager && assetManager->FileExists(p2.string()))
 			{
-				return p2.generic_string();
+				return p2.string();
 			}
 			if (std::filesystem::exists(p2))
 			{
-				return p2.generic_string();
+				return p2.string();
 			}
 			std::filesystem::path p3 = modelDir / "textures" / filename;
-			if (assetManager && assetManager->FileExists(p3.generic_string()))
+			if (assetManager && assetManager->FileExists(p3.string()))
 			{
-				return p3.generic_string();
+				return p3.string();
 			}
 			if (std::filesystem::exists(p3))
 			{
-				return p3.generic_string();
+				return p3.string();
 			}
 			return texPath;
 		};

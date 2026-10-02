@@ -12,7 +12,6 @@ namespace Chained
 {
 
 	class Renderer;
-	class AssetManager;
 
 	/// @brief Collects visible entities from the scene, frustum-culls them,
 	/// resolves materials, and splits into opaque/transparent render queues.
@@ -23,8 +22,7 @@ namespace Chained
 		explicit EntityCollector(MaterialManager& materialManager);
 		~EntityCollector() = default;
 
-		void Collect(entt::registry& registry, const Frustum& frustum, const glm::vec3& cameraPos,
-					 AssetManager* assets = nullptr);
+		void Collect(entt::registry& registry, const Frustum& frustum, const glm::vec3& cameraPos);
 		void Clear();
 
 		std::vector<RenderItem>& GetOpaqueQueue()
@@ -38,8 +36,7 @@ namespace Chained
 
 	private:
 		bool EnqueueModelAsset(entt::registry& registry, entt::entity entity, ModelAsset* modelAsset,
-							   const glm::mat4& worldTransform, const Frustum& frustum, const glm::vec3& cameraPos,
-							   AssetManager* assets = nullptr);
+							   const glm::mat4& worldTransform, const Frustum& frustum, const glm::vec3& cameraPos);
 
 		MaterialManager& m_MaterialManager;
 		std::vector<RenderItem> m_OpaqueQueue;

@@ -26,11 +26,14 @@ namespace Chained
 			return node[key].as<T>(fallback);
 		}
 
-		std::string ToProjectRelativePath(const std::string& absPath)
+		namespace
 		{
-			auto project = Project::GetActive();
-			return project ? project->GetRelativePath(absPath) : absPath;
-		}
+			static std::string ToProjectRelativePath(const std::string& absPath)
+			{
+				auto project = Project::GetActive();
+				return project ? project->GetRelativePath(absPath) : absPath;
+			}
+		} // namespace
 
 		static void SerializeBackgroundSettings(YAML::Emitter& out, const SceneSettings& settings)
 		{
@@ -76,9 +79,6 @@ namespace Chained
 			out << YAML::Key << "Exposure" << YAML::Value << envSettings.Skybox.Exposure;
 			out << YAML::Key << "Brightness" << YAML::Value << envSettings.Skybox.Brightness;
 			out << YAML::Key << "Contrast" << YAML::Value << envSettings.Skybox.Contrast;
-			out << YAML::Key << "FlipUV_Y" << YAML::Value << envSettings.Skybox.FlipUV_Y;
-			out << YAML::Key << "FlipUV_X" << YAML::Value << envSettings.Skybox.FlipUV_X;
-			out << YAML::Key << "Rotation" << YAML::Value << envSettings.Skybox.Rotation;
 			out << YAML::EndMap;
 
 			out << YAML::Key << "Fog" << YAML::Value << YAML::BeginMap;
@@ -102,8 +102,6 @@ namespace Chained
 			out << YAML::Key << "DrawSpawnZones" << YAML::Value << settings.DebugFlags.DrawSpawnZones;
 			out << YAML::Key << "CollisionWireframeMode" << YAML::Value
 				<< settings.DebugFlags.SetCollisionWireframeMode;
-			out << YAML::Key << "MeshColliderAsBBox" << YAML::Value << settings.DebugFlags.MeshColliderAsBBox;
-			out << YAML::Key << "ColliderAlpha" << YAML::Value << settings.DebugFlags.ColliderAlpha;
 			out << YAML::EndMap;
 		}
 
@@ -175,8 +173,6 @@ namespace Chained
 			settings.DebugFlags.DrawLights = ReadYamlValue(debugNode, "DrawLights", true);
 			settings.DebugFlags.DrawSpawnZones = ReadYamlValue(debugNode, "DrawSpawnZones", true);
 			settings.DebugFlags.SetCollisionWireframeMode = ReadYamlValue(debugNode, "CollisionWireframeMode", 0);
-			settings.DebugFlags.MeshColliderAsBBox = ReadYamlValue(debugNode, "MeshColliderAsBBox", true);
-			settings.DebugFlags.ColliderAlpha = ReadYamlValue(debugNode, "ColliderAlpha", 0.6f);
 		}
 
 		static void DeserializeGridSettings(const YAML::Node& sceneRoot, GridSettings& grid)
@@ -270,9 +266,6 @@ namespace Chained
 				envSettings.Skybox.Exposure = ReadYamlValue(skybox, "Exposure", envSettings.Skybox.Exposure);
 				envSettings.Skybox.Brightness = ReadYamlValue(skybox, "Brightness", envSettings.Skybox.Brightness);
 				envSettings.Skybox.Contrast = ReadYamlValue(skybox, "Contrast", envSettings.Skybox.Contrast);
-				envSettings.Skybox.FlipUV_Y = ReadYamlValue(skybox, "FlipUV_Y", envSettings.Skybox.FlipUV_Y);
-				envSettings.Skybox.FlipUV_X = ReadYamlValue(skybox, "FlipUV_X", envSettings.Skybox.FlipUV_X);
-				envSettings.Skybox.Rotation = ReadYamlValue(skybox, "Rotation", envSettings.Skybox.Rotation);
 			}
 
 			if (auto fog = sceneRoot["Fog"])

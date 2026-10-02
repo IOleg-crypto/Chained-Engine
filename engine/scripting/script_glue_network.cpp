@@ -1,5 +1,6 @@
 #include "script_glue_network.h"
 #include "engine/networking/network_service.h"
+#include "engine/scene/systems/network_system.h"
 #include "engine/core/service_locator.h"
 
 namespace Chained
@@ -348,10 +349,7 @@ namespace Chained
 			return;
 		}
 		std::string pathStr = ch_u16_to_string(path);
-		if (auto* net = ServiceLocator::TryGet<Network>())
-		{
-			net->SetPlayerPrefab(pathStr.c_str());
-		}
+		ServiceLocator::Get<NetworkSystem>()->SetPlayerPrefab(pathStr.c_str());
 		CH_CORE_INFO("[Script] Network.SetPlayerPrefab(path='{}')", pathStr);
 	}
 

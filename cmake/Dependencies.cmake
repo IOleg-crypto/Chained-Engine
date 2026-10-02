@@ -35,9 +35,7 @@ include(external_gtest)
 include(portable-file-dialogs)
 # enet + sodium are the networking transport (added via engine/CMakeLists.txt)
 include(reflect-cpp)
-if(CH_ENABLE_UPNP)
-    include(miniupnpc)
-endif()
+include(miniupnpc)
 include(basis_universal)
 
 # Disable unity builds for third-party libraries to avoid symbol redefinitions

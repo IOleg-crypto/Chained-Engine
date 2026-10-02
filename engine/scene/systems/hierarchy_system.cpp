@@ -36,6 +36,7 @@ namespace Chained::Hierarchy
 			if (needsUpdate)
 			{
 				tc.WorldTransform = task.ParentTransform * TransformSystem::ComputeLocalMatrix(tc);
+				tc.InverseWorldTransform = glm::inverse(tc.WorldTransform);
 				tc.TransformChanged = false;
 			}
 

@@ -71,18 +71,15 @@ namespace Chained::AnimationSystem
 			//  graphAsset->Nodes.size(), graphAsset->Transitions.size());
 		}
 
-		// Seed missing Variables from the graph's DefaultVariables only when needed.
+		// Seed missing Variables from the graph's DefaultVariables.
 		// Scripts can then override values via SetFloat/SetBool.
 		// This ensures every variable the graph references (e.g. isGrounded)
 		// exists in the map with a sane default - no hardcoding needed in C++.
-		if (anim.Variables.empty() || anim.Variables.size() < graphAsset->DefaultVariables.size())
+		for (const auto& [name, defaultVal] : graphAsset->DefaultVariables)
 		{
-			for (const auto& [name, defaultVal] : graphAsset->DefaultVariables)
+			if (anim.Variables.find(name) == anim.Variables.end())
 			{
-				if (anim.Variables.find(name) == anim.Variables.end())
-				{
-					anim.Variables[name] = defaultVal;
-				}
+				anim.Variables[name] = defaultVal;
 			}
 		}
 
@@ -466,12 +463,11 @@ namespace Chained::AnimationSystem
 		}
 	}
 
-	void Update(entt::registry& reg, Timestep ts, AssetManager* assets)
+	void Update(entt::registry& reg, Timestep ts)
 	{
 		CH_PROFILE_FUNCTION();
 
-		// Resolve asset manager: injected pointer takes priority, fall back to ServiceLocator
-		AssetManager* assetsMgr = assets ? assets : ServiceLocator::TryGet<AssetManager>();
+		auto* assets = ServiceLocator::TryGet<AssetManager>();
 
 		bool isRuntimePlay = true;
 		if (auto* scenePtr = reg.ctx().find<Scene*>())
@@ -490,10 +486,10 @@ namespace Chained::AnimationSystem
 
 			if (anim.IsGraphDriven())
 			{
-				EvaluateGraph(anim, isRuntimePlay, assetsMgr);
+				EvaluateGraph(anim, isRuntimePlay, assets);
 			}
 
-			ProcessPlayback(reg, anim, model, ts, assetsMgr);
+			ProcessPlayback(reg, anim, model, ts, assets);
 		}
 	}
 

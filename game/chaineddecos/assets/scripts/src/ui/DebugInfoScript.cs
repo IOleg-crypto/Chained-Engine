@@ -4,7 +4,6 @@ using Chained;
 
 namespace ChainedDecos.Scripts
 {
-    [Autoload]
     public class DebugInfoScript : Script
     {
         public Key ToggleKey = Key.F3;
