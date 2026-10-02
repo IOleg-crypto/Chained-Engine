@@ -1,5 +1,4 @@
 #include "inspector_panel.h"
-#include "editor/scene_manager.h"
 #include "thirdparty/IconsFontAwesome6.h"
 #include "gui.h"
 #include "engine/assets/asset_manager.h"
@@ -13,8 +12,7 @@
 
 namespace Chained
 {
-	InspectorPanel::InspectorPanel(EditorSceneManager* sceneManager)
-		: m_SceneManager(sceneManager)
+	InspectorPanel::InspectorPanel()
 	{
 		m_Name = "Inspector";
 	}
@@ -36,7 +34,8 @@ namespace Chained
 
 		if (m_SelectedEntity)
 		{
-			bool isTransitioning = m_SceneManager ? m_SceneManager->IsTransitioning() : false;
+
+			bool isTransitioning = EditorLayer::Get().GetSceneManager().IsTransitioning();
 			DrawComponents(m_SelectedEntity, readOnly || isTransitioning);
 		}
 		else

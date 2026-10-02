@@ -7,13 +7,11 @@
 
 namespace Chained
 {
-	class EditorMenu;
-	class EditorSceneManager;
 
 	class EditorLayout
 	{
 	public:
-		EditorLayout(EditorPanels& panels, EditorMenu& menu, EditorSceneManager& sceneManager);
+		EditorLayout(EditorPanels& panels);
 
 		void ResetLayout();
 
@@ -21,8 +19,6 @@ namespace Chained
 
 	private:
 		EditorPanels& m_Panels;
-		EditorMenu& m_Menu;
-		EditorSceneManager& m_SceneManager;
 		uint32_t m_DockSpaceID = 0;
 		bool m_NeedsRebuild = true;
 	};

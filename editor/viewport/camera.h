@@ -16,7 +16,7 @@ namespace Chained
 		EditorCameraController();
 		~EditorCameraController() = default;
 
-		void OnUpdate(Entity cameraEntity, Timestep ts, const glm::vec2& viewportSize, bool isPlayMode = false);
+		void OnUpdate(Entity cameraEntity, Timestep ts, const glm::vec2& viewportSize);
 
 		// Native Projection is provided by Camera parent class.
 

@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "editor/layer.h"
 #include "editor/panels/panel.h"
 #include "editor/panels/viewport_panel.h"
 #include "editor/project/project_exporter.h"
@@ -423,7 +424,7 @@ namespace Chained
 		return changed;
 	}
 
-	void EditorGUI::ApplyTheme(float fontSize)
+	void EditorGUI::ApplyTheme()
 	{
 		ImGuiStyle& style = ImGui::GetStyle();
 		style = ImGuiStyle(); // Reset to clean defaults to prevent ScaleAllSizes from accumulating
@@ -476,6 +477,7 @@ namespace Chained
 		colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
 		colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.10f, 0.12f, 0.14f, 0.73f);
 
+		float fontSize = EditorLayer::Get().GetConfig().FontSize;
 		float scale = fontSize > 0.0f ? (fontSize / 13.0f) : 1.0f;
 		style.ScaleAllSizes(scale);
 	}

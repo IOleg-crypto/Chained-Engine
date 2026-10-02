@@ -3,9 +3,9 @@ Project:
   IconPath: resources/icons/chaineddecos.jpg
   StartScene: scenes\start_menu.chscene
   AssetDirectory: assets
-  ActiveScene: assets/scenes/untitled100.chscene
+  ActiveScene: assets/scenes/rpg_strategy_scene.chscene
   Physics:
-    Gravity: 10
+    Gravity: 17.2999992
     FixedTimestep: 0.00416666688
   Animation:
     TargetFPS: 60
@@ -22,9 +22,9 @@ Project:
     Height: 1080
     VSync: false
   Audio:
-    MasterVolume: 0
-    MusicVolume: 0
-    SFXVolume: 0
+    MasterVolume: 1
+    MusicVolume: 1
+    SFXVolume: 1
   Runtime:
     Fullscreen: false
     ShowStats: true

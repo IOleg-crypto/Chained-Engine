@@ -738,17 +738,9 @@ namespace Chained
 
 	void JoltPhysicsWorld::DestroyBody(PhysicsBodyHandle handle)
 	{
-		JPH::BodyID id((JPH::uint32)handle);
-		if (id.IsInvalid())
-		{
-			return;
-		}
-
 		JPH::BodyInterface& bi = m_PhysicsSystem.GetBodyInterface();
-		if (bi.IsAdded(id))
-		{
-			bi.RemoveBody(id);
-		}
+		JPH::BodyID id((JPH::uint32)handle);
+		bi.RemoveBody(id);
 		bi.DestroyBody(id);
 	}
 

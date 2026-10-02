@@ -2,7 +2,7 @@
 #define CH_ENTITY_COMMANDS_H
 
 #include "command.h"
-#include "editor/types.h"
+#include "editor/layer.h"
 #include "engine/scene/components.h"
 #include "engine/scene/scene.h"
 #include "engine/scene/component_serializer.h"
@@ -13,10 +13,9 @@ namespace Chained
 	class DestroyEntityCommand : public IEditorCommand
 	{
 	public:
-		DestroyEntityCommand(Entity entity, EditorState* editorState = nullptr)
+		DestroyEntityCommand(Entity entity)
 			: m_Entity(entity),
-			  m_Scene(entity.GetRegistry().ctx().get<Scene*>()),
-			  m_EditorState(editorState)
+			  m_Scene(entity.GetRegistry().ctx().get<Scene*>())
 		{
 		}
 
@@ -34,9 +33,9 @@ namespace Chained
 			out << YAML::EndMap;
 			m_SerializedData = out.c_str();
 
-			if (m_EditorState && m_EditorState->SelectedEntity == m_Entity)
+			if (EditorLayer::Get().GetSelectedEntity() == m_Entity)
 			{
-				m_EditorState->SelectedEntity = {};
+				EditorLayer::Get().SetSelectedEntity({});
 			}
 
 			m_Scene->DestroyEntity(m_Entity);
@@ -66,7 +65,6 @@ namespace Chained
 	private:
 		Entity m_Entity;
 		Scene* m_Scene;
-		EditorState* m_EditorState;
 		uint64_t m_UUID;
 		std::string m_SerializedData;
 	};

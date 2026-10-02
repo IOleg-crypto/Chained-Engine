@@ -1,5 +1,4 @@
 #include "material_panel.h"
-#include "editor/scene_manager.h"
 #include "engine/scene/components/render/model_component.h"
 #include "engine/scene/scene_events.h"
 #include "imgui.h"
@@ -10,13 +9,13 @@
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/model_asset.h"
 #include "engine/assets/types/material_asset.h"
+#include "editor/layer.h"
 #include <filesystem>
 
 namespace Chained
 {
 
-	MaterialPanel::MaterialPanel(EditorSceneManager* sceneManager)
-		: m_SceneManager(sceneManager)
+	MaterialPanel::MaterialPanel()
 	{
 		m_Name = "Material Editor";
 	}
@@ -128,18 +127,6 @@ namespace Chained
 			{
 				UpdateTextureFromPath(mat.EmissiveMap, mat.EmissivePath);
 			}
-			EditorGUI::EndPropertyGrid();
-			ImGui::Unindent();
-		}
-
-		if (DrawSectionHeader(ICON_FA_SLIDERS, ICON_FA_SLIDERS " UV / Mapping"))
-		{
-			ImGui::Indent();
-			EditorGUI::BeginPropertyGrid();
-			EditorGUI::Property("Flip UV (Y)", mat.FlipUV_Y);
-			EditorGUI::Property("Flip UV (X)", mat.FlipUV_X);
-			EditorGUI::Property("UV Scale", mat.UVScale);
-			EditorGUI::Property("UV Offset", mat.UVOffset);
 			EditorGUI::EndPropertyGrid();
 			ImGui::Unindent();
 		}
@@ -467,10 +454,7 @@ namespace Chained
 		}
 
 		m_SelectedEntity.GetRegistry().patch<ModelComponent>(m_SelectedEntity, [](ModelComponent&) {});
-		if (m_SceneManager)
-		{
-			m_SceneManager->MarkSceneDirty();
-		}
+		EditorLayer::Get().GetSceneManager().MarkSceneDirty();
 	}
 
 	void MaterialPanel::DeleteMaterials()
@@ -538,10 +522,7 @@ namespace Chained
 		}
 
 		m_SelectedEntity.GetRegistry().patch<ModelComponent>(m_SelectedEntity, [](ModelComponent&) {});
-		if (m_SceneManager)
-		{
-			m_SceneManager->MarkSceneDirty();
-		}
+		EditorLayer::Get().GetSceneManager().MarkSceneDirty();
 	}
 
 	void MaterialPanel::OnEvent(Event& e)

@@ -1,6 +1,6 @@
 #include "viewport_icons.h"
 #include "editor/icons.h"
-#include "editor/types.h"
+#include "editor/layer.h"
 #include "engine/assets/asset_manager.h"
 #include "engine/assets/types/texture_asset.h"
 #include "engine/core/service_locator.h"
@@ -8,7 +8,6 @@
 #include "engine/graphics/pipeline/renderer.h"
 #include "engine/scene/components.h"
 #include "engine/scene/scene.h"
-#include "editor/project/editor_settings.h"
 #include <glad/gl.h>
 #include <algorithm>
 #include <cmath>
@@ -87,7 +86,7 @@ namespace Chained
 		}
 	}
 
-	void ViewportIcons::RenderAll(entt::registry& registry, const Camera3D& camera, const EditorConfig* config)
+	void ViewportIcons::RenderAll(entt::registry& registry, const Camera3D& camera)
 	{
 		const glm::vec3 activeCameraPos = camera.Position;
 
@@ -107,9 +106,10 @@ namespace Chained
 		tryLoadIcon("engine/resources/icons/leaf_icon.png", s_CachedIcons.SpawnIcon);
 		tryLoadIcon("engine/resources/icons/audio.png", s_CachedIcons.AudioIcon);
 
-		const float iconMin = config ? config->IconSizeMin : 0.5f;
-		const float iconMax = config ? config->IconSizeMax : 2.0f;
-		const float iconScale = config ? config->IconSizeScale : 0.05f;
+		const auto& editorCfg = EditorLayer::Get().GetConfig();
+		const float iconMin = editorCfg.IconSizeMin;
+		const float iconMax = editorCfg.IconSizeMax;
+		const float iconScale = editorCfg.IconSizeScale;
 
 		// Camera icons
 		auto cameraView = registry.view<TransformComponent, CameraComponent>();

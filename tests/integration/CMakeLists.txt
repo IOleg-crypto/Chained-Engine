@@ -1,18 +1,21 @@
 # Integration tests — require engine runtime (Application, Scene, Physics, Renderer, Scripting)
 set(INTEGRATION_SOURCES
     scene_tests.cpp
+    scene_serialization_tests.cpp
     async_scene_loader_tests.cpp
     physics_tests.cpp
     scriptengine_tests.cpp
     renderer_tests.cpp
     audio_tests.cpp
     importer_tests.cpp
+    integration_tests.cpp
     asset_manager_tests.cpp
-    asset_resolution_tests.cpp
     material_tests.cpp
+    hierarchy_tests.cpp
     serialization_tests.cpp
     network_tests.cpp
     smoke_tests.cpp
+    regression_tests.cpp
     test_environment.cpp
     test_main.cpp
 )

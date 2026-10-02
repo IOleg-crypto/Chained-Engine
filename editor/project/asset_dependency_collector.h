@@ -29,8 +29,7 @@ namespace Chained
 		void ScanTextForReferences(const std::filesystem::path& fullPath,
 								   const std::unordered_map<std::string, std::filesystem::path>& allAssetsLower,
 								   std::unordered_set<std::string>& referencedLower,
-								   std::vector<std::filesystem::path>& newReferences,
-								   const std::unordered_set<std::string>& excludedKeys);
+								   std::vector<std::filesystem::path>& newReferences);
 
 		/// @brief Check if file extension or name should be excluded from packing.
 		bool IsIgnoredFile(const std::filesystem::path& relPath);

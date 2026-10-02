@@ -495,10 +495,7 @@ namespace Chained
 			}
 		}
 
-		if (asset)
-		{
-			asset->Unload();
-		}
+		asset->Unload();
 
 		{
 			std::lock_guard<std::recursive_mutex> lock(m_AssetLock);

@@ -66,8 +66,6 @@ engine/script/**/bin/
 engine/script/**/obj/
 game/**/bin/
 game/**/obj/
-tests/**/bin/
-tests/**/obj/
 
 .cache
 .zencoder

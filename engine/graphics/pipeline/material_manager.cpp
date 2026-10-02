@@ -9,14 +9,12 @@
 namespace Chained
 {
 
-	static const Material s_DefaultMaterial{};
-
-	const Material& MaterialManager::Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
-											 ModelAsset* modelAsset) const
+	Material MaterialManager::Resolve(int meshIndex, const Model& model, const std::vector<Material>& materials,
+									  ModelAsset* modelAsset) const
 	{
 		if (meshIndex < 0 || meshIndex >= (int)model.Meshes.size())
 		{
-			return s_DefaultMaterial;
+			return {};
 		}
 
 		int matIdx = model.Meshes[meshIndex].MaterialIndex;
@@ -40,7 +38,7 @@ namespace Chained
 		// Tier 3: Model struct embedded materials
 		if (matIdx < 0 || matIdx >= (int)model.Materials.size())
 		{
-			return s_DefaultMaterial;
+			return Material();
 		}
 
 		return model.Materials[matIdx];
@@ -80,15 +78,10 @@ namespace Chained
 		uint32_t emissiveMap = resolveMap(material.EmissiveMap, material.EmissivePath);
 		uint32_t occlusionMap = resolveMap(material.OcclusionMap, material.OcclusionPath);
 
-		auto* device = m_Device ? m_Device : ServiceLocator::TryGet<GraphicsDevice>();
-
 		// 1. Albedo (Texture Unit 0)
 		if (albedoMap > 0)
 		{
-			if (device)
-			{
-				device->SetTexture(0, albedoMap);
-			}
+			GraphicsDevice::Get().SetTexture(0, albedoMap);
 			shader->SetInt("texture0", 0);
 			shader->SetInt("useTexture", 1);
 		}
@@ -101,10 +94,7 @@ namespace Chained
 		// 2. Metallic-Roughness Packed Map (Texture Unit 1)
 		if (metallicMap > 0)
 		{
-			if (device)
-			{
-				device->SetTexture(1, metallicMap);
-			}
+			GraphicsDevice::Get().SetTexture(1, metallicMap);
 			shader->SetInt("texture1", 1);
 			shader->SetInt("useMetallicMap", 1);
 			shader->SetInt("useRoughnessMap", 1);
@@ -118,10 +108,7 @@ namespace Chained
 		// 3. Normal Map (Texture Unit 2)
 		if (normalMap > 0)
 		{
-			if (device)
-			{
-				device->SetTexture(2, normalMap);
-			}
+			GraphicsDevice::Get().SetTexture(2, normalMap);
 			shader->SetInt("texture2", 2);
 			shader->SetInt("useNormalMap", 1);
 		}
@@ -133,10 +120,7 @@ namespace Chained
 		// 4. Occlusion Map (Texture Unit 4)
 		if (occlusionMap > 0)
 		{
-			if (device)
-			{
-				device->SetTexture(4, occlusionMap);
-			}
+			GraphicsDevice::Get().SetTexture(4, occlusionMap);
 			shader->SetInt("texture4", 4);
 			shader->SetInt("useOcclusionMap", 1);
 		}
@@ -148,10 +132,7 @@ namespace Chained
 		// 5. Emissive Map (Texture Unit 5)
 		if (emissiveMap > 0)
 		{
-			if (device)
-			{
-				device->SetTexture(5, emissiveMap);
-			}
+			GraphicsDevice::Get().SetTexture(5, emissiveMap);
 			shader->SetInt("texture5", 5);
 			shader->SetInt("useEmissiveTexture", 1);
 		}
@@ -164,11 +145,6 @@ namespace Chained
 		shader->SetFloat("roughness", material.Roughness);
 		shader->SetVec4("colEmissive", material.EmissiveColor);
 		shader->SetFloat("emissiveIntensity", material.EmissiveIntensity);
-
-		shader->SetInt("u_FlipUV_Y", material.FlipUV_Y ? 1 : 0);
-		shader->SetInt("u_FlipUV_X", material.FlipUV_X ? 1 : 0);
-		shader->SetVec2("u_UVScale", material.UVScale);
-		shader->SetVec2("u_UVOffset", material.UVOffset);
 	}
 
 } // namespace Chained

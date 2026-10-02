@@ -1,6 +1,6 @@
 #include "viewport_renderer.h"
 #include "viewport_icons.h"
-#include "editor/types.h"
+#include "editor/layer.h"
 #include "engine/app/application.h"
 #include "engine/graphics/api/framebuffer.h"
 #include "engine/graphics/api/graphics_device.h"
@@ -113,19 +113,19 @@ namespace Chained
 		auto mode = scene->GetSettings().Mode;
 		if (mode == BackgroundMode::Color)
 		{
-			ServiceLocator::Get<GraphicsDevice>()->Clear(scene->GetSettings().BackgroundColor);
+			GraphicsDevice::Get().Clear(scene->GetSettings().BackgroundColor);
 		}
 		else if (mode == BackgroundMode::Texture)
 		{
 			auto& path = scene->GetSettings().BackgroundTexturePath;
 			if (!path.empty())
 			{
-				ServiceLocator::Get<GraphicsDevice>()->Clear(scene->GetSettings().BackgroundColor);
+				GraphicsDevice::Get().Clear(scene->GetSettings().BackgroundColor);
 			}
 		}
 		else if (mode == BackgroundMode::Environment3D)
 		{
-			ServiceLocator::Get<GraphicsDevice>()->Clear({0, 0, 0, 255});
+			GraphicsDevice::Get().Clear({0, 0, 0, 255});
 		}
 	}
 
@@ -138,8 +138,7 @@ namespace Chained
 		}
 	}
 
-	void ViewportRenderer::RenderScene(Scene* scene, const Camera3D& camera, bool showEditorIcons,
-									   const EditorConfig* config)
+	void ViewportRenderer::RenderScene(Scene* scene, const Camera3D& camera)
 	{
 		if (!m_HDRFramebuffer || !m_HDRFramebuffer->IsValid())
 		{
@@ -168,13 +167,12 @@ namespace Chained
 		options.ShowDebugColliders = currentDebugFlags.DrawColliders;
 		options.ShowDebugSpawnZones = currentDebugFlags.DrawSpawnZones;
 		options.SetCollisionWireframeMode = currentDebugFlags.SetCollisionWireframeMode;
-		options.MeshColliderAsBBox = currentDebugFlags.MeshColliderAsBBox;
-		options.ColliderAlpha = currentDebugFlags.ColliderAlpha;
 		m_SceneRenderer->RenderScene(scene->GetRegistry(), scene->GetSettings(), cam, options);
 
-		if (showEditorIcons)
+		if (EditorLayer::Get().GetSceneManager().GetSceneState() != SceneState::Play &&
+			EditorLayer::Get().GetConfig().ShowEditorIcons)
 		{
-			RenderEditorIcons(scene->GetRegistry(), cam, config);
+			RenderEditorIcons(scene->GetRegistry(), cam);
 		}
 
 		m_HDRFramebuffer->Unbind();
@@ -186,7 +184,7 @@ namespace Chained
 		}
 
 		m_ViewportFramebuffer->Bind();
-		ServiceLocator::Get<GraphicsDevice>()->Clear({0, 0, 0, 255});
+		GraphicsDevice::Get().Clear({0, 0, 0, 255});
 
 		if (auto* renderer = ServiceLocator::TryGet<Renderer>())
 		{
@@ -197,10 +195,9 @@ namespace Chained
 		m_ViewportFramebuffer->Unbind();
 	}
 
-	void ViewportRenderer::RenderEditorIcons(entt::registry& registry, const Camera3D& camera,
-											 const EditorConfig* config)
+	void ViewportRenderer::RenderEditorIcons(entt::registry& registry, const Camera3D& camera)
 	{
-		ViewportIcons::RenderAll(registry, camera, config);
+		ViewportIcons::RenderAll(registry, camera);
 	}
 
 	bool ViewportRenderer::IsValid() const

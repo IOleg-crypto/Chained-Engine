@@ -3,7 +3,6 @@ set(CORE_SOURCES
     service_registry.h
     service_locator.h
     service_locator.cpp
-    application_event_proxy.h
     input.h
     input.cpp
     key_codes.h

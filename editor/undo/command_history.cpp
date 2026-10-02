@@ -31,7 +31,6 @@ namespace Chained
 	{
 		if (m_UndoStack.empty())
 		{
-			CH_CORE_INFO("Undo stack is empty, nothing to undo.");
 			return;
 		}
 
@@ -48,7 +47,6 @@ namespace Chained
 	{
 		if (m_RedoStack.empty())
 		{
-			CH_CORE_INFO("Redo stack is empty, nothing to redo.");
 			return;
 		}
 

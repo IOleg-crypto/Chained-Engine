@@ -1,6 +1,5 @@
 #include "script_glue_scene.h"
-#include "engine/core/application_event_proxy.h"
-#include "engine/runtime/session_api.h"
+#include "engine/app/application.h"
 
 #include "engine/scene/scene_events.h"
 #include "engine/scene/components.h"
@@ -39,7 +38,7 @@ namespace Chained
 			return;
 		}
 		SceneChangeRequestEvent e(ch_u16_to_string(path));
-		ApplicationEventProxy::Dispatch(e);
+		Application::Get().OnEvent(e);
 	}
 
 	CH_SCRIPT_FUNC uint64_t Scene_GetPrimaryCameraEntity()
@@ -73,23 +72,6 @@ namespace Chained
 		}
 		s_ScenePathBuffer = ToWide("");
 		return s_ScenePathBuffer.c_str();
-	}
-
-	CH_SCRIPT_FUNC uint8_t Scene_HasSuspendedSession()
-	{
-		if (SessionAPI::HasSuspendedSession)
-		{
-			return SessionAPI::HasSuspendedSession() ? 1 : 0;
-		}
-		return 0;
-	}
-
-	CH_SCRIPT_FUNC void Scene_ResumeSuspendedSession()
-	{
-		if (SessionAPI::ResumeSuspendedSession)
-		{
-			SessionAPI::ResumeSuspendedSession();
-		}
 	}
 
 } // namespace Chained

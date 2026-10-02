@@ -12,18 +12,8 @@
 namespace Chained
 {
 
-	DebugRenderer::DebugRenderer(GraphicsDevice* device)
-		: m_Device(device)
-	{
-	}
-
 	void DebugRenderer::Initialize()
 	{
-		if (!m_Device)
-		{
-			m_Device = ServiceLocator::TryGet<GraphicsDevice>();
-		}
-
 		m_Resources.UnitCubeModel = std::make_unique<Model>();
 		m_Resources.UnitCubeModel->Meshes.push_back(GeometryGenerator::GenerateUnitCube());
 
@@ -84,7 +74,7 @@ namespace Chained
 		}
 
 		m_Lines.VBO->SetData(m_Lines.Vertices.data(), dataSize);
-		ServiceLocator::Get<GraphicsDevice>()->DrawLines(m_Lines.VAO, (uint32_t)m_Lines.Vertices.size());
+		GraphicsDevice::Get().DrawLines(m_Lines.VAO, (uint32_t)m_Lines.Vertices.size());
 		m_Lines.Vertices.clear();
 	}
 
@@ -116,33 +106,30 @@ namespace Chained
 		{
 			auto guard = PipelineStateGuard::Capture();
 			guard.WithBlend();
-			ServiceLocator::Get<GraphicsDevice>()->SetBlendEnabled(true);
-			ServiceLocator::Get<GraphicsDevice>()->SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
-																GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
+			GraphicsDevice::Get().SetBlendEnabled(true);
+			GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
+											   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
 
 			if (useWireframe)
 			{
-				ServiceLocator::Get<GraphicsDevice>()->SetPolygonMode(GraphicsDevice::PolygonMode::Line);
+				GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Line);
 			}
 			else
 			{
-				ServiceLocator::Get<GraphicsDevice>()->SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
+				GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
 			}
 
-			if (m_Device)
+			if (mesh.TriangleCount > 0)
 			{
-				if (mesh.TriangleCount > 0)
-				{
-					m_Device->DrawIndexed(mesh.VAO, mesh.TriangleCount * 3);
-				}
-				else if (mesh.VAO->GetIndexBuffer() != nullptr)
-				{
-					m_Device->DrawIndexedLines(mesh.VAO, mesh.VAO->GetIndexBuffer()->GetCount());
-				}
-				else
-				{
-					m_Device->DrawLines(mesh.VAO, mesh.VertexCount);
-				}
+				GraphicsDevice::Get().DrawIndexed(mesh.VAO, mesh.TriangleCount * 3);
+			}
+			else if (mesh.VAO->GetIndexBuffer() != nullptr)
+			{
+				GraphicsDevice::Get().DrawIndexedLines(mesh.VAO, mesh.VAO->GetIndexBuffer()->GetCount());
+			}
+			else
+			{
+				GraphicsDevice::Get().DrawLines(mesh.VAO, mesh.VertexCount);
 			}
 		}
 	}
@@ -201,15 +188,12 @@ namespace Chained
 		}
 
 		auto guard = PipelineStateGuard::Capture();
-		if (m_Device)
-		{
-			m_Device->SetCullMode(GraphicsDevice::CullMode::None);
-			m_Device->EnableDepthTest();
-			m_Device->SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
-			m_Device->SetBlendEnabled(true);
-			m_Device->SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
-								   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
-		}
+		GraphicsDevice::Get().SetCullMode(GraphicsDevice::CullMode::None);
+		GraphicsDevice::Get().EnableDepthTest();
+		GraphicsDevice::Get().SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
+		GraphicsDevice::Get().SetBlendEnabled(true);
+		GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
+										   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
 
 		shaderAsset->GetShader()->Bind();
 
@@ -242,10 +226,7 @@ namespace Chained
 			m_GridPlaneVAO->SetIndexBuffer(ibo);
 		}
 
-		if (m_Device)
-		{
-			m_Device->DrawIndexed(m_GridPlaneVAO, 6);
-		}
+		GraphicsDevice::Get().DrawIndexed(m_GridPlaneVAO, 6);
 	}
 
 	void DebugRenderer::RenderDebug(entt::registry& registry, const SceneSettings& settings, const Camera3D& camera,
@@ -260,23 +241,19 @@ namespace Chained
 		auto guard = PipelineStateGuard::Capture();
 		guard.WithDepthTest().WithBlend().WithWireframeMode();
 
-		if (m_Device)
-		{
-			m_Device->EnableDepthTest();
-			m_Device->SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
-			m_Device->SetBlendEnabled(true);
-			m_Device->SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
-								   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
-			m_Device->SetPolygonOffset(false, 0.0f, 0.0f);
+		GraphicsDevice::Get().DisableDepthTest();
+		GraphicsDevice::Get().SetBlendEnabled(true);
+		GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
+										   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
+		GraphicsDevice::Get().SetPolygonOffset(false, 0.0f, 0.0f);
 
-			if (options.SetCollisionWireframeMode == 1)
-			{
-				m_Device->SetPolygonMode(GraphicsDevice::PolygonMode::Line);
-			}
-			else
-			{
-				m_Device->SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
-			}
+		if (options.SetCollisionWireframeMode == 1)
+		{
+			GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Line);
+		}
+		else
+		{
+			GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
 		}
 
 		if (options.ShowDebugColliders)
@@ -298,7 +275,6 @@ namespace Chained
 		int mode = options.SetCollisionWireframeMode;
 		bool drawSolid = (mode == 1 || mode == 2);
 		bool drawWire = (mode == 0 || mode == 2);
-		float alphaVal = glm::clamp(options.ColliderAlpha, 0.05f, 1.0f);
 
 		auto drawPass = [&](bool isWireframe) {
 			auto view = registry.view<TransformComponent, ColliderComponent>();
@@ -310,47 +286,36 @@ namespace Chained
 					continue;
 				}
 
-				glm::vec4 color;
-				if (collider.IsColliding)
+				glm::vec4 color =
+					collider.IsColliding ? glm::vec4(1.0f, 0.0f, 0.0f, 0.6f) : glm::vec4(0.0f, 1.0f, 0.0f, 0.6f);
+				if (isWireframe)
 				{
-					color = glm::vec4(1.0f, 0.25f, 0.25f, isWireframe ? alphaVal : alphaVal * 0.35f);
+					color.a = 1.0f;
 				}
-				else if (collider.IsTrigger)
-				{
-					color = glm::vec4(1.0f, 0.75f, 0.1f, isWireframe ? alphaVal : alphaVal * 0.3f);
-				}
-				else if (collider.Type == ColliderType::Mesh)
-				{
-					color = glm::vec4(0.2f, 0.85f, 0.95f, isWireframe ? alphaVal * 0.8f : alphaVal * 0.25f);
-				}
-				else
-				{
-					color = glm::vec4(0.2f, 0.9f, 0.35f, isWireframe ? alphaVal : alphaVal * 0.35f);
-				}
-
-				glm::vec3 entityScale(glm::length(glm::vec3(transform.WorldTransform[0])),
-									  glm::length(glm::vec3(transform.WorldTransform[1])),
-									  glm::length(glm::vec3(transform.WorldTransform[2])));
-
-				glm::mat4 rotTrans = transform.WorldTransform;
-				if (entityScale.x > 0.0001f)
-				{
-					rotTrans[0] = glm::vec4(glm::vec3(rotTrans[0]) / entityScale.x, 0.0f);
-				}
-				if (entityScale.y > 0.0001f)
-				{
-					rotTrans[1] = glm::vec4(glm::vec3(rotTrans[1]) / entityScale.y, 0.0f);
-				}
-				if (entityScale.z > 0.0001f)
-				{
-					rotTrans[2] = glm::vec4(glm::vec3(rotTrans[2]) / entityScale.z, 0.0f);
-				}
-
-				glm::mat4 baseTransform = rotTrans * glm::translate(glm::mat4(1.0f), collider.Offset);
 
 				if (collider.Type == ColliderType::Box || collider.Type == ColliderType::Sphere ||
 					collider.Type == ColliderType::Capsule)
 				{
+					glm::vec3 entityScale(glm::length(glm::vec3(transform.WorldTransform[0])),
+										  glm::length(glm::vec3(transform.WorldTransform[1])),
+										  glm::length(glm::vec3(transform.WorldTransform[2])));
+
+					glm::mat4 rotTrans = transform.WorldTransform;
+					if (entityScale.x > 0.0001f)
+					{
+						rotTrans[0] = glm::vec4(glm::vec3(rotTrans[0]) / entityScale.x, 0.0f);
+					}
+					if (entityScale.y > 0.0001f)
+					{
+						rotTrans[1] = glm::vec4(glm::vec3(rotTrans[1]) / entityScale.y, 0.0f);
+					}
+					if (entityScale.z > 0.0001f)
+					{
+						rotTrans[2] = glm::vec4(glm::vec3(rotTrans[2]) / entityScale.z, 0.0f);
+					}
+
+					glm::mat4 baseTransform = rotTrans * glm::translate(glm::mat4(1.0f), collider.Offset);
+
 					if (collider.Type == ColliderType::Box)
 					{
 						DrawCubeWires(baseTransform, collider.Size * entityScale, color, renderer, isWireframe);
@@ -369,26 +334,19 @@ namespace Chained
 				}
 				else if (collider.Type == ColliderType::Mesh && !collider.ModelPath.empty())
 				{
-					if (options.MeshColliderAsBBox && glm::length(collider.Size) > 0.001f)
+					auto* am = ServiceLocator::TryGet<AssetManager>();
+					auto modelAsset = am ? am->Get<ModelAsset>(collider.ModelPath) : nullptr;
+					if (modelAsset && modelAsset->IsReady())
 					{
-						DrawCubeWires(baseTransform, collider.Size * entityScale, color, renderer, isWireframe);
-					}
-					else
-					{
-						auto* am = ServiceLocator::TryGet<AssetManager>();
-						auto modelAsset = am ? am->Get<ModelAsset>(collider.ModelPath) : nullptr;
-						if (modelAsset && modelAsset->IsReady())
+						glm::mat4 meshTrans =
+							transform.WorldTransform * glm::translate(glm::mat4(1.0f), collider.Offset);
+						const auto& model = modelAsset->GetModel();
+						for (const auto& inst : modelAsset->GetInstances())
 						{
-							glm::mat4 meshTrans =
-								transform.WorldTransform * glm::translate(glm::mat4(1.0f), collider.Offset);
-							const auto& model = modelAsset->GetModel();
-							for (const auto& inst : modelAsset->GetInstances())
+							glm::mat4 finalMat = meshTrans * inst.localTransform;
+							if (inst.meshIndex >= 0 && inst.meshIndex < model.Meshes.size())
 							{
-								glm::mat4 finalMat = meshTrans * inst.localTransform;
-								if (inst.meshIndex >= 0 && inst.meshIndex < model.Meshes.size())
-								{
-									DrawMeshWire(model.Meshes[inst.meshIndex], color, finalMat, renderer, isWireframe);
-								}
+								DrawMeshWire(model.Meshes[inst.meshIndex], color, finalMat, renderer, isWireframe);
 							}
 						}
 					}
@@ -396,22 +354,19 @@ namespace Chained
 			}
 		};
 
-		if (drawSolid && m_Device)
+		if (drawSolid)
 		{
-			m_Device->SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
+			GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
 			drawPass(false);
 		}
 
-		if (drawWire && m_Device)
+		if (drawWire)
 		{
-			m_Device->SetPolygonMode(GraphicsDevice::PolygonMode::Line);
+			GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Line);
 			drawPass(true);
 		}
 
-		if (m_Device)
-		{
-			m_Device->SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
-		}
+		GraphicsDevice::Get().SetPolygonMode(GraphicsDevice::PolygonMode::Fill);
 	}
 
 } // namespace Chained

@@ -1,6 +1,3 @@
-// physics_tests.cpp
-// Consolidated scenario-based tests for Physics and Collision (Jolt Physics integration).
-// Follows Arrange-Act-Assert (AAA) pattern without fixtures.
 
 #include "engine/core/service_locator.h"
 #include "engine/physics/iphysics_world.h"
@@ -9,12 +6,107 @@
 #include "engine/scene/scene.h"
 #include "gtest/gtest.h"
 
-#include <vector>
-
 using namespace Chained;
+
+TEST(PhysicsTest, Raycast)
+{
+	auto scene = std::make_shared<Scene>();
+	auto entity = scene->CreateEntity("Test Entity");
+	auto& transform = entity.GetComponent<TransformComponent>();
+	transform.Translation = {0.0f, 0.0f, 5.0f};
+
+	auto& collider = entity.AddComponent<ColliderComponent>();
+	collider.Size = {1.0f, 1.0f, 1.0f};
+	collider.Offset = {-0.5f, -0.5f, -0.5f};
+
+	auto& rb = entity.AddComponent<RigidBodyComponent>();
+	rb.Type = RigidBodyComponent::BodyType::Static;
+
+	Ray ray;
+	ray.position = {0.0f, 0.0f, 0.0f};
+	ray.direction = {0.0f, 0.0f, 1.0f};
+
+	scene->OnRuntimeStart();
+	scene->OnUpdateRuntime(Timestep(0.016f));
+
+	RaycastResult result = ServiceLocator::Get<Physics>()->Raycast(ray);
+	EXPECT_TRUE(result.Hit);
+	EXPECT_NEAR(result.Distance, 4.0f, 0.001f);
+	EXPECT_EQ(result.Entity, (entt::entity)entity);
+
+	ray.direction = {0.0f, 0.0f, -1.0f};
+	result = ServiceLocator::Get<Physics>()->Raycast(ray);
+	EXPECT_FALSE(result.Hit);
+}
+
+TEST(PhysicsTest, RaycastMissingCollider)
+{
+	auto scene = std::make_shared<Scene>();
+	auto entity = scene->CreateEntity("No Collider");
+	auto& transform = entity.GetComponent<TransformComponent>();
+	transform.Translation = {0.0f, 0.0f, 5.0f};
+
+	auto& rb = entity.AddComponent<RigidBodyComponent>();
+	rb.Type = RigidBodyComponent::BodyType::Static;
+
+	Ray ray;
+	ray.position = {0.0f, 0.0f, 0.0f};
+	ray.direction = {0.0f, 0.0f, 1.0f};
+
+	scene->OnRuntimeStart();
+	scene->OnUpdateRuntime(Timestep(0.016f));
+
+	RaycastResult result = ServiceLocator::Get<Physics>()->Raycast(ray);
+	EXPECT_FALSE(result.Hit);
+}
+
+TEST(PhysicsTest, ColliderEnabledFlag)
+{
+	auto scene = std::make_shared<Scene>();
+	auto entity = scene->CreateEntity("Collider Entity");
+	auto& collider = entity.AddComponent<ColliderComponent>();
+
+	// Default is true
+	EXPECT_TRUE(collider.Enabled);
+
+	// Set to false
+	collider.Enabled = false;
+	EXPECT_FALSE(collider.Enabled);
+}
+
+TEST(PhysicsTest, ContextLifecycleResetAndClear)
+{
+	auto scene = std::make_shared<Scene>();
+
+	// ResetAccumulator should be safe to call even if no accumulator exists yet
+	ServiceLocator::Get<Physics>()->ResetAccumulator(scene.get());
+
+	// ClearContext should clean up without issues
+	ServiceLocator::Get<Physics>()->ClearContext(scene.get());
+
+	// Calling ResetAccumulator after ClearContext should be safe
+	ServiceLocator::Get<Physics>()->ResetAccumulator(scene.get());
+}
+
+TEST(PhysicsTest, RuntimeStartInitializesRigidBodyHandles)
+{
+	auto scene = std::make_shared<Scene>();
+	auto entity = scene->CreateEntity("Physics Entity");
+	entity.AddComponent<ColliderComponent>();
+	auto& rigidBody = entity.AddComponent<RigidBodyComponent>();
+
+	EXPECT_EQ(rigidBody.Handle, kInvalidPhysicsBody);
+
+	scene->OnRuntimeStart();
+	scene->OnUpdateRuntime(Timestep(0.016f));
+
+	EXPECT_NE(rigidBody.Handle, kInvalidPhysicsBody);
+}
 
 namespace
 {
+	// Unit cube centered at the origin, half-extent 0.5, in unscaled model-local space.
+	// Winding is irrelevant for mesh-shape raycasting.
 	std::vector<PhysicsTriangle> MakeUnitCubeTriangles()
 	{
 		const glm::vec3 c[8] = {
@@ -35,129 +127,50 @@ namespace
 	}
 } // namespace
 
-// ============================================================================
-// 1. POSITIVE SCENARIO (Happy Path: Raycast, Jolt Handles, Mesh Scaling)
-// ============================================================================
-TEST(PhysicsModule, Positive_LifecycleRaycastAndMeshScaling)
+// Two bodies share the same cached mesh BVH (same CacheKey) but different MeshScale.
+// If scale were baked into the cached shape, the second body would inherit the first's
+// scale; instead each gets its own ScaledShape over one shared bare BVH, so the raycast
+// hit distance to each near face reflects its own scale.
+TEST(PhysicsTest, MeshShapeCacheIsScaleIndependent)
 {
-	// Arrange
 	auto* physics = ServiceLocator::Get<Physics>();
-	ASSERT_NE(physics, nullptr);
-
-	auto scene = std::make_shared<Scene>();
-
-	Entity target = scene->CreateEntity("StaticCube");
-	auto& transform = target.GetComponent<TransformComponent>();
-	transform.Translation = {0.0f, 0.0f, 5.0f};
-
-	auto& collider = target.AddComponent<ColliderComponent>();
-	collider.Size = {1.0f, 1.0f, 1.0f};
-	collider.Offset = {-0.5f, -0.5f, -0.5f};
-
-	auto& rb = target.AddComponent<RigidBodyComponent>();
-	rb.Type = RigidBodyComponent::BodyType::Static;
-
-	// Act (Step 1: Start runtime — initializes Jolt handle)
-	scene->OnRuntimeStart();
-	scene->OnUpdateRuntime(Timestep(0.016f));
-
-	// Assert
-	EXPECT_NE(rb.Handle, kInvalidPhysicsBody);
-
-	// Act (Step 2: Raycast towards cube at +Z)
-	Ray forwardRay;
-	forwardRay.position = {0.0f, 0.0f, 0.0f};
-	forwardRay.direction = {0.0f, 0.0f, 1.0f};
-
-	RaycastResult hitResult = physics->Raycast(forwardRay);
-
-	// Assert
-	EXPECT_TRUE(hitResult.Hit);
-	EXPECT_NEAR(hitResult.Distance, 4.0f, 0.01f);
-	EXPECT_EQ(hitResult.Entity, (entt::entity)target);
-
-	// Arrange (Step 3: Multi-body scale-independent mesh cache)
-	physics->ResetWorld();
+	physics->ResetWorld(); // fresh world → clean shape cache
 	auto* world = physics->GetWorld();
 	ASSERT_NE(world, nullptr);
 
-	auto cubeTriangles = MakeUnitCubeTriangles();
+	auto tris = MakeUnitCubeTriangles();
 
-	// Act (Body A: Scale 1.0 at Z=10 -> near face at 9.5)
-	PhysicsBodyDesc descA;
-	descA.Shape = ColliderType::Mesh;
-	descA.IsStatic = true;
-	descA.Position = {0.0f, 0.0f, 10.0f};
-	descA.Triangles = cubeTriangles;
-	descA.MeshScale = {1.0f, 1.0f, 1.0f};
-	descA.CacheKey = "unit_cube_shared";
-	PhysicsBodyHandle bodyA = world->CreateBody(descA);
+	// Body A: scale 1 at x=0, z=10 → near (-Z) face at z = 10 - 0.5 = 9.5
+	PhysicsBodyDesc a;
+	a.Shape = ColliderType::Mesh;
+	a.IsStatic = true;
+	a.Position = {0.0f, 0.0f, 10.0f};
+	a.Triangles = tris;
+	a.MeshScale = {1.0f, 1.0f, 1.0f};
+	a.CacheKey = "unit_cube_test";
+	PhysicsBodyHandle hA = world->CreateBody(a);
+	ASSERT_NE(hA, kInvalidPhysicsBody);
 
-	// Act (Body B: Same CacheKey, Scale 2.0 at (100, 0, 10) -> near face at 9.0)
-	PhysicsBodyDesc descB;
-	descB.Shape = ColliderType::Mesh;
-	descB.IsStatic = true;
-	descB.Position = {100.0f, 0.0f, 10.0f};
-	descB.Triangles = cubeTriangles;
-	descB.MeshScale = {2.0f, 2.0f, 2.0f};
-	descB.CacheKey = "unit_cube_shared";
-	PhysicsBodyHandle bodyB = world->CreateBody(descB);
-
-	// Assert
-	ASSERT_NE(bodyA, kInvalidPhysicsBody);
-	ASSERT_NE(bodyB, kInvalidPhysicsBody);
+	// Body B: same CacheKey, scale 2 at x=100, z=10 → near face at z = 10 - 1.0 = 9.0
+	PhysicsBodyDesc b;
+	b.Shape = ColliderType::Mesh;
+	b.IsStatic = true;
+	b.Position = {100.0f, 0.0f, 10.0f};
+	b.Triangles = tris;
+	b.MeshScale = {2.0f, 2.0f, 2.0f};
+	b.CacheKey = "unit_cube_test";
+	PhysicsBodyHandle hB = world->CreateBody(b);
+	ASSERT_NE(hB, kInvalidPhysicsBody);
 
 	RaycastResult hitA = world->Raycast({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, 1000.0f);
-	EXPECT_TRUE(hitA.Hit);
+	ASSERT_TRUE(hitA.Hit);
 	EXPECT_NEAR(hitA.Distance, 9.5f, 0.01f);
 
 	RaycastResult hitB = world->Raycast({100.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, 1000.0f);
-	EXPECT_TRUE(hitB.Hit);
+	ASSERT_TRUE(hitB.Hit);
 	EXPECT_NEAR(hitB.Distance, 9.0f, 0.01f);
 
-	world->DestroyBody(bodyA);
-	world->DestroyBody(bodyB);
+	world->DestroyBody(hA);
+	world->DestroyBody(hB);
 	physics->ResetWorld();
-}
-
-// ============================================================================
-// 2. NEGATIVE SCENARIO (Crash-Safety, Misses, Missing Colliders)
-// ============================================================================
-TEST(PhysicsModule, Negative_EdgeCasesAndMissingColliders)
-{
-	// Arrange
-	auto* physics = ServiceLocator::Get<Physics>();
-	ASSERT_NE(physics, nullptr);
-
-	auto scene = std::make_shared<Scene>();
-
-	// Act & Assert (Step 1: Entity with RigidBody but NO ColliderComponent)
-	Entity noColliderEntity = scene->CreateEntity("NoCollider");
-	noColliderEntity.GetComponent<TransformComponent>().Translation = {0.0f, 0.0f, 5.0f};
-	auto& rb = noColliderEntity.AddComponent<RigidBodyComponent>();
-	rb.Type = RigidBodyComponent::BodyType::Static;
-
-	scene->OnRuntimeStart();
-	scene->OnUpdateRuntime(Timestep(0.016f));
-
-	Ray ray;
-	ray.position = {0.0f, 0.0f, 0.0f};
-	ray.direction = {0.0f, 0.0f, 1.0f};
-
-	EXPECT_FALSE(physics->Raycast(ray).Hit);
-
-	// Act & Assert (Step 2: Collider with Enabled = false)
-	auto& collider = noColliderEntity.AddComponent<ColliderComponent>();
-	collider.Enabled = false;
-	EXPECT_FALSE(collider.Enabled);
-
-	// Act & Assert (Step 3: Raycast in opposite direction -Z)
-	ray.direction = {0.0f, 0.0f, -1.0f};
-	EXPECT_FALSE(physics->Raycast(ray).Hit);
-
-	// Act & Assert (Step 4: Context lifecycle safety calls)
-	EXPECT_NO_THROW(physics->ResetAccumulator(scene.get()));
-	EXPECT_NO_THROW(physics->ClearContext(scene.get()));
-	EXPECT_NO_THROW(physics->ResetAccumulator(scene.get()));
-	EXPECT_NO_THROW(physics->ClearContext(nullptr));
 }

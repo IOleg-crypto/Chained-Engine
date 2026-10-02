@@ -17,7 +17,6 @@ namespace ChainedDecos.Scripts
                 return;
 
             Log.Info("[DisconnectButton] Leaving session");
-            LanDiscoveryBeacon.Stop();
             Network.Disconnect();
             Scene.LoadScene(MenuScene);
         }

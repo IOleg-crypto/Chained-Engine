@@ -30,8 +30,6 @@ namespace Chained
 		bool ShowDebugSpawnZones = false;
 		bool DrawGrid = false;
 		int SetCollisionWireframeMode = 0;
-		bool MeshColliderAsBBox = true;
-		float ColliderAlpha = 0.6f;
 	};
 
 	struct AnimatedEntry

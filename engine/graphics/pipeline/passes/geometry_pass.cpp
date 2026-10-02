@@ -2,7 +2,6 @@
 #include "engine/graphics/pipeline/scene_renderer.h"
 #include "engine/graphics/pipeline/frustum.h"
 #include "engine/graphics/api/graphics_device.h"
-#include "engine/core/service_locator.h"
 
 namespace Chained
 {
@@ -11,32 +10,27 @@ namespace Chained
 	{
 		PipelineStateGuard stateGuard;
 		auto& renderer = *renderCtx.Renderer;
-		auto* device = renderCtx.Device ? renderCtx.Device : ServiceLocator::TryGet<GraphicsDevice>();
 
 		// 1. Opaque Pass — no blending with automatic GPU instancing for matching models
-		if (device)
-		{
-			device->EnableDepthTest();
-			device->SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
-			device->EnableDepthMask();
-			device->SetBlendEnabled(false);
-		}
+		GraphicsDevice::Get().EnableDepthTest();
+		GraphicsDevice::Get().SetDepthFunc(GraphicsDevice::DepthFunc::LEqual);
+		GraphicsDevice::Get().EnableDepthMask();
+		GraphicsDevice::Get().SetBlendEnabled(false);
 
 		const auto& opaqueQueue = renderer.GetOpaqueQueue();
 		for (size_t i = 0; i < opaqueQueue.size();)
 		{
 			const auto& firstItem = opaqueQueue[i];
 
-			// Batch consecutive items: same asset, no bones/shader-override/custom-uniforms,
-			// AND identical material overrides (including both-empty case).
-			if (firstItem.Asset && firstItem.BoneMatrices.empty() && !firstItem.ShaderOverride &&
-				firstItem.CustomUniforms.empty())
+			// Check for consecutive identical static instances (same asset, materials, shader override)
+			if (firstItem.Asset && firstItem.BoneMatrices.empty() && firstItem.Materials.empty() &&
+				!firstItem.ShaderOverride && firstItem.CustomUniforms.empty())
 			{
 				size_t j = i + 1;
 				std::vector<glm::mat4> transforms = {firstItem.Transform};
 				while (j < opaqueQueue.size() && opaqueQueue[j].Asset == firstItem.Asset &&
 					   opaqueQueue[j].BoneMatrices.empty() && !opaqueQueue[j].ShaderOverride &&
-					   opaqueQueue[j].CustomUniforms.empty() && opaqueQueue[j].Materials == firstItem.Materials)
+					   opaqueQueue[j].CustomUniforms.empty() && opaqueQueue[j].Materials.empty())
 				{
 					transforms.push_back(opaqueQueue[j].Transform);
 					++j;
@@ -57,24 +51,17 @@ namespace Chained
 		}
 
 		// 2. Transparent Pass — enable blending
-		if (device)
-		{
-			device->SetBlendEnabled(true);
-			device->SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha, GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
-			device->DisableDepthMask();
-		}
-
+		GraphicsDevice::Get().SetBlendEnabled(true);
+		GraphicsDevice::Get().SetBlendFunc(GraphicsDevice::BlendFactor::SrcAlpha,
+										   GraphicsDevice::BlendFactor::OneMinusSrcAlpha);
+		GraphicsDevice::Get().DisableDepthMask();
 		for (const auto& item : renderer.GetTransparentQueue())
 		{
 			renderer.DrawModel(item.Asset, item.Transform, item.BoneMatrices, item.Materials, item.ShaderOverride,
 							   item.CustomUniforms, RenderPassStage::Transparent);
 		}
-
-		if (device)
-		{
-			device->EnableDepthMask();
-			device->SetBlendEnabled(false);
-		}
+		GraphicsDevice::Get().EnableDepthMask();
+		GraphicsDevice::Get().SetBlendEnabled(false);
 	}
 
 } // namespace Chained

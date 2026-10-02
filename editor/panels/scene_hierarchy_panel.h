@@ -6,15 +6,14 @@
 
 namespace Chained
 {
+
 	class CommandHistory;
-	class EditorSceneManager;
 	struct EditorState;
 
 	class SceneHierarchyPanel : public Panel
 	{
 	public:
-		SceneHierarchyPanel(EditorState* editorState = nullptr, CommandHistory* commandHistory = nullptr,
-							EditorSceneManager* sceneManager = nullptr);
+		SceneHierarchyPanel();
 
 		virtual void OnImGuiRender(bool readOnly = false) override;
 
@@ -25,10 +24,6 @@ namespace Chained
 		void StartRename(Entity entity);
 
 	private:
-		EditorState* m_EditorState = nullptr;
-		CommandHistory* m_CommandHistory = nullptr;
-		EditorSceneManager* m_SceneManager = nullptr;
-
 		std::unordered_set<entt::entity> m_DrawnEntities;
 		std::vector<entt::entity> m_EntitiesToDestroyPending;
 

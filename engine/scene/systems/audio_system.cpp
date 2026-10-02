@@ -9,12 +9,9 @@
 namespace Chained::AudioSystem
 {
 
-	void Update(entt::registry& reg, Audio* audio)
+	void Update(entt::registry& reg)
 	{
 		CH_PROFILE_FUNCTION();
-
-		// Resolve audio service: use injected pointer, fall back to ServiceLocator
-		Audio* audioSvc = audio ? audio : ServiceLocator::TryGet<Audio>();
 
 		// 1. Sync listener with primary camera
 		auto cameraView = reg.view<CameraComponent, TransformComponent>();
@@ -29,7 +26,7 @@ namespace Chained::AudioSystem
 				glm::vec3 forward = rot * glm::vec3(0, 0, -1);
 				glm::vec3 up = rot * glm::vec3(0, 1, 0);
 
-				if (audioSvc)
+				if (auto* audioSvc = ServiceLocator::TryGet<Audio>())
 				{
 					audioSvc->SetListenerPosition(pos, forward, up);
 				}
@@ -38,12 +35,13 @@ namespace Chained::AudioSystem
 		}
 
 		// 2. Manage audio components
+		auto audioView = reg.view<AudioComponent, TransformComponent>();
+		auto* audioSvc = ServiceLocator::TryGet<Audio>();
 		if (!audioSvc)
 		{
 			return;
 		}
 
-		auto audioView = reg.view<AudioComponent, TransformComponent>();
 		for (auto entity : audioView)
 		{
 			auto& audio = audioView.get<AudioComponent>(entity);
@@ -123,12 +121,11 @@ namespace Chained::AudioSystem
 		}
 	}
 
-	void OnRuntimeStop(entt::registry& reg, Audio* audio)
+	void OnRuntimeStop(entt::registry& reg)
 	{
 		CH_PROFILE_FUNCTION();
 
-		Audio* audioSvc = audio ? audio : ServiceLocator::TryGet<Audio>();
-		if (audioSvc)
+		if (auto* audioSvc = ServiceLocator::TryGet<Audio>())
 		{
 			audioSvc->StopAll();
 		}

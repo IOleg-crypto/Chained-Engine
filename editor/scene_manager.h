@@ -11,26 +11,12 @@
 
 namespace Chained
 {
-	struct EditorConfig;
-	struct EditorState;
-	class EditorProjectManager;
 
 	class EditorSceneManager
 	{
 	public:
-		EditorSceneManager(EditorConfig* config = nullptr, EditorState* editorState = nullptr,
-						   EditorProjectManager* projectManager = nullptr,
-						   std::function<void()> saveConfigCallback = nullptr);
+		EditorSceneManager() = default;
 		~EditorSceneManager() = default;
-
-		void SetDependencies(EditorConfig* config, EditorState* editorState, EditorProjectManager* projectManager,
-							 std::function<void()> saveConfigCallback)
-		{
-			m_Config = config;
-			m_EditorState = editorState;
-			m_ProjectManager = projectManager;
-			m_SaveConfigCallback = saveConfigCallback;
-		}
 
 		void NewScene();
 		void OpenScene();
@@ -136,11 +122,6 @@ namespace Chained
 		bool m_PendingNewScene = false;
 		bool m_PendingOpenScene = false;
 		std::filesystem::path m_PendingOpenPath;
-
-		EditorConfig* m_Config = nullptr;
-		EditorState* m_EditorState = nullptr;
-		EditorProjectManager* m_ProjectManager = nullptr;
-		std::function<void()> m_SaveConfigCallback;
 	};
 
 } // namespace Chained

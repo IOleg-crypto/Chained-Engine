@@ -2,18 +2,18 @@ using System;
 
 namespace Chained
 {
-    [NativeCall("Chained.Input", "Input_IsKeyDown", "int", "int")]
-    [NativeCall("Chained.Input", "Input_IsKeyPressed", "int", "int")]
-    [NativeCall("Chained.Input", "Input_IsKeyReleased", "int", "int")]
-    [NativeCall("Chained.Input", "Input_IsMouseButtonDown", "int", "int")]
-    [NativeCall("Chained.Input", "Input_IsMouseButtonPressed", "int", "int")]
-    [NativeCall("Chained.Input", "Input_GetMouseWheelMove", "float")]
-    [NativeCall("Chained.Input", "Input_GetMouseWheelHMove", "float")]
-    [NativeCall("Chained.Input", "Input_GetMouseScroll", "void", "float*", "float*")]
-    [NativeCall("Chained.Input", "Input_GetMouseDelta", "void", "float*", "float*")]
-    [NativeCall("Chained.Input", "Input_GetMousePosition", "void", "float*", "float*")]
-    public static unsafe partial class Input
+    public static unsafe class Input
     {
+        internal static delegate* unmanaged<int, int> Input_IsKeyDown_Ptr;
+        internal static delegate* unmanaged<int, int> Input_IsKeyPressed_Ptr;
+        internal static delegate* unmanaged<int, int> Input_IsKeyReleased_Ptr;
+        internal static delegate* unmanaged<int, int> Input_IsMouseButtonDown_Ptr;
+        internal static delegate* unmanaged<int, int> Input_IsMouseButtonPressed_Ptr;
+        internal static delegate* unmanaged<float> Input_GetMouseWheelMove_Ptr;
+        internal static delegate* unmanaged<float> Input_GetMouseWheelHMove_Ptr;
+        internal static delegate* unmanaged<float*, float*, void> Input_GetMouseScroll_Ptr;
+        internal static delegate* unmanaged<float*, float*, void> Input_GetMouseDelta_Ptr;
+
         public static bool IsKeyDown(Key keyCode)
         {
             if (Input_IsKeyDown_Ptr == null) return false;
@@ -75,17 +75,6 @@ namespace Chained
                 float x = 0.0f, y = 0.0f;
                 Input_GetMouseDelta_Ptr(&x, &y);
                 return new Vector3(x, y, 0.0f);
-            }
-        }
-        
-        public static Vector2 MousePosition
-        {
-            get
-            {
-                if (Input_GetMousePosition_Ptr == null) return Vector2.Zero;
-                float x = 0.0f, y = 0.0f;
-                Input_GetMousePosition_Ptr(&x, &y);
-                return new Vector2(x, y);
             }
         }
     }

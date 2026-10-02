@@ -9,12 +9,9 @@
 
 namespace Chained
 {
-	class CommandHistory;
-
 	namespace PropertyEditor
 	{
-		void Init(CommandHistory* commandHistory = nullptr);
-		void SetCommandHistory(CommandHistory* commandHistory);
+		void Init();
 
 		// Registry API
 		void DrawEntityProperties(Entity entity);
@@ -35,7 +32,7 @@ namespace Chained
 
 		// Internal template helpers (Implementations moved to .cpp or a separate _impl.h if needed elsewhere)
 		template <typename T> void DrawComponentReflection(const std::string& name, const char* icon, Entity entity);
-		void DrawGenericReflection(::entt::id_type typeId, const ComponentMetadata& metadata, Entity entity);
+		void DrawGenericReflection(const ComponentMetadata& metadata, Entity entity);
 
 		template <typename T, typename F>
 		void DrawComponentContainer(const std::string& name, const char* icon, Entity entity, F&& drawer);

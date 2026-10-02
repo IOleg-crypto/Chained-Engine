@@ -55,29 +55,6 @@ namespace Chained
 			return m_LoadState.State == RuntimeLoadState::Running;
 		}
 
-		bool IsPaused() const
-		{
-			return m_IsPaused;
-		}
-
-		void SetPaused(bool paused)
-		{
-			m_IsPaused = paused;
-		}
-
-		Scene* GetScene() const
-		{
-			return m_Scene.get();
-		}
-
-		bool HasSuspendedSession() const
-		{
-			return m_SuspendedGameplayScene != nullptr;
-		}
-
-		void ResumeSuspendedSession();
-		void SuspendCurrentGameplaySceneAndGoToMenu();
-
 	private:
 		bool InitProject(const std::string& projectPath);
 		bool DiscoverAndLoadProject(const std::string& projectPath);
@@ -105,11 +82,8 @@ namespace Chained
 		void AppendFontRequest(const struct TextStyle& style, std::vector<std::pair<std::string, float>>& out,
 							   std::unordered_set<std::string>& dedupe) const;
 
-		void ExecuteResumeSuspendedSession();
-
 	private:
 		std::shared_ptr<Scene> m_Scene;
-		std::shared_ptr<Scene> m_SuspendedGameplayScene;
 		std::unique_ptr<SceneRenderer> m_SceneRenderer;
 		Renderer* m_Renderer = nullptr;
 		AssetManager* m_AssetManager = nullptr;
@@ -119,10 +93,8 @@ namespace Chained
 		LoadingState m_LoadState;
 
 		std::string m_PendingScenePath;
-		bool m_PendingResume = false;
 		std::shared_ptr<Framebuffer> m_HDRFramebuffer;
 		uint32_t m_MSAAFramebufferSamples = 0;
-		bool m_IsPaused = false;
 	};
 } // namespace Chained
 

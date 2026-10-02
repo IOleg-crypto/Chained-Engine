@@ -49,19 +49,17 @@ namespace Chained
 					if (m_CachedSixFacesCubemap)
 					{
 						uint32_t texId = m_CachedSixFacesCubemap->GetNativeHandle();
-						auto* r = ctx.MainRenderer ? ctx.MainRenderer : ServiceLocator::TryGet<Renderer>();
-						if (r)
+						if (auto* r = ServiceLocator::TryGet<Renderer>())
 						{
 							r->DrawSkybox(texId, 2, false, skySettings.Exposure, skySettings.Brightness,
-										  skySettings.Contrast, ctx.Camera, skySettings.FlipUV_Y, skySettings.FlipUV_X,
-										  skySettings.Rotation);
+										  skySettings.Contrast, ctx.Camera, false);
 						}
 					}
 				}
 			}
 			else if (!skySettings.TexturePath.empty())
 			{
-				auto* am = ctx.Assets ? ctx.Assets : ServiceLocator::TryGet<AssetManager>();
+				auto* am = ServiceLocator::TryGet<AssetManager>();
 				if (!am)
 				{
 					return;
@@ -72,12 +70,11 @@ namespace Chained
 					int skyboxMode = std::clamp(skySettings.Mode, 0, 2);
 					uint32_t texId = textureAsset->GetTexture()->GetNativeHandle();
 
-					auto* r = ctx.MainRenderer ? ctx.MainRenderer : ServiceLocator::TryGet<Renderer>();
-					if (r)
+					// Logic mapped directly from old SceneRenderer implementation
+					if (auto* r = ServiceLocator::TryGet<Renderer>())
 					{
 						r->DrawSkybox(texId, skyboxMode, textureAsset->IsHDR(), skySettings.Exposure,
-									  skySettings.Brightness, skySettings.Contrast, ctx.Camera, skySettings.FlipUV_Y,
-									  skySettings.FlipUV_X, skySettings.Rotation);
+									  skySettings.Brightness, skySettings.Contrast, ctx.Camera, true);
 					}
 				}
 			}

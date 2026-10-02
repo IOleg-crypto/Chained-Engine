@@ -1,0 +1,53 @@
+name: Format
+
+on:
+  workflow_call:
+
+jobs:
+  clang-format:
+    name: clang-format check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install clang-format-18
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+
+      - name: Determine changed C++ files
+        id: changed
+        run: |
+          set -euo pipefail
+          BASE_REF=""
+          if [[ -n "${{ github.base_ref }}" ]] && git rev-parse --verify "origin/${{ github.base_ref }}" >/dev/null 2>&1; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          elif [[ -n "${{ github.event.pull_request.base.sha }}" ]] && git rev-parse --verify "${{ github.event.pull_request.base.sha }}" >/dev/null 2>&1; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_REF="HEAD~1"
+          fi
+
+          if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+            FILES=$(git diff --name-only --diff-filter=ACMR "$BASE_REF"...HEAD -- '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx' '*.inl' '*.c' | grep -v -E '^(thirdparty/|engine/scripting/generated/|build/)' || true)
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMR HEAD~1 -- '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx' '*.inl' '*.c' | grep -v -E '^(thirdparty/|engine/scripting/generated/|build/)' || true)
+          fi
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Run clang-format --dry-run
+        if: steps.changed.outputs.files != ''
+        run: |
+          set -euo pipefail
+          echo "${{ steps.changed.outputs.files }}" | xargs -r clang-format-18 --dry-run --Werror -style=file
+
+      - name: No changed C++ files
+        if: steps.changed.outputs.files == ''
+        run: echo "No C++ files changed — skipping format check."
+

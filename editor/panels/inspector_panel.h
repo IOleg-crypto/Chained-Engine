@@ -5,12 +5,10 @@
 
 namespace Chained
 {
-	class EditorSceneManager;
-
 	class InspectorPanel : public Panel
 	{
 	public:
-		InspectorPanel(EditorSceneManager* sceneManager = nullptr);
+		InspectorPanel();
 		virtual void OnImGuiRender(bool readOnly = false) override;
 		virtual void OnEvent(Event& e) override;
 		virtual void SetContext(const std::shared_ptr<Scene>& context) override;
@@ -22,7 +20,6 @@ namespace Chained
 		void DrawComponents(Entity entity, bool readOnly);
 
 	private:
-		EditorSceneManager* m_SceneManager = nullptr;
 		Entity m_SelectedEntity;
 		int m_SelectedMeshIndex = -1;
 	};

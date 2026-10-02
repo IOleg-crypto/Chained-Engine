@@ -20,9 +20,8 @@
 #include "script_glue_ui.h"
 #include "script_glue_audio.h"
 #include "script_glue_input.h"
-#include "script_glue_components.h"
 #include "script_glue_network.h"
-#include "script_glue_registry.h"
+#include "generated/script_glue_generated.h"
 #include <Coral/Assembly.hpp>
 
 namespace Chained
@@ -129,8 +128,6 @@ namespace Chained
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetRight_Ptr", (void*)&Camera_GetRight);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetOrbit_Ptr", (void*)&Camera_GetOrbit);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_SetOrbit_Ptr", (void*)&Camera_SetOrbit);
-		assembly.AddInternalCall("Chained.CameraComponent", "Camera_SetFreeFly_Ptr", (void*)&Camera_SetFreeFly);
-		assembly.AddInternalCall("Chained.CameraComponent", "Camera_UpdateFreeFly_Ptr", (void*)&Camera_UpdateFreeFly);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetPrimary_Ptr", (void*)&Camera_GetPrimary);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_SetPrimary_Ptr", (void*)&Camera_SetPrimary);
 		assembly.AddInternalCall("Chained.CameraComponent", "Camera_GetIsOrbit_Ptr", (void*)&Camera_GetIsOrbit);
@@ -264,14 +261,6 @@ namespace Chained
 								 (void*)&AnimationComponent_GetBlendDuration);
 		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_SetBlendDuration_Ptr",
 								 (void*)&AnimationComponent_SetBlendDuration);
-		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_GetSpeed_Ptr",
-								 (void*)&AnimationComponent_GetSpeed);
-		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_SetSpeed_Ptr",
-								 (void*)&AnimationComponent_SetSpeed);
-		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_PlayClip_Ptr",
-								 (void*)&AnimationComponent_PlayClip);
-		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_Stop_Ptr",
-								 (void*)&AnimationComponent_Stop);
 		assembly.AddInternalCall("Chained.AnimationComponent", "AnimationComponent_CrossFade_Ptr",
 								 (void*)&AnimationComponent_CrossFade);
 
@@ -304,18 +293,17 @@ namespace Chained
 		assembly.AddInternalCall("Chained.UI", "UI_SetKeyboardFocusHere_Ptr", (void*)&UI_SetKeyboardFocusHere);
 		assembly.AddInternalCall("Chained.UI", "UI_SetScrollHereY_Ptr", (void*)&UI_SetScrollHereY);
 		assembly.AddInternalCall("Chained.UI", "UI_GetDisplaySize_Ptr", (void*)&UI_GetDisplaySize);
-		assembly.AddInternalCall("Chained.UI", "UI_PushStyleColor_Ptr", (void*)&UI_PushStyleColor);
-		assembly.AddInternalCall("Chained.UI", "UI_PopStyleColor_Ptr", (void*)&UI_PopStyleColor);
-		assembly.AddInternalCall("Chained.UI", "UI_PushStyleVarFloat_Ptr", (void*)&UI_PushStyleVarFloat);
-		assembly.AddInternalCall("Chained.UI", "UI_PushStyleVarVec2_Ptr", (void*)&UI_PushStyleVarVec2);
-		assembly.AddInternalCall("Chained.UI", "UI_PopStyleVar_Ptr", (void*)&UI_PopStyleVar);
-		assembly.AddInternalCall("Chained.UI", "UI_Dummy_Ptr", (void*)&UI_Dummy);
-		assembly.AddInternalCall("Chained.UI", "UI_IsItemHovered_Ptr", (void*)&UI_IsItemHovered);
-		assembly.AddInternalCall("Chained.UI", "UI_SetWindowFontScale_Ptr", (void*)&UI_SetWindowFontScale);
-		assembly.AddInternalCall("Chained.UI", "UI_SliderFloat_Ptr", (void*)&UI_SliderFloat);
-		assembly.AddInternalCall("Chained.UI", "UI_Checkbox_Ptr", (void*)&UI_Checkbox);
 
 		// ── Input ─────────────────────────────────────────────────────────
+		assembly.AddInternalCall("Chained.Input", "Input_IsKeyDown_Ptr", (void*)&Input_IsKeyDown);
+		assembly.AddInternalCall("Chained.Input", "Input_IsKeyPressed_Ptr", (void*)&Input_IsKeyPressed);
+		assembly.AddInternalCall("Chained.Input", "Input_IsKeyReleased_Ptr", (void*)&Input_IsKeyReleased);
+		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonDown_Ptr", (void*)&Input_IsMouseButtonDown);
+		assembly.AddInternalCall("Chained.Input", "Input_IsMouseButtonPressed_Ptr", (void*)&Input_IsMouseButtonPressed);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelMove_Ptr", (void*)&Input_GetMouseWheelMove);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseWheelHMove_Ptr", (void*)&Input_GetMouseWheelHMove);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseScroll_Ptr", (void*)&Input_GetMouseScroll);
+		assembly.AddInternalCall("Chained.Input", "Input_GetMouseDelta_Ptr", (void*)&Input_GetMouseDelta);
 
 		// ── Log ───────────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Log", "Log_Info_Ptr", (void*)&Log_Info);
@@ -329,9 +317,6 @@ namespace Chained
 								 (void*)&Scene_GetPrimaryCameraEntity);
 		assembly.AddInternalCall("Chained.Scene", "Scene_CopyEntity_Ptr", (void*)&Scene_CopyEntity);
 		assembly.AddInternalCall("Chained.Scene", "Scene_GetCurrentScenePath_Ptr", (void*)&Scene_GetCurrentScenePath);
-		assembly.AddInternalCall("Chained.Scene", "Scene_HasSuspendedSession_Ptr", (void*)&Scene_HasSuspendedSession);
-		assembly.AddInternalCall("Chained.Scene", "Scene_ResumeSuspendedSession_Ptr",
-								 (void*)&Scene_ResumeSuspendedSession);
 
 		// ── Audio static ──────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Audio", "Audio_Play_Ptr", (void*)&Audio_Play);
@@ -424,14 +409,12 @@ namespace Chained
 								 (void*)&Network_GetStunPublicAddress);
 		assembly.AddInternalCall("Chained.Network", "Network_StartHolePunch_Ptr", (void*)&Network_StartHolePunch);
 		assembly.AddInternalCall("Chained.Network", "Network_QueryStun_Ptr", (void*)&Network_QueryStun);
-		assembly.AddInternalCall("Chained.Network", "Network_GetPing_Ptr", (void*)&Network_GetPing);
 
 		// Clipboard
 		assembly.AddInternalCall("Chained.Clipboard", "Clipboard_SetText_Ptr", (void*)&Clipboard_SetText);
 
-		// Input & Components
-		ScriptGlue_RegisterInput(assembly);
-		ScriptGlue_RegisterComponents(assembly);
+		// ── Auto-generated: Player, Spawn, NetworkIdentity properties ──────
+#include "generated/script_glue_generated_reg.inl"
 
 		assembly.UploadInternalCalls();
 		CH_CORE_INFO("[ScriptGlue] Registered {} internal calls for '{}'.", 172, (std::string)assembly.GetName());

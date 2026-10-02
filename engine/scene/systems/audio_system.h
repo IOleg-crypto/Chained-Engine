@@ -6,13 +6,11 @@
 
 namespace Chained
 {
-	class Audio;
-
 	namespace AudioSystem
 	{
-		void Update(entt::registry& reg, Audio* audio = nullptr);
+		void Update(entt::registry& reg);
 		void OnRuntimeStart(entt::registry& reg);
-		void OnRuntimeStop(entt::registry& reg, Audio* audio = nullptr);
+		void OnRuntimeStop(entt::registry& reg);
 	} // namespace AudioSystem
 } // namespace Chained
 

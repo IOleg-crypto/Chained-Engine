@@ -6,11 +6,6 @@
 
 struct GLFWwindow;
 
-namespace Chained::Core
-{
-	class Input;
-}
-
 namespace Chained
 {
 
@@ -18,7 +13,7 @@ namespace Chained
 	class GlfwWindow : public Window
 	{
 	public:
-		GlfwWindow(const WindowProperties& properties, Core::Input* input = nullptr);
+		GlfwWindow(const WindowProperties& properties);
 		virtual ~GlfwWindow();
 
 		GlfwWindow(const GlfwWindow&) = delete;
@@ -87,22 +82,12 @@ namespace Chained
 			return m_WindowHandle;
 		}
 
-		void SetInput(Core::Input* input)
-		{
-			m_Input = input;
-		}
-		void InjectInput(Core::Input* input) override
-		{
-			m_Input = input;
-		}
-
 	private:
-		void Init(const WindowProperties& properties, Core::Input* input);
+		void Init(const WindowProperties& properties);
 		void Shutdown();
 
 	private:
 		GLFWwindow* m_WindowHandle = nullptr;
-		Core::Input* m_Input = nullptr;
 
 		int m_Width = 0;
 		int m_Height = 0;

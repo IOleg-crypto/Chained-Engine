@@ -1,7 +1,4 @@
 #include "upnp_port_mapper.h"
-#include "engine/core/log.h"
-
-#ifdef CH_ENABLE_UPNP
 
 #include <miniupnpc.h>
 #include <upnpcommands.h>
@@ -251,34 +248,3 @@ namespace Chained
 	}
 
 } // namespace Chained
-
-#else // !CH_ENABLE_UPNP
-
-namespace Chained
-{
-	UpnpPortMapper::~UpnpPortMapper() = default;
-	void UpnpPortMapper::CleanupDiscovery()
-	{
-	}
-	bool UpnpPortMapper::Initialize()
-	{
-		return false;
-	}
-	void UpnpPortMapper::Shutdown()
-	{
-	}
-	bool UpnpPortMapper::AddMapping(uint16_t, const char*, const char*)
-	{
-		return false;
-	}
-	bool UpnpPortMapper::RemoveMapping(uint16_t, const char*)
-	{
-		return false;
-	}
-	std::string UpnpPortMapper::GetPublicIP()
-	{
-		return {};
-	}
-} // namespace Chained
-
-#endif // CH_ENABLE_UPNP

@@ -5,11 +5,6 @@
 #include <memory>
 #include <string>
 
-namespace Chained::Core
-{
-	class Input;
-}
-
 namespace Chained
 {
 	enum class CursorMode
@@ -79,15 +74,8 @@ namespace Chained
 
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 
-		// Called after Input service is registered to wire up the input dispatcher.
-		// Default no-op — platform backends override this.
-		virtual void InjectInput(Chained::Core::Input* /*input*/)
-		{
-		}
-
 		// Creates the platform-specific window implementation.
-		static std::unique_ptr<Window> Create(const WindowProperties& properties = WindowProperties(),
-											  Core::Input* input = nullptr);
+		static std::unique_ptr<Window> Create(const WindowProperties& properties = WindowProperties());
 	};
 } // namespace Chained
 
