@@ -49,7 +49,8 @@ namespace Chained
 					if (m_CachedSixFacesCubemap)
 					{
 						uint32_t texId = m_CachedSixFacesCubemap->GetNativeHandle();
-						if (auto* r = ServiceLocator::TryGet<Renderer>())
+						auto* r = ctx.MainRenderer ? ctx.MainRenderer : ServiceLocator::TryGet<Renderer>();
+						if (r)
 						{
 							r->DrawSkybox(texId, 2, false, skySettings.Exposure, skySettings.Brightness,
 										  skySettings.Contrast, ctx.Camera, skySettings.FlipUV_Y, skySettings.FlipUV_X,
@@ -60,7 +61,7 @@ namespace Chained
 			}
 			else if (!skySettings.TexturePath.empty())
 			{
-				auto* am = ServiceLocator::TryGet<AssetManager>();
+				auto* am = ctx.Assets ? ctx.Assets : ServiceLocator::TryGet<AssetManager>();
 				if (!am)
 				{
 					return;
@@ -71,7 +72,8 @@ namespace Chained
 					int skyboxMode = std::clamp(skySettings.Mode, 0, 2);
 					uint32_t texId = textureAsset->GetTexture()->GetNativeHandle();
 
-					if (auto* r = ServiceLocator::TryGet<Renderer>())
+					auto* r = ctx.MainRenderer ? ctx.MainRenderer : ServiceLocator::TryGet<Renderer>();
+					if (r)
 					{
 						r->DrawSkybox(texId, skyboxMode, textureAsset->IsHDR(), skySettings.Exposure,
 									  skySettings.Brightness, skySettings.Contrast, ctx.Camera, skySettings.FlipUV_Y,

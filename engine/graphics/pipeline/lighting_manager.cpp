@@ -126,7 +126,11 @@ namespace Chained
 		shader->SetFloat("u_ShadowBias", m_Shadow.Bias);
 		if (m_Shadow.Enabled && m_Shadow.MapTextureID > 0)
 		{
-			ServiceLocator::Get<GraphicsDevice>()->SetTexture(6, m_Shadow.MapTextureID);
+			GraphicsDevice* dev = m_Device ? m_Device : ServiceLocator::TryGet<GraphicsDevice>();
+			if (dev)
+			{
+				dev->SetTexture(6, m_Shadow.MapTextureID);
+			}
 			shader->SetInt("u_ShadowMap", 6);
 		}
 

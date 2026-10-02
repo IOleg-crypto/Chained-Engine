@@ -283,17 +283,16 @@ namespace Chained
 			return;
 		}
 
-		NetworkSystem::PollNetwork(this, ts);
+		auto* net = ServiceLocator::TryGet<Network>();
+
+		NetworkSystem::PollNetwork(this, ts, net);
 
 		// Interpolate remote entities BEFORE scripts so PlayerController
 		// reads the correct velocity/grounded values for animation.
-		if (auto* net = ServiceLocator::TryGet<Network>())
+		if (net && net->IsClient())
 		{
-			if (net->IsClient())
-			{
-				float dt = static_cast<float>(ts);
-				NetworkSystem::InterpolateEntities(*m_Registry, dt);
-			}
+			float dt = static_cast<float>(ts);
+			NetworkSystem::InterpolateEntities(*m_Registry, dt);
 		}
 
 		if (m_ScriptingManager)
@@ -312,7 +311,7 @@ namespace Chained
 		}
 
 		Hierarchy::UpdateWorldTransforms(*m_Registry, GetRootEntities());
-		NetworkSystem::FinalizeFrame(this, ts);
+		NetworkSystem::FinalizeFrame(this, ts, net);
 
 		if (auto target = SceneTransitionSystem::Update(*m_Registry))
 		{
@@ -367,9 +366,10 @@ namespace Chained
 				m_PhysicsStartupInitialized = true;
 			}
 
-			PhysicsBodySystem::Update(*m_Registry);
+			auto* assets = ServiceLocator::TryGet<AssetManager>();
+			PhysicsBodySystem::Update(*m_Registry, physics, assets);
 
-			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld()))
+			if (!PhysicsBodySystem::IsStartupComplete(*m_Registry, physics->GetWorld(), assets))
 			{
 				return;
 			}

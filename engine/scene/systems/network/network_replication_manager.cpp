@@ -171,7 +171,8 @@ namespace Chained
 	}
 
 	void NetworkReplicationManager::ProcessEntitySpawnMessage(EntitySpawnMessage* msg, Scene* scene,
-															  NetworkSessionTracker& session)
+															  NetworkSessionTracker& session, AssetManager* assets,
+															  Network* net)
 	{
 		if (!msg || !scene)
 		{
@@ -202,8 +203,9 @@ namespace Chained
 			}
 		}
 
+		AssetManager* am = assets ? assets : ServiceLocator::TryGet<AssetManager>();
 		std::string path = msg->PrefabPath;
-		if (auto* am = ServiceLocator::TryGet<AssetManager>())
+		if (am)
 		{
 			path = am->ResolvePath(path);
 		}
@@ -216,11 +218,11 @@ namespace Chained
 			return;
 		}
 
-		auto* net = ServiceLocator::TryGet<Network>();
+		Network* netSvc = net ? net : ServiceLocator::TryGet<Network>();
 		uint64_t localNetID = session.GetLocalNetworkID();
-		if (localNetID == 0 && net)
+		if (localNetID == 0 && netSvc)
 		{
-			localNetID = net->GetLocalNetworkID();
+			localNetID = netSvc->GetLocalNetworkID();
 			if (localNetID != 0)
 			{
 				session.SetLocalNetworkID(localNetID);
@@ -525,7 +527,8 @@ namespace Chained
 		});
 	}
 
-	void NetworkReplicationManager::EnsureHostIdentity(Scene* scene, NetworkSessionTracker& session)
+	void NetworkReplicationManager::EnsureHostIdentity(Scene* scene, NetworkSessionTracker& session,
+													   AssetManager* assets)
 	{
 		if (!scene || IsLobbyOrMenuScene(scene))
 		{
@@ -574,8 +577,9 @@ namespace Chained
 			return;
 		}
 
+		AssetManager* am = assets ? assets : ServiceLocator::TryGet<AssetManager>();
 		std::string path = playerPrefab;
-		if (auto* am = ServiceLocator::TryGet<AssetManager>())
+		if (am)
 		{
 			path = am->ResolvePath(playerPrefab);
 		}
@@ -602,7 +606,8 @@ namespace Chained
 		netID.PrefabPath = playerPrefab;
 	}
 
-	void NetworkReplicationManager::SyncPeerAvatars(Scene* scene, Network* net, NetworkSessionTracker& session)
+	void NetworkReplicationManager::SyncPeerAvatars(Scene* scene, Network* net, NetworkSessionTracker& session,
+													AssetManager* assets)
 	{
 		if (!scene || !net || IsLobbyOrMenuScene(scene))
 		{
@@ -655,8 +660,9 @@ namespace Chained
 							 clientIndex);
 			}
 
+			AssetManager* am = assets ? assets : ServiceLocator::TryGet<AssetManager>();
 			std::string path = playerPrefab;
-			if (auto* am = ServiceLocator::TryGet<AssetManager>())
+			if (am)
 			{
 				path = am->ResolvePath(playerPrefab);
 			}

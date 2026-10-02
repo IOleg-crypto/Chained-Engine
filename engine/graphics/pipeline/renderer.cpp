@@ -36,6 +36,7 @@ namespace Chained
 		}
 
 		// Initialize lighting subsystem (SSBO + state)
+		m_LightingManager.SetGraphicsDevice(m_Device);
 		m_LightingManager.Initialize();
 
 		// Initialize UBOs (must be before methods that reference them)

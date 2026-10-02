@@ -15,6 +15,10 @@ namespace Chained
 	class Network;
 	class Scene;
 	struct InputStateMessage;
+	namespace Core
+	{
+		class Input;
+	}
 
 	class CH_API NetworkInputController
 	{
@@ -24,7 +28,7 @@ namespace Chained
 
 		void Reset();
 
-		void CollectAndSendInput(Network* net, float dt, Scene* scene);
+		void CollectAndSendInput(Network* net, float dt, Scene* scene, Core::Input* input = nullptr);
 		void ProcessInputStateMessage(InputStateMessage* msg, uint64_t networkID);
 		void ApplyHostInputs(entt::registry& reg, Timestep ts);
 

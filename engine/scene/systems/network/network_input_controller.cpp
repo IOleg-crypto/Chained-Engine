@@ -145,12 +145,14 @@ namespace Chained
 		}
 	}
 
-	void NetworkInputController::CollectAndSendInput(Network* net, float dt, Scene* scene)
+	void NetworkInputController::CollectAndSendInput(Network* net, float dt, Scene* scene, Core::Input* input)
 	{
 		if (!net || !net->IsClient())
 		{
 			return;
 		}
+
+		Core::Input* in = input ? input : ServiceLocator::TryGet<Core::Input>();
 
 		InputStateMessage msg;
 		msg.Tick = m_ClientTick++;
@@ -161,30 +163,30 @@ namespace Chained
 		uint8_t flags = 0;
 
 		const bool captureKeyboard = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
-		if (!captureKeyboard)
+		if (!captureKeyboard && in)
 		{
-			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::W))
+			if (in->IsKeyDown(KeyCode::W))
 			{
 				rawZ += 1.0f;
 			}
-			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::S))
+			if (in->IsKeyDown(KeyCode::S))
 			{
 				rawZ -= 1.0f;
 			}
-			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::A))
+			if (in->IsKeyDown(KeyCode::A))
 			{
 				rawX -= 1.0f;
 			}
-			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::D))
+			if (in->IsKeyDown(KeyCode::D))
 			{
 				rawX += 1.0f;
 			}
 
-			if (ServiceLocator::Get<Core::Input>()->IsKeyPressed(KeyCode::Space))
+			if (in->IsKeyPressed(KeyCode::Space))
 			{
 				flags |= InputAction_Jump;
 			}
-			if (ServiceLocator::Get<Core::Input>()->IsKeyDown(KeyCode::LeftShift))
+			if (in->IsKeyDown(KeyCode::LeftShift))
 			{
 				flags |= InputAction_Sprint;
 			}
@@ -233,7 +235,7 @@ namespace Chained
 		msg.MoveZ = moveZ;
 		msg.ActionFlags = flags;
 
-		glm::vec2 mouseDelta = ServiceLocator::Get<Core::Input>()->GetMouseDelta();
+		glm::vec2 mouseDelta = in ? in->GetMouseDelta() : glm::vec2(0.0f);
 		msg.MouseX = mouseDelta.x;
 		msg.MouseY = mouseDelta.y;
 

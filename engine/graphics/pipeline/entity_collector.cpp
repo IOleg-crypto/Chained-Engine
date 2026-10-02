@@ -45,11 +45,16 @@ namespace Chained
 		m_TransparentQueue.clear();
 	}
 
-	void EntityCollector::Collect(entt::registry& registry, const Frustum& frustum, const glm::vec3& cameraPos)
+	void EntityCollector::Collect(entt::registry& registry, const Frustum& frustum, const glm::vec3& cameraPos,
+								  AssetManager* assets)
 	{
 		Clear();
 
-		auto* assets = ServiceLocator::TryGet<AssetManager>();
+		AssetManager* am = assets ? assets : ServiceLocator::TryGet<AssetManager>();
+		if (!am)
+		{
+			return;
+		}
 
 		auto meshView = registry.view<TransformComponent, ModelComponent>();
 		for (auto entity : meshView)
@@ -60,19 +65,19 @@ namespace Chained
 				continue;
 			}
 
-			auto modelAsset = assets->Get<ModelAsset>(mesh.ModelPath);
+			auto modelAsset = am->Get<ModelAsset>(mesh.ModelPath);
 			if (!modelAsset || modelAsset->GetState() != AssetState::Ready)
 			{
 				continue;
 			}
 
-			EnqueueModelAsset(registry, entity, modelAsset.get(), transform.WorldTransform, frustum, cameraPos);
+			EnqueueModelAsset(registry, entity, modelAsset.get(), transform.WorldTransform, frustum, cameraPos, am);
 		}
 	}
 
 	bool EntityCollector::EnqueueModelAsset(entt::registry& registry, entt::entity entity, ModelAsset* modelAsset,
 											const glm::mat4& worldTransform, const Frustum& frustum,
-											const glm::vec3& cameraPos)
+											const glm::vec3& cameraPos, AssetManager* assets)
 	{
 		BoundingBox bbox = modelAsset->GetBoundingBox();
 
@@ -101,6 +106,8 @@ namespace Chained
 			return false;
 		}
 
+		AssetManager* am = assets ? assets : ServiceLocator::TryGet<AssetManager>();
+
 		std::shared_ptr<ShaderAsset> shaderOver;
 		std::vector<ShaderUniform> uniforms;
 		if (registry.all_of<ShaderComponent>(entity))
@@ -108,7 +115,7 @@ namespace Chained
 			auto& sc = registry.get<ShaderComponent>(entity);
 			if (sc.Enabled && !sc.ShaderPath.empty())
 			{
-				if (auto* am = ServiceLocator::TryGet<AssetManager>())
+				if (am)
 				{
 					shaderOver = am->Get<ShaderAsset>(sc.ShaderPath);
 				}
@@ -133,14 +140,14 @@ namespace Chained
 			if (hasExplicitOverrides)
 			{
 				materials = modelAsset->GetMaterials();
-				if (auto* materialAssets = ServiceLocator::TryGet<AssetManager>())
+				if (am)
 				{
 					for (size_t i = 0; i < modelComponent.MaterialPaths.size() && i < materials.size(); ++i)
 					{
 						const auto& matPath = modelComponent.MaterialPaths[i];
 						if (!matPath.empty())
 						{
-							auto materialAsset = materialAssets->Get<MaterialAsset>(matPath);
+							auto materialAsset = am->Get<MaterialAsset>(matPath);
 							if (materialAsset && materialAsset->IsReady())
 							{
 								materials[i] = materialAsset->GetMaterial();

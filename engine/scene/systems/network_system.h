@@ -17,6 +17,12 @@
 namespace Chained
 {
 	class Scene;
+	class Network;
+	class AssetManager;
+	namespace Core
+	{
+		class Input;
+	}
 
 	namespace NetworkSystem
 	{
@@ -33,14 +39,14 @@ namespace Chained
 		SceneNetworkContext& GetOrCreateContext(Scene* scene);
 		SceneNetworkContext* TryGetContext(Scene* scene);
 
-		void EnsureLocalIdentity(Scene* scene);
-		void Reset(Scene* scene = nullptr);
+		void EnsureLocalIdentity(Scene* scene, Network* net = nullptr);
+		void Reset(Scene* scene = nullptr, Network* net = nullptr);
 
-		void PollNetwork(Scene* scene, Timestep ts);
-		void FinalizeFrame(Scene* scene, Timestep ts);
+		void PollNetwork(Scene* scene, Timestep ts, Network* net = nullptr);
+		void FinalizeFrame(Scene* scene, Timestep ts, Network* net = nullptr, Core::Input* input = nullptr);
 		void ApplyHostInputs(entt::registry& reg, Timestep ts);
 		void InterpolateEntities(entt::registry& reg, float dt);
-		void CheckAndPropagateSceneChange(Scene* scene);
+		void CheckAndPropagateSceneChange(Scene* scene, Network* net = nullptr);
 
 		const std::vector<ProcessedInput>& GetPendingInputs(Scene* scene);
 		void ClearPendingInputs(Scene* scene);
