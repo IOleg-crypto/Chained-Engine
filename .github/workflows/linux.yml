@@ -27,17 +27,11 @@ jobs:
         run: |
           if [[ "${{ inputs.matrix_mode }}" == "fast" ]]; then
             # Fast CI: Linux Clang Debug with AddressSanitizer & UndefinedBehaviorSanitizer
-            JSON='[{"preset":"linux-clang","compiler":"clang","build_type":"Debug"}]'
+            echo 'matrix={"include":[{"preset":"linux-clang","compiler":"clang","build_type":"Debug"}]}' >> "$GITHUB_OUTPUT"
           else
             # Full CI: Clang & GCC in both Debug & Release (4 configurations)
-            JSON='[
-              {"preset":"linux-clang","compiler":"clang","build_type":"Debug"},
-              {"preset":"linux-clang","compiler":"clang","build_type":"Release"},
-              {"preset":"linux-gcc","compiler":"gcc","build_type":"Debug"},
-              {"preset":"linux-gcc","compiler":"gcc","build_type":"Release"}
-            ]'
+            echo 'matrix={"include":[{"preset":"linux-clang","compiler":"clang","build_type":"Debug"},{"preset":"linux-clang","compiler":"clang","build_type":"Release"},{"preset":"linux-gcc","compiler":"gcc","build_type":"Debug"},{"preset":"linux-gcc","compiler":"gcc","build_type":"Release"}]}' >> "$GITHUB_OUTPUT"
           fi
-          echo "matrix={\"include\":$JSON}" >> "$GITHUB_OUTPUT"
 
   build-linux:
     name: build (ubuntu-latest, ${{ matrix.build_type }}, ${{ matrix.compiler }})

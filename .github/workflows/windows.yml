@@ -27,19 +27,11 @@ jobs:
         run: |
           if [[ "${{ inputs.matrix_mode }}" == "fast" ]]; then
             # Fast CI: Windows Clang Release
-            JSON='[{"preset":"windows-clang","compiler":"clang","build_type":"Release"}]'
+            echo 'matrix={"include":[{"preset":"windows-clang","compiler":"clang","build_type":"Release"}]}' >> "$GITHUB_OUTPUT"
           else
             # Full CI: Clang, MSVC vs2026, and MinGW GCC across Debug & Release (6 configurations)
-            JSON='[
-              {"preset":"windows-clang","compiler":"clang","build_type":"Release"},
-              {"preset":"windows-clang","compiler":"clang","build_type":"Debug"},
-              {"preset":"windows-vs2026","compiler":"vs2026","build_type":"Release"},
-              {"preset":"windows-vs2026","compiler":"vs2026","build_type":"Debug"},
-              {"preset":"windows-gcc","compiler":"gcc","build_type":"Release"},
-              {"preset":"windows-gcc","compiler":"gcc","build_type":"Debug"}
-            ]'
+            echo 'matrix={"include":[{"preset":"windows-clang","compiler":"clang","build_type":"Release"},{"preset":"windows-clang","compiler":"clang","build_type":"Debug"},{"preset":"windows-vs2026","compiler":"vs2026","build_type":"Release"},{"preset":"windows-vs2026","compiler":"vs2026","build_type":"Debug"},{"preset":"windows-gcc","compiler":"gcc","build_type":"Release"},{"preset":"windows-gcc","compiler":"gcc","build_type":"Debug"}]}' >> "$GITHUB_OUTPUT"
           fi
-          echo "matrix={\"include\":$JSON}" >> "$GITHUB_OUTPUT"
 
   build-windows:
     name: build (windows-latest, ${{ matrix.build_type }}, ${{ matrix.compiler }})
