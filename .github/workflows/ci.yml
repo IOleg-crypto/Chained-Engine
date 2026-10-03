@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, opengl, experimental-opengl]
+    branches: [main, opengl]
     paths:
       - "**/*.cpp"
       - "**/*.h"
@@ -27,7 +27,6 @@ on:
       - ".github/valgrind.supp"
       - ".github/lsan.supp"
   pull_request:
-    branches: [main, experimental-opengl, opengl]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "**/*.cpp"
@@ -96,15 +95,8 @@ jobs:
             exit 0
           fi
 
-          REF_NAME="${{ github.ref_name }}"
-          if [[ "$REF_NAME" == "experimental-opengl" ]]; then
-            echo "matrix_mode=fast" >> "$GITHUB_OUTPUT"
-            echo "experimental-opengl branch detected -> matrix_mode=fast"
-            exit 0
-          fi
-
           echo "matrix_mode=full" >> "$GITHUB_OUTPUT"
-          echo "Mainline branch ($REF_NAME) detected -> matrix_mode=full"
+          echo "Mainline push (${{ github.ref_name }}) detected -> matrix_mode=full"
 
   linux:
     name: Linux
