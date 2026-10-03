@@ -19,6 +19,7 @@ add_executable(engine_tests_unit ${UNIT_SOURCES})
 target_link_libraries(engine_tests_unit PRIVATE
     engine_common
     engine_core
+    engine_assets
     engine_network
     engine_external_entt
     glm

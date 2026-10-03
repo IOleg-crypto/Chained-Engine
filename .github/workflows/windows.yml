@@ -154,15 +154,6 @@ jobs:
         run: |
           dotnet test "tests/managed/Chained.Managed.Tests.csproj" --verbosity normal
 
-      - name: Publish Test Results
-        uses: mikepenz/action-junit-report@v4
-        if: always()
-        with:
-          report_paths: 'build/${{ matrix.preset }}/**/junit_*.xml'
-          check_name: 'Windows (${{ matrix.compiler }}, ${{ matrix.build_type }}) Test Results'
-          fail_on_failure: false
-          require_tests: true
-
       - name: Upload Logs & Artifacts
         if: always()
         uses: actions/upload-artifact@v4
