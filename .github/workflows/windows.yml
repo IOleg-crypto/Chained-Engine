@@ -148,6 +148,44 @@ jobs:
           cmake --build "build/${{ matrix.preset }}" --config ${{ matrix.build_type }} --parallel \
             2>&1 | tee "build/${{ matrix.preset }}/build_${{ matrix.build_type }}.log"
 
+      - name: Diagnose unit test exe exit (temporary debug)
+        if: always()
+        run: |
+          set +e
+          BUILD_DIR="build/${{ matrix.preset }}"
+          DIAG="$BUILD_DIR/discovery_diag.log"
+          EXE="$BUILD_DIR/bin/Release/engine_tests_unit.exe"
+          {
+            if [[ ! -f "$EXE" ]]; then
+              echo "exe not found: $EXE"
+              exit 0
+            fi
+            echo "=== file-redirect run (70s budget) ==="
+            cd "$BUILD_DIR/bin"
+            ./Release/engine_tests_unit.exe --gtest_list_tests > ../discovery_diag_out.txt 2>&1 &
+            PID=$!
+            for i in $(seq 70); do
+              kill -0 "$PID" 2>/dev/null || break
+              sleep 1
+            done
+            if kill -0 "$PID" 2>/dev/null; then
+              echo "RESULT: HANG (alive after 70s, no pipe involved)"
+              tasklist //FI "PID eq $PID" 2>/dev/null
+              taskkill //F //PID "$PID" >/dev/null 2>&1
+              kill -9 "$PID" 2>/dev/null
+            else
+              wait "$PID"
+              echo "RESULT: EXITED rc=$?"
+            fi
+            echo "=== output tail ==="
+            tail -8 ../discovery_diag_out.txt
+            echo "=== markers ==="
+            find . -name discovery_markers.log 2>/dev/null | while read -r m; do
+              echo "-- $m"
+              cat "$m"
+            done
+          } > "$DIAG" 2>&1
+
       - name: Test (Native C++ CTest)
         run: |
           set -euo pipefail
