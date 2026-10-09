@@ -23,6 +23,10 @@ namespace Chained
 		static void Lock();
 		static void InitializeModule();
 		static void Shutdown();
+		// Clears the registry and re-arms the locator after Shutdown().
+		// Test/reset helper only — production teardown should use Shutdown(),
+		// which is terminal.
+		static void Reset();
 		static bool IsAvailable();
 
 		template <typename T> static T* Get();

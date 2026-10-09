@@ -47,8 +47,11 @@ endif()
 include(GoogleTest)
 # Discover individual GTest tests so each shows up as a separate CTest entry.
 # Unit tests are fast (no engine boot), so per-test discovery has negligible overhead.
+# 60s discovery timeout: fresh CI runners (Defender scan, cold page cache) can take
+# >5s (the CMake default) to start the freshly linked test exe.
 gtest_discover_tests(engine_tests_unit
     WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    DISCOVERY_TIMEOUT 60
     PROPERTIES
         LABELS "Unit"
         ENVIRONMENT "ENGINE_ROOT=${CMAKE_SOURCE_DIR}"

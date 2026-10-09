@@ -111,7 +111,7 @@ namespace
 TEST(ServiceLocatorModule, Positive_RegistrationLookupAndReverseShutdown)
 {
 	// Arrange
-	ServiceLocator::Shutdown();
+	ServiceLocator::Reset();
 	EXPECT_FALSE(ServiceLocator::IsAvailable());
 
 	// Act (Step 1: Provide service)
@@ -137,7 +137,7 @@ TEST(ServiceLocatorModule, Positive_RegistrationLookupAndReverseShutdown)
 	EXPECT_EQ(ServiceLocator::TryGet<MockServiceA>(), rawA);
 
 	// Arrange & Act (Step 3: Strict LIFO reverse shutdown order)
-	ServiceLocator::Shutdown();
+	ServiceLocator::Reset();
 
 	std::vector<std::string> shutdownOrder;
 	ServiceLocator::Provide(std::make_unique<OrderProbeService1>(&shutdownOrder));
@@ -160,7 +160,7 @@ TEST(ServiceLocatorModule, Positive_RegistrationLookupAndReverseShutdown)
 TEST(ServiceLocatorModule, Negative_LockAndRejectionSafety)
 {
 	// Arrange
-	ServiceLocator::Shutdown();
+	ServiceLocator::Reset();
 
 	// Act & Assert (Step 1: Querying non-existent service returns nullptr safely)
 	EXPECT_EQ(ServiceLocator::TryGet<MockServiceA>(), nullptr);

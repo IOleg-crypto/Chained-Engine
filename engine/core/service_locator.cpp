@@ -37,6 +37,12 @@ namespace Chained
 		s_IsShutDown = true;
 	}
 
+	CH_API void ServiceLocator::Reset()
+	{
+		GetRegistry().Shutdown();
+		s_IsShutDown = false;
+	}
+
 	CH_API bool ServiceLocator::IsAvailable()
 	{
 		if (s_IsShutDown)
