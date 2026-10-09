@@ -1,4 +1,3 @@
-using System;
 using Chained;
 
 namespace ChainedDecos.Scripts
@@ -7,7 +6,12 @@ namespace ChainedDecos.Scripts
     {
         public override void OnCreate()
         {
-            UpdateButtonVisibility();
+            UpdateVisibility();
+        }
+
+        public override void OnStart()
+        {
+            UpdateVisibility();
         }
 
         public override void OnUpdate(float deltaTime)
@@ -15,16 +19,22 @@ namespace ChainedDecos.Scripts
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
             if (btn == null) return;
 
-            UpdateButtonVisibility();
+            bool hasSession = Scene.HasActiveSession();
+            
+            // Sync active state to ECS ControlComponent
+            if (btn.IsActive != hasSession)
+            {
+                btn.IsActive = hasSession;
+            }
 
-            if (btn.IsActive && btn.IsClicked)
+            if (hasSession && btn.IsActive && btn.IsClicked)
             {
                 Log.Info("[ResumeButton] Resuming active game session...");
                 Scene.ResumeSession();
             }
         }
 
-        private void UpdateButtonVisibility()
+        private void UpdateVisibility()
         {
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
             if (btn != null)

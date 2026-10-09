@@ -166,7 +166,9 @@ namespace Chained
 				SuspendCurrentGameplaySceneAndGoToMenu();
 				return;
 			}
-			else if (m_SuspendedGameplayScene && m_LoadState.State == RuntimeLoadState::Running)
+			else if (m_SuspendedGameplayScene && m_LoadState.State == RuntimeLoadState::Running && m_Scene &&
+					 (m_Scene->GetSettings().ScenePath.find("start_menu") != std::string::npos ||
+					  m_Scene->GetSettings().ScenePath.find("main_menu") != std::string::npos))
 			{
 				ResumeSuspendedSession();
 				return;
@@ -445,7 +447,8 @@ namespace Chained
 				(lowerPath.find("menu") != std::string::npos || lowerPath.find("lobby") != std::string::npos ||
 				 lowerPath.find("setup") != std::string::npos || lowerPath.find("waiting") != std::string::npos ||
 				 lowerPath.find("info") != std::string::npos || lowerPath.find("option") != std::string::npos ||
-				 lowerPath.find("video") != std::string::npos);
+				 lowerPath.find("video") != std::string::npos || lowerPath.find("setting") != std::string::npos ||
+				 lowerPath.find("audio") != std::string::npos || lowerPath.find("config") != std::string::npos);
 			if (!isMenu)
 			{
 				CH_CORE_INFO("RuntimeLayer: Discarding old suspended gameplay scene for new gameplay scene '{}'",
@@ -621,21 +624,21 @@ namespace Chained
 			CH_CORE_INFO("RuntimeSystem: Mounted {} resource pack(s)", openedPacks);
 		}
 
-		auto project = Project::Load(m_ProjectPath);
-		if (!project)
+		m_Project = Project::Load(m_ProjectPath);
+		if (!m_Project)
 		{
 			CH_CORE_ERROR("RuntimeSystem: Failed to load project file at '{}'", m_ProjectPath);
 			return false;
 		}
 
-		Project::SetActive(project);
+		Project::SetActive(m_Project);
 
-		CH_CORE_TRACE("RuntimeSystem: Project loaded: {}", project->GetName());
-		CH_CORE_TRACE("RuntimeSystem: Project Directory: {}", project->GetConfig().ProjectDirectory.string());
-		CH_CORE_TRACE("RuntimeSystem: Asset Directory: {}", project->GetAssetDirectory().string());
+		CH_CORE_TRACE("RuntimeSystem: Project loaded: {}", m_Project->GetName());
+		CH_CORE_TRACE("RuntimeSystem: Project Directory: {}", m_Project->GetConfig().ProjectDirectory.string());
+		CH_CORE_TRACE("RuntimeSystem: Asset Directory: {}", m_Project->GetAssetDirectory().string());
 
-		m_AssetManager->SetProjectDirectory(project->GetConfig().ProjectDirectory);
-		m_AssetManager->SetAssetDirectory(project->GetAssetDirectory());
+		m_AssetManager->SetProjectDirectory(m_Project->GetConfig().ProjectDirectory);
+		m_AssetManager->SetAssetDirectory(m_Project->GetAssetDirectory());
 
 		// Source directories for dev mode — runtime reads from source tree instead of copied assets
 		// These are set by CMake via CH_SOURCE_RESOURCES_DIR / CH_SOURCE_ASSETS_DIR compile definitions.
@@ -666,7 +669,7 @@ namespace Chained
 
 		if (auto* se = ServiceLocator::TryGet<ScriptEngine>())
 		{
-			se->TryAutoLoad(project->GetConfig());
+			se->TryAutoLoad(m_Project->GetConfig());
 		}
 
 		return true;
@@ -674,13 +677,12 @@ namespace Chained
 
 	void RuntimeLayer::ApplyWindowConfiguration()
 	{
-		auto project = Project::GetActive();
-		if (!project)
+		if (!m_Project)
 		{
 			return;
 		}
 
-		auto& config = project->GetConfig();
+		auto& config = m_Project->GetConfig();
 		Window& window = Application::Get().GetWindow();
 
 		bool vsync = config.Window.VSync;
@@ -724,13 +726,12 @@ namespace Chained
 
 	void RuntimeLayer::SetupBrandingAndIcon()
 	{
-		auto project = Project::GetActive();
-		if (!project)
+		if (!m_Project)
 		{
 			return;
 		}
 
-		auto& config = project->GetConfig();
+		auto& config = m_Project->GetConfig();
 		Window& window = Application::Get().GetWindow();
 		window.SetTitle(config.Name);
 
@@ -776,13 +777,12 @@ namespace Chained
 
 	void RuntimeLayer::LoadInitialScene()
 	{
-		auto project = Project::GetActive();
-		if (!project)
+		if (!m_Project)
 		{
 			return;
 		}
 
-		auto& config = project->GetConfig();
+		auto& config = m_Project->GetConfig();
 		std::string sceneToLoad = config.StartScene;
 
 		const auto& args = Application::Get().GetSpecification().CommandLineArgs;
@@ -804,7 +804,7 @@ namespace Chained
 
 		if (sceneToLoad.empty())
 		{
-			std::filesystem::path scenesDir = project->GetAssetDirectory() / "scenes";
+			std::filesystem::path scenesDir = m_Project->GetAssetDirectory() / "scenes";
 			if (std::filesystem::exists(scenesDir))
 			{
 				try
@@ -814,7 +814,7 @@ namespace Chained
 						if (entry.path().extension() == ".chscene")
 						{
 							sceneToLoad =
-								std::filesystem::relative(entry.path(), project->GetAssetDirectory()).string();
+								std::filesystem::relative(entry.path(), m_Project->GetAssetDirectory()).string();
 							break;
 						}
 					}
@@ -924,7 +924,7 @@ namespace Chained
 	bool RuntimeLayer::SetupNewScene(const std::filesystem::path& scenePath)
 	{
 		auto nextScene = std::make_shared<Scene>();
-		SceneSerializer serializer(nextScene.get());
+		SceneSerializer serializer(nextScene.get(), m_Project.get());
 		if (!serializer.Deserialize(scenePath.string()))
 		{
 			m_Scene = nullptr;
@@ -1036,8 +1036,7 @@ namespace Chained
 			return;
 		}
 
-		auto project = Project::GetActive();
-		int msaaSampleCount = project ? project->GetConfig().Render.AntiAliasingSamples : (int)kDefaultMsaaSamples;
+		int msaaSampleCount = m_Project ? m_Project->GetConfig().Render.AntiAliasingSamples : (int)kDefaultMsaaSamples;
 		uint32_t msaaSamplesClamped = msaaSampleCount > 1 ? (uint32_t)msaaSampleCount : 1u;
 
 		if (m_HDRFramebuffer && msaaSamplesClamped != m_MSAAFramebufferSamples)

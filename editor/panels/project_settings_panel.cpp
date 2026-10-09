@@ -386,11 +386,16 @@ namespace Chained
 				ImGui::Separator();
 
 				// Quick static scan for scenes
-				static std::vector<std::string> allScenes;
-				static bool scanned = false;
-				if (!scanned)
+
+				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
+				if (ImGui::Button("Refresh", ImVec2(100, 0)))
 				{
-					allScenes.clear();
+					m_ScenesScanned = false;
+				}
+
+				if (!m_ScenesScanned)
+				{
+					m_AllScenes.clear();
 					std::error_code ec;
 					std::filesystem::path assetDir = config.ProjectDirectory / config.AssetDirectory;
 					for (const auto& entry : std::filesystem::recursive_directory_iterator(assetDir, ec))
@@ -398,15 +403,15 @@ namespace Chained
 						if (entry.is_regular_file() && entry.path().extension() == ".chscene")
 						{
 							auto rel = std::filesystem::relative(entry.path(), assetDir, ec).generic_string();
-							allScenes.push_back(rel);
+							m_AllScenes.push_back(rel);
 						}
 					}
-					scanned = true;
+					m_ScenesScanned = true;
 				}
 
 				if (ImGui::Button("Refresh Scene List"))
 				{
-					scanned = false;
+					m_ScenesScanned = false;
 				}
 				ImGui::SameLine();
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
@@ -429,7 +434,7 @@ namespace Chained
 				}
 
 				ImGui::BeginChild("ExcludedScenesList", ImVec2(0, 200), true);
-				for (const auto& scene : allScenes)
+				for (const auto& scene : m_AllScenes)
 				{
 					bool isExcluded = false;
 					for (const auto& exc : config.Export.ExcludedScenes)

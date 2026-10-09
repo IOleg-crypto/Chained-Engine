@@ -5,13 +5,14 @@
 
 namespace Chained
 {
+	class Project;
 
 	// Serializes and deserializes a single scene instance; the scene is not owned.
 	class SceneSerializer
 	{
 	public:
 		// Creates a serializer bound to the provided scene instance.
-		SceneSerializer(Scene* scene);
+		SceneSerializer(Scene* scene, Project* project = nullptr);
 
 		// Serializes the bound scene to disk. Returns false on failure.
 		bool Serialize(const std::string& filepath);
@@ -31,6 +32,7 @@ namespace Chained
 
 	private:
 		Scene* m_Scene;
+		Project* m_Project = nullptr;
 		std::string m_LastError;
 	};
 } // namespace Chained

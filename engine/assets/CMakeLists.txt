@@ -75,6 +75,7 @@ target_link_libraries(engine_assets PUBLIC
     engine_core
     engine_project
     engine_graphics
+    engine_audio
     engine_external_glad
     engine_external_stb
     engine_external_miniaudio

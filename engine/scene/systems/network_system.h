@@ -34,6 +34,8 @@ namespace Chained
 			Role CallbackRole = Role::Offline;
 			bool SceneLoadedPending = false;
 			float NetworkTickAccumulator = 0.0f;
+			std::vector<EntitySpawnMessage> PendingSpawns;
+			bool IsFirstPollForScene = true;
 		};
 
 		SceneNetworkContext& GetOrCreateContext(Scene* scene);

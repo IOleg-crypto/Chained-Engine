@@ -1,5 +1,6 @@
 #include "texture_compressor.h"
 
+#include "engine/common/string_utils.h"
 #include "engine/core/log.h"
 
 #include <basisu_comp.h>
@@ -7,8 +8,6 @@
 #include <basisu_frontend.h>
 #include <stb_image.h>
 
-#include <algorithm>
-#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -25,13 +24,6 @@ namespace Chained
 		{
 			static std::once_flag s_EncInitOnce;
 			std::call_once(s_EncInitOnce, []() { basisu::basisu_encoder_init(); });
-		}
-
-		std::string StringToLower(std::string str)
-		{
-			std::transform(str.begin(), str.end(), str.begin(),
-						   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-			return str;
 		}
 
 		bool IsCancelled(const std::atomic<bool>* flag)

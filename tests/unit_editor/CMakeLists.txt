@@ -32,6 +32,7 @@ endif()
 
 include(GoogleTest)
 # Discover individual GTest tests so each shows up as a separate CTest entry.
+# 60s discovery timeout: fresh CI runners can exceed CMake's 5s default to start the exe.
 gtest_discover_tests(engine_tests_editor
     WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
     PROPERTIES

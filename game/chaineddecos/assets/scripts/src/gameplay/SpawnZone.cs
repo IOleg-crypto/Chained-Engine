@@ -9,11 +9,9 @@ namespace ChainedDecos.Scripts
 
     public override void OnUpdate(float deltaTime)
     {
-        // Only the host runs respawn logic — clients rely on authoritative state
-        if (Network.IsClient)
-            return;
-
-        // Find the local player entity (by ownership in network, or first PlayerComponent)
+        // Find the local (owned) player entity.
+        // Both host and client run respawn/zone logic locally so the player
+        // always responds to the F key regardless of network role.
         ulong playerId = 0;
         if (Network.IsConnected)
         {
@@ -43,49 +41,51 @@ namespace ChainedDecos.Scripts
         if (playerTransform == null)
             return;
 
-            ulong[] spawnEntities = Entity.FindAllWithComponent<SpawnComponent>();
-            if (spawnEntities.Length == 0)
-                return;
+        ulong[] spawnEntities = Entity.FindAllWithComponent<SpawnComponent>();
+        if (spawnEntities.Length == 0)
+            return;
 
-            TransformComponent? spawnTransform = Entity.GetComponent<TransformComponent>();
-            SpawnComponent? thisSpawnComp = Entity.GetComponent<SpawnComponent>();
-            if (spawnTransform == null || thisSpawnComp == null || !thisSpawnComp.IsActive)
-                return;
+        TransformComponent? spawnTransform = Entity.GetComponent<TransformComponent>();
+        SpawnComponent? thisSpawnComp = Entity.GetComponent<SpawnComponent>();
+        if (spawnTransform == null || thisSpawnComp == null || !thisSpawnComp.IsActive)
+            return;
 
-            Vector3 zoneSize = thisSpawnComp.ZoneSize;
-            float halfX = Math.Abs(zoneSize.X) * 0.5f;
-            float halfY = Math.Abs(zoneSize.Y) * 0.5f;
-            float halfZ = Math.Abs(zoneSize.Z) * 0.5f;
+        Vector3 zoneSize = thisSpawnComp.ZoneSize;
+        float halfX = Math.Abs(zoneSize.X) * 0.5f;
+        float halfY = Math.Abs(zoneSize.Y) * 0.5f;
+        float halfZ = Math.Abs(zoneSize.Z) * 0.5f;
 
-            if (halfX < 0.5f) halfX = 1.0f;
-            if (halfY < 0.5f) halfY = 1.0f;
-            if (halfZ < 0.5f) halfZ = 1.0f;
+        if (halfX < 0.5f) halfX = 1.0f;
+        if (halfY < 0.5f) halfY = 1.0f;
+        if (halfZ < 0.5f) halfZ = 1.0f;
 
-            float dx = Math.Abs(playerTransform.Translation.X - spawnTransform.Translation.X);
-            float dy = Math.Abs(playerTransform.Translation.Y - spawnTransform.Translation.Y);
-            float dz = Math.Abs(playerTransform.Translation.Z - spawnTransform.Translation.Z);
+        float dx = Math.Abs(playerTransform.Translation.X - spawnTransform.Translation.X);
+        float dy = Math.Abs(playerTransform.Translation.Y - spawnTransform.Translation.Y);
+        float dz = Math.Abs(playerTransform.Translation.Z - spawnTransform.Translation.Z);
 
-            IsPlayerInside = (dx <= halfX && dy <= halfY && dz <= halfZ);
+        IsPlayerInside = (dx <= halfX && dy <= halfY && dz <= halfZ);
 
-            if (IsPlayerInside)
+        // Only the host marks checkpoints — this mutates a server-authoritative
+        // SpawnComponent field, so doing it on clients would race with the host.
+        if (IsPlayerInside && !Network.IsClient)
+        {
+            foreach (ulong id in spawnEntities)
             {
-                foreach (ulong id in spawnEntities)
+                Entity spawner = new Entity(id);
+                SpawnComponent? sc = spawner.GetComponent<SpawnComponent>();
+                if (sc != null && sc.IsActive)
                 {
-                    Entity spawner = new Entity(id);
-                    SpawnComponent? sc = spawner.GetComponent<SpawnComponent>();
-                    if (sc != null && sc.IsActive)
-                    {
-                        sc.IsCheckpoint = (id == Entity.ID);
-                    }
+                    sc.IsCheckpoint = (id == Entity.ID);
                 }
             }
-
-            // Respawn player if fallen into the void (below Y = -35) or manually with F
-            if (Input.IsKeyPressed(Key.F))
-            {
-                Respawn(player, spawnEntities);
-            }
         }
+
+        // Both host and client can respawn themselves locally with F.
+        if (Input.IsKeyPressed(Key.F))
+        {
+            Respawn(player, spawnEntities);
+        }
+    }
 
         private void Respawn(Entity player, ulong[] spawnEntities)
         {

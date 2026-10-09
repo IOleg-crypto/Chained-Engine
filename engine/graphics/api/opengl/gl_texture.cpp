@@ -129,9 +129,12 @@ namespace Chained
 		if (m_OwnsResource && m_RendererID)
 		{
 			uint32_t id = m_RendererID;
-			if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
+			if (ServiceLocator::IsAvailable())
 			{
-				gd->EnqueueResourceDeletion([id]() { glDeleteTextures(1, &id); });
+				if (auto* gd = ServiceLocator::TryGet<GraphicsDevice>())
+				{
+					gd->EnqueueResourceDeletion([id]() { glDeleteTextures(1, &id); });
+				}
 			}
 		}
 	}

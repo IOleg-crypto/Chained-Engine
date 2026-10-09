@@ -26,10 +26,10 @@ namespace Chained
 			return node[key].as<T>(fallback);
 		}
 
-		std::string ToProjectRelativePath(const std::string& absPath)
+		std::string ToProjectRelativePath(const std::string& absPath, Project* project = nullptr)
 		{
-			auto project = Project::GetActive();
-			return project ? project->GetRelativePath(absPath) : absPath;
+			Project* p = project ? project : Project::GetActive().get();
+			return p ? p->GetRelativePath(absPath) : absPath;
 		}
 
 		static void SerializeBackgroundSettings(YAML::Emitter& out, const SceneSettings& settings)
@@ -50,14 +50,15 @@ namespace Chained
 			out << YAML::EndMap;
 		}
 
-		static void SerializeEnvironmentSettings(YAML::Emitter& out, const SceneSettings& settings)
+		static void SerializeEnvironmentSettings(YAML::Emitter& out, const SceneSettings& settings,
+												 Project* project = nullptr)
 		{
 			if (!settings.Environment)
 			{
 				return;
 			}
 
-			std::string envPath = ToProjectRelativePath(settings.Environment->GetPath());
+			std::string envPath = ToProjectRelativePath(settings.Environment->GetPath(), project);
 			out << YAML::Key << "EnvironmentPath" << YAML::Value << envPath;
 
 			// Also serialize the current settings for quick preview/fallback.
@@ -202,12 +203,14 @@ namespace Chained
 			}
 		}
 
-		static void DeserializeEnvironmentSettings(const YAML::Node& sceneRoot, SceneSettings& settings)
+		static void DeserializeEnvironmentSettings(const YAML::Node& sceneRoot, SceneSettings& settings,
+												   Project* project = nullptr)
 		{
 			if (sceneRoot["EnvironmentPath"] && sceneRoot["EnvironmentPath"].IsScalar())
 			{
 				std::string envPath = ReadYamlValue(sceneRoot, "EnvironmentPath", std::string());
-				if (Project::GetActive())
+				Project* p = project ? project : Project::GetActive().get();
+				if (p)
 				{
 					auto* assets = ServiceLocator::TryGet<AssetManager>();
 					if (assets)
@@ -227,10 +230,9 @@ namespace Chained
 				}
 			}
 
-			if (!sceneRoot["Skybox"] && !sceneRoot["Fog"] && !sceneRoot["LightDirection"])
-			{
-				return;
-			}
+			// Note: Legacy early-return guard removed. The Skybox/Fog/Lighting blocks
+			// below use safe optional-node checks, so we always fall through to apply
+			// any inline overrides present in the scene file.
 
 			if (!settings.Environment)
 			{
@@ -285,19 +287,20 @@ namespace Chained
 			}
 		}
 
-		static void SerializeSceneSettings(YAML::Emitter& out, const SceneSettings& settings)
+		static void SerializeSceneSettings(YAML::Emitter& out, const SceneSettings& settings,
+										   Project* project = nullptr)
 		{
 			out << YAML::Key << "Scene" << YAML::Value << settings.Name;
 			out << YAML::Key << "SceneType" << YAML::Value << (int)settings.Type;
 			SerializeBackgroundSettings(out, settings);
 			SerializeCanvasSettings(out, settings);
-			SerializeEnvironmentSettings(out, settings);
+			SerializeEnvironmentSettings(out, settings, project);
 			SerializeGridSettings(out, settings.Grid);
 			SerializeDebugSettings(out, settings);
 		}
 
 		static bool DeserializeSceneSettings(const YAML::Node& sceneRoot, SceneSettings& settings,
-											 std::string& lastError)
+											 std::string& lastError, Project* project = nullptr)
 		{
 			if (!sceneRoot["Scene"] || !sceneRoot["Scene"].IsScalar())
 			{
@@ -312,7 +315,7 @@ namespace Chained
 			DeserializeCanvasSettings(sceneRoot, settings);
 			DeserializeGridSettings(sceneRoot, settings.Grid);
 			DeserializeDebugSettings(sceneRoot, settings);
-			DeserializeEnvironmentSettings(sceneRoot, settings);
+			DeserializeEnvironmentSettings(sceneRoot, settings, project);
 			return true;
 		}
 
@@ -321,7 +324,7 @@ namespace Chained
 			std::vector<HierarchyTask> hierarchyTasks;
 			std::set<uint64_t> seenUUIDs;
 
-			for (auto entity : entities)
+			for (const auto& entity : entities)
 			{
 				if (!entity["Entity"])
 				{
@@ -429,7 +432,7 @@ namespace Chained
 		YAML::Emitter out;
 		out << YAML::BeginMap;
 
-		SerializeSceneSettings(out, m_Scene->GetSettings());
+		SerializeSceneSettings(out, m_Scene->GetSettings(), m_Project);
 
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 
@@ -464,8 +467,9 @@ namespace Chained
 		}
 	}
 
-	SceneSerializer::SceneSerializer(Scene* scene)
-		: m_Scene(scene)
+	SceneSerializer::SceneSerializer(Scene* scene, Project* project)
+		: m_Scene(scene),
+		  m_Project(project)
 	{
 	}
 
@@ -518,7 +522,7 @@ namespace Chained
 		}
 
 		SceneSettings settings = m_Scene->GetSettings();
-		if (!DeserializeSceneSettings(sceneRootNode, settings, m_LastError))
+		if (!DeserializeSceneSettings(sceneRootNode, settings, m_LastError, m_Project))
 		{
 			return false;
 		}

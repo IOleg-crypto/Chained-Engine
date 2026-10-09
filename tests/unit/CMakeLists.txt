@@ -11,6 +11,7 @@ set(UNIT_SOURCES
     byte_codec_tests.cpp
     network_interpolation_tests.cpp
     transform_tests.cpp
+    project_tests.cpp
     ${CMAKE_SOURCE_DIR}/engine/scene/systems/transform_system.cpp
 )
 
@@ -19,7 +20,9 @@ add_executable(engine_tests_unit ${UNIT_SOURCES})
 target_link_libraries(engine_tests_unit PRIVATE
     engine_common
     engine_core
+    engine_project
     engine_assets
+    engine_audio
     engine_network
     engine_external_entt
     glm
@@ -44,6 +47,8 @@ endif()
 include(GoogleTest)
 # Discover individual GTest tests so each shows up as a separate CTest entry.
 # Unit tests are fast (no engine boot), so per-test discovery has negligible overhead.
+# 60s discovery timeout: fresh CI runners (Defender scan, cold page cache) can take
+# >5s (the CMake default) to start the freshly linked test exe.
 gtest_discover_tests(engine_tests_unit
     WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
     PROPERTIES

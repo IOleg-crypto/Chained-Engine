@@ -19,10 +19,9 @@ namespace Chained
 		void Execute(const RenderContext& ctx) override;
 		void Shutdown() override;
 
-		const std::string& GetName() const override
+		std::string_view GetName() const override
 		{
-			static std::string name = "ShadowPass";
-			return name;
+			return "ShadowPass";
 		}
 
 		// Other passes can call this to bind the shadow depth attachment.

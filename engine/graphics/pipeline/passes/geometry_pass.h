@@ -10,10 +10,9 @@ namespace Chained
 	{
 	public:
 		void Execute(const RenderContext& ctx) override;
-		const std::string& GetName() const override
+		std::string_view GetName() const override
 		{
-			static std::string name = "GeometryPass";
-			return name;
+			return "GeometryPass";
 		}
 	};
 

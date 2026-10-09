@@ -31,6 +31,7 @@ ChainedEngine is a modular C++23 game engine with editor tooling, runtime packag
 - [Project Structure](#project-structure)
 - [Dependencies](#dependencies)
 - [Testing](#testing)
+- [Profiling](#profiling)
 - [Networking & Multiplayer](#networking--multiplayer)
 - [CI/CD](#cicd)
 - [Documentation](#documentation)
@@ -46,10 +47,11 @@ ChainedEngine and Chained Decos target **Windows** and **Linux**:
 - **Rendering:** OpenGL 4.3+ pipeline with PBR materials, dynamic shadows, fog, post-processing, and material-aware instancing.
 - **ECS & Scene Graph:** Fast EnTT-driven entity-component system with hierarchical transform updates.
 - **Scripting:** High-performance C# scripting via Coral (.NET 9 CoreCLR), featuring hot-reloading, `[Autoload]` persistent global services, and `[AutoAttach]` tag-based discovery.
-- **Physics:** Jolt Physics 3D backend with multithreaded simulation, raycasting, and fast BVH collision baking.
+- **Physics:** Jolt Physics 3D backend with multithreaded simulation, raycasting, and fast BVH collision caching (`.chphys`).
 - **Networking:** Multi-channel threaded ENet UDP architecture with UPnP port mapping, LAN/WAN discovery, and client prediction / dead reckoning.
-- **Editor:** ImGui + ImGuizmo desktop editor with inspector, asset browser, scene viewport, animation graph editor, and live play-mode.
+- **Editor:** ImGui + ImGuizmo desktop editor with inspector, asset browser, scene viewport with Performance Stats overlay, animation graph editor, and live play-mode.
 - **Asset Pipeline:** Binary `.chasset` format, KTX2/BC7 texture compression, and ZSTD-compressed dictionary asset packs (`.pack`).
+- **Profiling:** Integrated Tracy Profiler for in-depth CPU frame, draw call, and memory analysis.
 
 ![Editor Screenshot 1](https://i.imgur.com/jey25o0.png)
 ![Editor Screenshot 2](https://i.imgur.com/VMhs9Zm.jpeg)
@@ -178,6 +180,7 @@ Chained-Engine/
 | **ENet & miniupnpc** | Multiplayer UDP networking and UPnP port forwarding |
 | **miniaudio** | Multi-channel 3D audio playback |
 | **zstd** | Binary pack compression |
+| **Tracy** | Frame, memory, and draw call CPU profiler |
 | **spdlog** | Fast logging |
 
 ---
@@ -199,6 +202,18 @@ ctest --test-dir build/windows-clang -C Debug -L Unit --output-on-failure
 ```bash
 dotnet test "tests/managed/Chained.Managed.Tests.csproj"
 ```
+
+---
+
+## Profiling
+
+ChainedEngine uses **Tracy Profiler** for frame-level performance analysis, memory tracking, and draw-call plotting.
+
+1. Build and launch `ChainedEditor` (Tracy client runs automatically).
+2. Download or build the Tracy Profiler GUI (`thirdparty/tracy/profiler/build`).
+3. Open Tracy and click **Connect** (`127.0.0.1`).
+
+In the profiler you can analyze `CH_PROFILE_FUNCTION()` zones, view memory allocations, and track custom statistics like Entities and Draw Calls plotted per-frame.
 
 ---
 

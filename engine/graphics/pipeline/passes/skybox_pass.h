@@ -12,10 +12,9 @@ namespace Chained
 	{
 	public:
 		void Execute(const RenderContext& ctx) override;
-		const std::string& GetName() const override
+		std::string_view GetName() const override
 		{
-			static std::string name = "SkyboxPass";
-			return name;
+			return "SkyboxPass";
 		}
 
 	private:

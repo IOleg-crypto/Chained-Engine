@@ -117,7 +117,7 @@ namespace Chained
 
 			if (root["Tags"] && root["Tags"].IsSequence())
 			{
-				for (auto tag : root["Tags"])
+				for (const auto& tag : root["Tags"])
 				{
 					meta.tags.push_back(tag.as<std::string>());
 				}
@@ -169,7 +169,7 @@ namespace Chained
 
 			if (root["Tags"] && root["Tags"].IsSequence())
 			{
-				for (auto tag : root["Tags"])
+				for (const auto& tag : root["Tags"])
 				{
 					meta.tags.push_back(tag.as<std::string>());
 				}

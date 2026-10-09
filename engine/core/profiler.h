@@ -226,6 +226,22 @@ namespace Chained
 
 } // namespace Chained
 
+#if defined(TRACY_ENABLE)
+#include <tracy/Tracy.hpp>
+
+#define CH_PROFILE_BEGIN_SESSION(name, filepath) ((void)0)
+#define CH_PROFILE_END_SESSION() ((void)0)
+#define CH_PROFILE_SCOPE(name) ZoneScopedN(name)
+#define CH_PROFILE_FUNCTION() ZoneScoped
+#define CH_PROFILE_FRAME_MARK() FrameMark
+#define CH_PROFILE_FRAME(name) FrameMarkNamed(name)
+#define CH_PROFILE_ALLOC(ptr, size) TracyAlloc(ptr, size)
+#define CH_PROFILE_FREE(ptr) TracyFree(ptr)
+#define CH_PROFILE_MESSAGE(msg) TracyMessageStr(msg)
+#define CH_PROFILE_PLOT(name, val) TracyPlot(name, val)
+
+#else
+
 #define CH_PROFILE_BEGIN_SESSION(name, filepath)                                                                       \
 	if (auto* _inst = ::Chained::Instrumentor::TryGet())                                                               \
 	_inst->BeginSession(name, filepath)
@@ -236,5 +252,13 @@ namespace Chained
 #define CH_PROFILE_CONCAT(x, y) CH_PROFILE_CONCAT_IMPL(x, y)
 #define CH_PROFILE_SCOPE(name) ::Chained::InstrumentationTimer CH_PROFILE_CONCAT(timer, __LINE__)(name)
 #define CH_PROFILE_FUNCTION() CH_PROFILE_SCOPE(__FUNCTION__)
+#define CH_PROFILE_FRAME_MARK() ((void)0)
+#define CH_PROFILE_FRAME(name) ((void)0)
+#define CH_PROFILE_ALLOC(ptr, size) ((void)0)
+#define CH_PROFILE_FREE(ptr) ((void)0)
+#define CH_PROFILE_MESSAGE(msg) ((void)0)
+#define CH_PROFILE_PLOT(name, val) ((void)0)
+
+#endif
 
 #endif // CH_PROFILER_H

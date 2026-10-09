@@ -6,7 +6,6 @@
 #include "panels/material_panel.h"
 #include "panels/inspector_panel.h"
 #include "panels/panel.h"
-#include "panels/profiler_panel.h"
 #include "panels/project_settings_panel.h"
 #include "panels/scene_hierarchy_panel.h"
 #include "panels/viewport_panel.h"
@@ -30,7 +29,6 @@ namespace Chained
 		Register<WorldPanel>(sceneManager);
 		Register<EffectsPanel>();
 		Register<MaterialPanel>(sceneManager);
-		Register<ProfilerPanel>();
 		Register<ProjectSettingsPanel>();
 		Register<AnimGraphPanel>(editorState, sceneManager);
 		Register<NetworkPanel>();

@@ -257,6 +257,8 @@ namespace Chained
 
 				m_Window->EndFrame();
 			}
+
+			CH_PROFILE_FRAME_MARK();
 		}
 	}
 

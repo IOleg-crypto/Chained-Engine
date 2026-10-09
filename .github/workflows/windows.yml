@@ -8,6 +8,11 @@ on:
         required: false
         default: 'fast'
         type: string
+      run_managed_tests:
+        description: 'Run the managed test project once for this platform'
+        required: false
+        default: false
+        type: boolean
 
 env:
   CI: true
@@ -15,6 +20,13 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   NODE_OPTIONS: "--no-deprecation"
+  # Keep dbghelp (Tracy's symbol worker) away from network symbol servers:
+  # on VS-preconfigured runners _NT_SYMBOL_PATH contains a srv* expression, so
+  # SymInitialize pulls in symsrv.dll, stalls in its init under Defender and
+  # blocks process exit (Tracy ~Profiler join) long enough to blow the gtest
+  # test-discovery timeout. "." = local search path only, no symsrv load.
+  _NT_SYMBOL_PATH: "."
+  _NT_ALT_SYMBOL_PATH: "."
 
 jobs:
   setup-matrix:
@@ -130,6 +142,7 @@ jobs:
             -DPython_EXECUTABLE="${PYTHON_EXE}" \
             -DPython3_EXECUTABLE="${PYTHON_EXE}" \
             -DCH_CI=ON \
+            -DCH_ENABLE_PROFILING=OFF \
             -DENABLE_UNITY_BUILD=OFF \
             -DENABLE_SANITIZERS=$SANITIZERS_FLAG \
             -DENABLE_LTO=OFF \
@@ -151,6 +164,7 @@ jobs:
             2>&1 | tee "$BUILD_DIR/ctest_${{ matrix.build_type }}.log"
 
       - name: Test (Managed C# dotnet)
+        if: inputs.run_managed_tests
         run: |
           dotnet test "tests/managed/Chained.Managed.Tests.csproj" --verbosity normal
 

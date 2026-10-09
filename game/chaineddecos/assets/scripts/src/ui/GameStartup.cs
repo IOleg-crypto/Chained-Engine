@@ -2,20 +2,28 @@ using Chained;
 
 namespace ChainedDecos.Scripts
 {
-    // Applied to any entity in the start scene. Loads and applies settings.cfg
-    // on game startup so that resolution, fullscreen, VSync, AA, and audio
-    // volumes are correct before the first frame renders.
-    // Also resets static game state (SpectatorState) so returning to menu
-    // from any path (victory, disconnect, crash-return) always starts fresh.
+    // Applied to any entity in the start scene.
+    // Resets all static gameplay state every time the menu loads.
     public class GameStartup : Script
     {
         private static bool s_Applied;
 
         public override void OnStart()
         {
-            // Always reset gameplay state when the menu loads
+            // Always reset gameplay state on every menu visit
             SpectatorState.Reset();
+            GameHUD.IsPaused = false;
 
+            // Only disconnect if there is NO active session to resume.
+            // If HasActiveSession() is true, the player paused to menu —
+            // we must keep the network alive so Resume can work.
+            if (Network.IsConnected && !Scene.HasActiveSession())
+            {
+                Log.Info("[GameStartup] No active session — cleaning up stale network connection.");
+                Network.Disconnect();
+            }
+
+            // Apply settings only once per process lifetime
             if (s_Applied) return;
             s_Applied = true;
             SettingsConfig.ApplyAll();

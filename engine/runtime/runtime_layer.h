@@ -7,6 +7,7 @@
 #include "engine/graphics/pipeline/scene_renderer.h"
 #include "engine/graphics/pipeline/renderer.h"
 #include "engine/assets/asset_manager.h"
+#include "engine/project/project.h"
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -113,6 +114,7 @@ namespace Chained
 		std::unique_ptr<SceneRenderer> m_SceneRenderer;
 		Renderer* m_Renderer = nullptr;
 		AssetManager* m_AssetManager = nullptr;
+		std::shared_ptr<Project> m_Project;
 
 	private:
 		std::string m_ProjectPath;

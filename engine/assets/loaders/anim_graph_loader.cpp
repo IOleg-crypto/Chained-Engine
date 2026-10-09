@@ -77,7 +77,7 @@ namespace Chained
 
 			if (auto nodes = root["Nodes"])
 			{
-				for (auto n : nodes)
+				for (const auto& n : nodes)
 				{
 					AnimNode node;
 					if (n["ID"])
@@ -122,7 +122,7 @@ namespace Chained
 
 			if (auto links = root["Transitions"])
 			{
-				for (auto l : links)
+				for (const auto& l : links)
 				{
 					AnimTransition tr;
 					if (l["ID"])
@@ -160,7 +160,7 @@ namespace Chained
 
 					if (auto conds = l["Conditions"])
 					{
-						for (auto c : conds)
+						for (const auto& c : conds)
 						{
 							AnimCondition cond;
 							if (c["VariableName"])

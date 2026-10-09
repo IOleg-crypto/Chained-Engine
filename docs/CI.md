@@ -5,11 +5,11 @@ Chained Decos uses **GitHub Actions** (`.github/workflows/`).
 ## Workflows
 
 | Workflow | Trigger | Purpose |
-|---|---|---|
-| `ci.yml` | `push` to `main`/`develop`/`opengl`, `pull_request` to `main`/`opengl` | Orchestrator: format + Linux + Windows |
-| `format.yml` | via `ci.yml` | `clang-format-18 --dry-run --Werror` on changed C++ files (skips `thirdparty/`) |
-| `linux.yml` | via `ci.yml` | Ubuntu, clang+gcc, Debug+Release, `ctest` + managed tests |
-| `windows.yml` | via `ci.yml` | Windows, clang/vs2026/gcc, Debug+Release, `ctest` + managed tests |
+| --- | --- | --- |
+| `ci.yml` | `push` to `main`/`opengl`/`experimental-opengl`, `pull_request` | Fast orchestrator: Linux sanitizer + Windows Clang |
+| `ci.yml` | nightly schedule + manual `full` | Full Linux/Windows matrix through the reusable workflows |
+| `linux.yml` | via `ci.yml` | Reusable Ubuntu build, CTest, and optional managed tests |
+| `windows.yml` | via `ci.yml` | Reusable Windows build and CTest with optional managed tests |
 | `valgrind.yml` | nightly (`0 3 * * *` UTC) + manual | `memcheck` on unit tests only |
 | `release.yml` | tags / manual | Release packaging |
 | `deploy-sdk.yml` | tags / manual | SDK publishing |
@@ -21,16 +21,23 @@ On `pull_request`, `actions/checkout@v4` (without an explicit `ref`) checks out 
 branch. Never set `ref: github.event.pull_request.head.sha` if you want PR status to
 reflect the merged result.
 
-Push CI runs only on `main`/`develop`/`opengl`, so feature branches are not built twice.
-After merge, a fresh push run validates the real branch tip.
+Push CI runs on `main`, `opengl`, and `experimental-opengl`, using the same fast
+matrix as PRs. Feature branches are not built twice, and a fresh push run validates
+the real branch tip after merge.
+
+The full compiler matrix is intentionally reserved for the nightly schedule or a manual
+full run so ordinary changes do not wait for every compiler/configuration combination.
 
 Required status checks (GitHub → Settings → Branches) must be bound to the **PR-run**
 checks (`CI Passed` from `ci.yml`), not to push-run checks.
 
+Managed tests run once through the Linux reusable workflow. Windows runs native CTest
+only unless a caller explicitly enables its managed-test input.
+
 ## Memory safety strategy
 
 | Layer | When | Tool |
-|---|---|---|
+| --- | --- | --- |
 | Gate | every PR | **ASan + UBSan** (`ENABLE_SANITIZERS=ON`, Linux Debug jobs) |
 | Leak gate | every PR (Linux) | **LSan** via ASan, suppressions in `.github/lsan.supp` |
 | Deep memcheck | nightly | **Valgrind** on unit tests (`engine_tests_unit`, `engine_tests_editor`) |

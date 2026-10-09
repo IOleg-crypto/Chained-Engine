@@ -1,3 +1,5 @@
+#include <vector>
+#include <string>
 #ifndef CH_PROJECT_SETTINGS_PANEL_H
 #define CH_PROJECT_SETTINGS_PANEL_H
 
@@ -15,6 +17,9 @@ namespace Chained
 
 	private:
 		int m_SelectedCategory = 0;
+		std::vector<std::string> m_AllScenes;
+		bool m_ScenesScanned = false;
+
 		bool m_WidthSet = false;
 	};
 } // namespace Chained

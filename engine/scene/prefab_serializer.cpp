@@ -146,7 +146,7 @@ namespace Chained
 		std::vector<HierarchyTask> hierarchyTasks;
 
 		// Step 1: Create all entities first
-		for (auto entityNode : entitiesNode)
+		for (const auto& entityNode : entitiesNode)
 		{
 			if (!entityNode["Entity"])
 			{
@@ -167,7 +167,7 @@ namespace Chained
 
 		// Step 2: Deserialize components and collect hierarchy tasks
 		int idx = 0;
-		for (auto entityNode : entitiesNode)
+		for (const auto& entityNode : entitiesNode)
 		{
 			if (idx >= createdEntities.size())
 			{

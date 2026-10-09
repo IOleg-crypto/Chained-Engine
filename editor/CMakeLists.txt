@@ -44,8 +44,6 @@ set(EDITOR_SOURCES
     panels/inspector_panel.cpp
     panels/material_panel.h
     panels/material_panel.cpp
-    panels/profiler_panel.h
-    panels/profiler_panel.cpp
     panels/project_settings_panel.h
     panels/project_settings_panel.cpp
     panels/property_editor.h

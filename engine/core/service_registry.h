@@ -95,11 +95,13 @@ namespace Chained
 		void Shutdown()
 		{
 			std::vector<std::shared_ptr<Service>> modulesToShutdown;
+			std::unordered_map<std::type_index, std::shared_ptr<Service>> servicesToClear;
 			{
 				std::unique_lock<std::shared_mutex> lock(m_Mutex);
 				m_IsLocked = false;
 				m_IsShuttingDown = true;
-				modulesToShutdown = m_Order;
+				modulesToShutdown = std::move(m_Order);
+				servicesToClear = std::move(m_Services);
 			}
 
 			for (auto it = modulesToShutdown.rbegin(); it != modulesToShutdown.rend(); ++it)
@@ -111,10 +113,13 @@ namespace Chained
 				(*it)->SetEnabled(false);
 			}
 
+			// Destroy services outside the mutex lock so destructors (like GLTexture, AssetManager)
+			// can query ServiceLocator without recursive deadlock on m_Mutex.
+			modulesToShutdown.clear();
+			servicesToClear.clear();
+
 			{
 				std::unique_lock<std::shared_mutex> lock(m_Mutex);
-				m_Services.clear();
-				m_Order.clear();
 				m_IsShuttingDown = false;
 			}
 		}

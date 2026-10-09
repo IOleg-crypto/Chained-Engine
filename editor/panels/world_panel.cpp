@@ -448,7 +448,7 @@ namespace Chained
 		}
 	}
 
-	void WorldPanel::DrawEnvironmentSettings(std::shared_ptr<EnvironmentAsset> env, bool readOnly)
+	void WorldPanel::DrawEnvironmentSettings(const std::shared_ptr<EnvironmentAsset>& env, bool readOnly)
 	{
 		auto& settings = env->GetSettings();
 

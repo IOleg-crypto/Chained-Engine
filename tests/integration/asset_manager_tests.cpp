@@ -235,6 +235,12 @@ TEST(AssetManagerTest, Stress_ConcurrentAndAsyncLoading)
 		ASSERT_NE(results[i], nullptr);
 		EXPECT_EQ(results[i].get(), results[0].get()) << "Thread " << i << " got different asset pointer";
 	}
+
+	// Async load is queued to the app thread pool; wait (bounded) for the loader to actually run
+	for (int attempt = 0; attempt < 1000 && loaderPtr->LoadCount.load() == 0; ++attempt)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(2));
+	}
 	EXPECT_EQ(loaderPtr->LoadCount, 1);
 
 	// Act (Step 2: Batch async load 10 distinct assets)

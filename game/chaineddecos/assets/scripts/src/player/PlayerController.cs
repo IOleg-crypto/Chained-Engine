@@ -80,12 +80,9 @@ namespace ChainedDecos.Scripts
             if (Network.IsConnected && netId == null)
             {
                 m_NetIdWaitFrames++;
-                if (m_NetIdWaitFrames > NetIdGraceFrames)
-                {
-                    return; // confirmed scene-authored entity with no network role
-                }
-                // Still waiting for C++ to attach NetworkIdentityComponent — continue as owner
+                return; // In multiplayer: never grant local input without confirmed ownership
             }
+            if (!Network.IsConnected) m_NetIdWaitFrames = 0;
 
             // Non-owner avatars (host-driven): skip local input entirely.
             // The host simulates physics for them; InterpolateEntities handles position.

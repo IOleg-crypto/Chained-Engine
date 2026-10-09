@@ -51,8 +51,11 @@ endif()
 
 
 # Optional: ccache support for faster rebuilds
+# Never override an explicitly provided launcher (e.g. sccache passed by CI via
+# -DCMAKE_<LANG>_COMPILER_LAUNCHER): GitHub runners ship Strawberry Perl's
+# ccache.exe on PATH, which would silently shadow sccache and break the cache.
 option(USE_CCACHE "Use ccache if available" ON)
-if(USE_CCACHE)
+if(USE_CCACHE AND NOT CMAKE_CXX_COMPILER_LAUNCHER AND NOT CMAKE_C_COMPILER_LAUNCHER)
     find_program(CCACHE_PROGRAM ccache)
     if(CCACHE_PROGRAM)
         set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")

@@ -37,7 +37,12 @@ namespace Chained
 	{
 		if (!m_World)
 		{
-			m_World = std::make_unique<JoltPhysicsWorld>();
+			auto newWorld = std::make_unique<JoltPhysicsWorld>();
+			if (auto project = Project::GetActive())
+			{
+				newWorld->SetShapeCacheDir(project->GetProjectDirectory() / "assets");
+			}
+			m_World = std::move(newWorld);
 		}
 		return m_World.get();
 	}
@@ -71,6 +76,10 @@ namespace Chained
 		m_World.reset();
 
 		auto newWorld = std::make_unique<JoltPhysicsWorld>();
+		if (auto project = Project::GetActive())
+		{
+			newWorld->SetShapeCacheDir(project->GetProjectDirectory() / "assets");
+		}
 		newWorld->RestoreShapeCache(std::move(cachedMeshShapes), std::move(cachedConvexHulls));
 		m_World = std::move(newWorld);
 

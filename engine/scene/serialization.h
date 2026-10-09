@@ -5,7 +5,6 @@
 #include "engine/common/uuid.h"
 #include "engine/project/project.h"
 #include "engine/scene/yaml.h"
-#include <algorithm>
 #include <filesystem>
 
 namespace Chained::Serialization
@@ -71,10 +70,7 @@ namespace Chained::Serialization
 				path = "";
 				return;
 			}
-			path = pathValue;
-#if CH_PLATFORM_WINDOWS
-			std::replace(path.begin(), path.end(), '\\', '/');
-#endif
+			path = std::filesystem::path(pathValue).generic_string();
 		}
 	}
 

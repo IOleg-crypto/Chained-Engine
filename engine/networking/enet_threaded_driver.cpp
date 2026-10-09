@@ -161,6 +161,13 @@ namespace Chained
 
 	void ENetThreadedDriver::Disconnect()
 	{
+		// Idempotency guard: if already offline, do nothing.
+		// Prevents duplicate 'Disconnected.' logs when Shutdown() + Network::Shutdown() both call this.
+		if (m_Role.load(std::memory_order_relaxed) == Role::Offline && !m_Host)
+		{
+			return;
+		}
+
 		StopWorker();
 
 		if (m_Host)
