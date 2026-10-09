@@ -127,3 +127,5 @@ exported_linux
 nul
 
 .serena
+*.chphys
+.sccache/
