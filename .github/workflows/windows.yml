@@ -160,22 +160,27 @@ jobs:
               echo "exe not found: $EXE"
               exit 0
             fi
-            echo "=== file-redirect run (70s budget) ==="
+            echo "=== file-redirect run (75s budget) ==="
             cd "$BUILD_DIR/bin"
             ./Release/engine_tests_unit.exe --gtest_list_tests > ../discovery_diag_out.txt 2>&1 &
-            PID=$!
-            for i in $(seq 70); do
-              kill -0 "$PID" 2>/dev/null || break
+            NPID=""
+            for i in $(seq 75); do
+              NPID=$(powershell -NoProfile -Command "(Get-Process engine_tests_unit -ErrorAction SilentlyContinue | Select-Object -First 1).Id" 2>/dev/null | tr -d '\r\n ')
+              [[ -z "$NPID" ]] && { echo "EXITED after ~${i}s"; break; }
               sleep 1
             done
-            if kill -0 "$PID" 2>/dev/null; then
-              echo "RESULT: HANG (alive after 70s, no pipe involved)"
-              tasklist //FI "PID eq $PID" 2>/dev/null
-              taskkill //F //PID "$PID" >/dev/null 2>&1
-              kill -9 "$PID" 2>/dev/null
-            else
-              wait "$PID"
-              echo "RESULT: EXITED rc=$?"
+            if [[ -n "$NPID" ]]; then
+              echo "HANG: native pid=$NPID after 75s"
+              echo "=== gdb thread backtraces ==="
+              GDB=$(command -v gdb 2>/dev/null || true)
+              if [[ -z "$GDB" ]]; then
+                echo "gdb not found on PATH"
+                where gdb 2>/dev/null
+                ls /mingw64/bin/gdb* 2>/dev/null
+              else
+                "$GDB" -p "$NPID" -batch -ex "set pagination off" -ex "thread apply all bt" 2>&1 | tail -150
+              fi
+              taskkill //F //PID "$NPID" >/dev/null 2>&1
             fi
             echo "=== output tail ==="
             tail -8 ../discovery_diag_out.txt
