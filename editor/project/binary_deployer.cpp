@@ -1,9 +1,8 @@
 #include "binary_deployer.h"
 
+#include "engine/common/string_utils.h"
 #include "engine/core/log.h"
 
-#include <algorithm>
-#include <cctype>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -12,13 +11,6 @@ namespace Chained
 {
 	namespace
 	{
-		std::string StringToLower(std::string str)
-		{
-			std::transform(str.begin(), str.end(), str.begin(),
-						   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-			return str;
-		}
-
 		bool IsCancelled(const std::atomic<bool>* flag)
 		{
 			return flag && flag->load(std::memory_order_relaxed);

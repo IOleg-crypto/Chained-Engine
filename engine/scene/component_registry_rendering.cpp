@@ -19,6 +19,5 @@ namespace Chained
 		ComponentRegistry::RegisterReflective<SpriteComponent>("Sprite", ICON_FA_IMAGE, "Rendering");
 		ComponentRegistry::RegisterReflective<ShaderComponent>("Shader", nullptr, "Rendering");
 		ComponentRegistry::RegisterReflective<SpawnComponent>("Spawn", ICON_FA_LOCATION_DOT);
-		ComponentRegistry::RegisterReflective<PlayerComponent>("Player", ICON_FA_USER);
 	}
 } // namespace Chained

@@ -88,12 +88,16 @@ namespace Chained
 		}
 
 		// 1. Render main window
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		{
+			CH_PROFILE_SCOPE("ImGui::Render & DrawData");
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		}
 
 		// 2. Render additional windows (Viewports)
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
+			CH_PROFILE_SCOPE("ImGui Viewports Render");
 			GLFWwindow* backup_current_context = glfwGetCurrentContext();
 			ImGui::UpdatePlatformWindows();
 			ImGui::RenderPlatformWindowsDefault();
@@ -103,6 +107,7 @@ namespace Chained
 		// === SUPER SAFE ZONE: FRAME FULLY COMPLETED ===
 		if (!m_DeferredTasks.empty())
 		{
+			CH_PROFILE_SCOPE("ImGui Deferred Tasks");
 			for (const auto& task : m_DeferredTasks)
 			{
 				if (task)

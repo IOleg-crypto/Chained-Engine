@@ -106,3 +106,6 @@
 [submodule "thirdparty/libjuice"]
 	path = thirdparty/libjuice
 	url = https://github.com/paullouisageneau/libjuice.git
+[submodule "thirdparty/tracy"]
+	path = thirdparty/tracy
+	url = https://github.com/wolfpld/tracy.git

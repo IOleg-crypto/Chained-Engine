@@ -9,6 +9,13 @@ namespace ChainedDecos.Scripts
     /// </summary>
     public class StartGameButton : Script
     {
+        private bool m_GameStarted = false;
+
+        public override void OnCreate()
+        {
+            m_GameStarted = false;
+        }
+
         public override void OnUpdate(float deltaTime)
         {
             ButtonControl? btn = Entity.GetComponent<ButtonControl>();
@@ -23,8 +30,13 @@ namespace ChainedDecos.Scripts
                 return;
             }
 
+            if (m_GameStarted)
+                return;
+
             if (btn == null || !btn.IsClicked)
                 return;
+
+            m_GameStarted = true;
 
             string map = LobbyManager.SelectedMap;
             int playerCount = Network.ClientCount;

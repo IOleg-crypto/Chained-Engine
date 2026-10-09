@@ -12,9 +12,6 @@
 namespace Chained
 {
 
-	std::shared_ptr<Project> Project::s_ActiveProject = nullptr;
-	std::mutex Project::s_Mutex;
-
 	Project::~Project() = default;
 
 	std::shared_ptr<Project> Project::Load(const std::filesystem::path& filepath)

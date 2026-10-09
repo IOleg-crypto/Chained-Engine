@@ -20,7 +20,7 @@ namespace Chained
 		void DrawSceneBackground(bool readOnly);
 		void DrawPhysicsSettings(bool readOnly);
 		void DrawEnvironmentSection(bool readOnly);
-		void DrawEnvironmentSettings(std::shared_ptr<EnvironmentAsset> env, bool readOnly);
+		void DrawEnvironmentSettings(const std::shared_ptr<EnvironmentAsset>& env, bool readOnly);
 
 	private:
 		EditorSceneManager* m_SceneManager = nullptr;

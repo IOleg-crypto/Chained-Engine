@@ -55,7 +55,7 @@ namespace Chained
 
 			if (h["Children"] && h["Children"].IsSequence())
 			{
-				for (auto child : h["Children"])
+				for (const auto& child : h["Children"])
 				{
 					outTask.children.push_back(child.as<uint64_t>());
 				}

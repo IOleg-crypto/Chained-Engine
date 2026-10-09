@@ -65,7 +65,7 @@ namespace Chained
 		static void Register(entt::id_type typeId, const ComponentMetadata& metadata);
 		static void RegisterEngineComponents();
 
-		static const std::unordered_map<entt::id_type, ComponentMetadata>& GetRegistry()
+		inline static const std::unordered_map<entt::id_type, ComponentMetadata>& GetRegistry()
 		{
 			return s_Registry;
 		}
@@ -240,7 +240,7 @@ namespace Chained
 		}
 
 	private:
-		static std::unordered_map<entt::id_type, ComponentMetadata> s_Registry;
+		inline static std::unordered_map<entt::id_type, ComponentMetadata> s_Registry;
 	};
 
 /**

@@ -3,7 +3,6 @@
 
 #include "engine/graphics/pipeline/render_pass.h"
 #include "engine/graphics/api/framebuffer.h"
-#include <string>
 
 namespace Chained
 {
@@ -18,10 +17,9 @@ namespace Chained
 		void Execute(const RenderContext& ctx) override;
 		void Shutdown() override;
 
-		const std::string& GetName() const override
+		std::string_view GetName() const override
 		{
-			static std::string name = "CompositePass";
-			return name;
+			return "CompositePass";
 		}
 
 		// Provide an HDR intermediate target produced by earlier passes.

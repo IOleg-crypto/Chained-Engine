@@ -1,5 +1,6 @@
 #include "engine/scene/systems/network/network_replication_manager.h"
 #include "engine/assets/asset_manager.h"
+#include "engine/project/project.h"
 #include "engine/core/log.h"
 #include "engine/core/service_locator.h"
 #include "engine/networking/network_service.h"
@@ -28,50 +29,6 @@ namespace Chained
 		const std::string& path = scene->GetSettings().ScenePath;
 		return path.find("start_menu") != std::string::npos || path.find("lobby") != std::string::npos ||
 			   path.find("menu") != std::string::npos;
-	}
-
-	static std::string NormalizeToAssetPath(const std::string& path)
-	{
-		if (path.empty())
-		{
-			return "";
-		}
-		std::string s = path;
-		for (char& c : s)
-		{
-			if (c == '\\')
-			{
-				c = '/';
-			}
-		}
-		size_t pos = s.rfind("scenes/");
-		if (pos != std::string::npos)
-		{
-			return s.substr(pos);
-		}
-		pos = s.rfind("assets/");
-		if (pos != std::string::npos)
-		{
-			return s.substr(pos + 7);
-		}
-		return std::filesystem::path(s).filename().string();
-	}
-
-	static bool AreScenePathsMatching(const std::string& a, const std::string& b)
-	{
-		if (a.empty() && b.empty())
-		{
-			return true;
-		}
-		std::string normA = NormalizeToAssetPath(a);
-		std::string normB = NormalizeToAssetPath(b);
-		if (normA == normB)
-		{
-			return true;
-		}
-		std::filesystem::path pA(normA);
-		std::filesystem::path pB(normB);
-		return !pA.filename().empty() && pA.filename() == pB.filename();
 	}
 
 	static glm::vec3 FindSpawnPosition(entt::registry& reg)
@@ -649,7 +606,11 @@ namespace Chained
 			const std::string& currentScenePath = scene->GetSettings().ScenePath;
 			if (!currentScenePath.empty())
 			{
-				std::string relScenePath = NormalizeToAssetPath(currentScenePath);
+				std::string relScenePath = currentScenePath;
+				if (Project::GetActive())
+				{
+					relScenePath = Project::GetActive()->GetRelativePath(relScenePath);
+				}
 				SceneChangeMessage sceneMsg;
 				std::strncpy(sceneMsg.ScenePath, relScenePath.c_str(), sizeof(sceneMsg.ScenePath) - 1);
 				sceneMsg.ScenePath[sizeof(sceneMsg.ScenePath) - 1] = '\0';
@@ -711,7 +672,10 @@ namespace Chained
 				SendEntitySpawn(net, networkID, playerPrefab, existingClient);
 			}
 			SendEntitySpawn(net, kHostNetworkID, playerPrefab, clientIndex);
-			SendEntitySpawn(net, networkID, playerPrefab, clientIndex);
+			// NOTE: Do NOT send EntitySpawn for the client's own networkID to itself.
+			// The client recognises its own avatar via PlayerAssign (sent above).
+			// Sending a self-spawn causes a phantom shadow entity with IsOwner=false
+			// (because PlayerAssign may not be processed yet), breaking physics and input.
 		}
 
 		std::vector<int> disconnectedClients;

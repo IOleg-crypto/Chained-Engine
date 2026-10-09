@@ -6,8 +6,6 @@
 namespace Chained
 {
 
-	GraphicsDevice::API GraphicsDevice::s_API = GraphicsDevice::API::OpenGL;
-
 	void GraphicsDevice::EnqueueResourceDeletion(std::function<void()> deleter)
 	{
 		if (!deleter)

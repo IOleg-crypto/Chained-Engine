@@ -240,6 +240,10 @@ namespace Chained
 		{
 			inst->UpdateStats(m_CurrentStats);
 		}
+
+		CH_PROFILE_PLOT("Draw Calls", (int64_t)m_CurrentStats.DrawCalls);
+		CH_PROFILE_PLOT("Entities", (int64_t)m_CurrentStats.EntityCount);
+		CH_PROFILE_PLOT("Meshes", (int64_t)m_CurrentStats.MeshCount);
 	}
 
 	void SceneRenderer::RenderSprites(entt::registry& registry, const Camera3D& camera)

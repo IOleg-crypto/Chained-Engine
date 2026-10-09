@@ -14,6 +14,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -60,6 +61,11 @@ namespace Chained
 		/// Clear the cached mesh shapes.
 		void ClearShapeCache();
 
+		/// Set the assets root directory so that (dir / cacheKey).replace_extension(".chphys")
+		/// gives the absolute path of the sidecar BVH file for each model.
+		/// Call once before BatchInitializeBodies (e.g. from Physics::ResetWorld).
+		void SetShapeCacheDir(const std::filesystem::path& dir);
+
 		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> GetMeshShapeCache() const
 		{
 			std::lock_guard<std::mutex> lock(m_CacheMutex);
@@ -99,6 +105,13 @@ namespace Chained
 		/// Creates a unit-box fallback shape and logs a warning.
 		JPH::ShapeRefC FallbackUnitBox(const std::string& reason);
 
+		/// Try to load a previously-serialized MeshShape .chphys from disk.
+		/// Returns a valid ShapeRefC on success, nullptr on miss or version mismatch.
+		JPH::ShapeRefC TryLoadShapeFromDisk(const std::string& cacheKey);
+
+		/// Serialize a freshly-built MeshShape to a .chphys sidecar on disk.
+		void SaveShapeToDisk(const std::string& cacheKey, const JPH::Shape* shape);
+
 	private:
 		// ── Jolt subsystems ──────────────────────────────────────────────────────
 		// m_Factory declared first → destroyed last (C++ reverse destruction order).
@@ -124,6 +137,12 @@ namespace Chained
 		bool m_IsShuttingDown = false;
 		std::unordered_map<std::string, JPH::RefConst<JPH::Shape>> m_MeshShapeCache;
 		std::unordered_set<std::string> m_InFlightMeshBakes;
+
+		// ── Persistent disk BVH cache ─────────────────────────────────────────────
+		// Serialized MeshShape blobs (.jbvh) stored in <project>/.physics_cache/.
+		// Populated via SetShapeCacheDir() + LoadDiskShapeCache() at startup so that
+		// BVH builds are skipped on subsequent runs (sub-millisecond cold start).
+		std::filesystem::path m_ShapeCacheDir;
 
 		// ── Convex hull shape cache ─────────────────────────────────────────────
 		// For dynamic meshes, a ConvexHull is built from deduped vertices. Cache it

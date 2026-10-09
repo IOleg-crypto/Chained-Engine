@@ -19,6 +19,7 @@ target_include_directories(engine_physics PUBLIC
 
 target_link_libraries(engine_physics PUBLIC
     engine_core
+    engine_assets
     engine_project
     engine_external_entt
     glm

@@ -6,6 +6,7 @@
 #include "engine/scene/scene_settings.h"
 #include <entt/entt.hpp>
 #include <string>
+#include <string_view>
 
 namespace Chained
 {
@@ -40,7 +41,7 @@ namespace Chained
 		{
 		}
 
-		virtual const std::string& GetName() const = 0;
+		virtual std::string_view GetName() const = 0;
 	};
 } // namespace Chained
 #endif

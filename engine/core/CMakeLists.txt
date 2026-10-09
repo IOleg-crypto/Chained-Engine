@@ -41,6 +41,7 @@ target_link_libraries(engine_core PUBLIC
     cereal
     spdlog
     libzstd_static
+    $<$<TARGET_EXISTS:engine_external_tracy>:engine_external_tracy>
 )
 
 target_include_directories(engine_core PUBLIC

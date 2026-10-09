@@ -74,7 +74,7 @@ Entities:
     IDComponent:
       {}
     SceneTransitionComponent:
-      TargetScenePath: scenes/video_scene.chscene
+      TargetScenePath: scenes/modern_settings.chscene
       Triggered: false
     ControlComponent:
       Transform:

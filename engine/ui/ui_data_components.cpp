@@ -192,7 +192,7 @@ namespace Chained
 		}
 		if (widgetNode["Items"])
 		{
-			for (auto item : widgetNode["Items"])
+			for (const auto& item : widgetNode["Items"])
 			{
 				data.Items.push_back(item.as<std::string>());
 			}
@@ -336,7 +336,7 @@ namespace Chained
 		}
 		if (widgetNode["Options"])
 		{
-			for (auto option : widgetNode["Options"])
+			for (const auto& option : widgetNode["Options"])
 			{
 				data.Options.push_back(option.as<std::string>());
 			}
@@ -605,7 +605,7 @@ namespace Chained
 		}
 		if (widgetNode["Values"])
 		{
-			for (auto value : widgetNode["Values"])
+			for (const auto& value : widgetNode["Values"])
 			{
 				data.Values.push_back(value.as<float>());
 			}

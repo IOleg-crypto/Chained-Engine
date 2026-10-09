@@ -19,7 +19,7 @@ namespace Chained
 	class SceneScriptingManager;
 	class Event;
 
-	class CH_API Scene
+	class CH_API Scene : public std::enable_shared_from_this<Scene>
 	{
 	public:
 		Scene();

@@ -1,9 +1,12 @@
 #include "jolt_physics_world.h"
 
+#include "engine/assets/asset_manager.h"
 #include "engine/core/service_locator.h"
 #include "engine/common/thread_pool.h"
 
 #include <Jolt/Core/Factory.h>
+#include <Jolt/Core/StreamWrapper.h>
+#include <Jolt/Core/StreamUtils.h>
 #include <Jolt/Geometry/Triangle.h>
 #include <Jolt/Physics/Body/MassProperties.h>
 #include <Jolt/Physics/Collision/CastResult.h>
@@ -20,6 +23,8 @@
 
 #include <cmath>
 #include <cstdarg>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <mutex>
 #include "engine/core/log.h"
@@ -192,6 +197,153 @@ namespace Chained
 		std::lock_guard<std::mutex> lock(m_CacheMutex);
 		m_MeshShapeCache.clear();
 		m_ConvexHullCache.clear();
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// Persistent disk BVH cache  (.chphys stored next to each model's .chasset)
+	// ─────────────────────────────────────────────────────────────────────────────
+	// Layout mirrors the .chasset convention:
+	//   assets/models/foo.glb  →  assets/models/foo.chasset  (mesh/texture binary)
+	//                          →  assets/models/foo.chphys   (Jolt BVH binary)
+	// m_ShapeCacheDir is set to the project's assets root directory via
+	// SetShapeCacheDir() so that (m_ShapeCacheDir / cacheKey).replace_extension(".chphys")
+	// gives the absolute path of the sidecar file.
+
+	// Bump this when the serialization format changes (e.g. Jolt major upgrade).
+	static constexpr uint32_t kDiskCacheMagic = 0x43485031u; // "CHP1"
+
+	void JoltPhysicsWorld::SetShapeCacheDir(const std::filesystem::path& dir)
+	{
+		m_ShapeCacheDir = dir;
+	}
+
+	/// Returns the absolute path of the .chphys sidecar for a given cacheKey.
+	/// cacheKey is a relative asset path like "models/foo.glb".
+	static std::filesystem::path ChphysPath(const std::filesystem::path& assetRoot, const std::string& cacheKey)
+	{
+		return (assetRoot / cacheKey).replace_extension(".chphys");
+	}
+
+	struct MemoryStreamBuf : public std::streambuf
+	{
+		MemoryStreamBuf(const uint8_t* data, size_t size)
+		{
+			char* begin = const_cast<char*>(reinterpret_cast<const char*>(data));
+			setg(begin, begin, begin + size);
+		}
+	};
+
+	JPH::ShapeRefC JoltPhysicsWorld::TryLoadShapeFromDisk(const std::string& cacheKey)
+	{
+		if (cacheKey.empty())
+		{
+			return nullptr;
+		}
+
+		std::filesystem::path relPath = std::filesystem::path(cacheKey).replace_extension(".chphys");
+		std::filesystem::path fullPath = m_ShapeCacheDir.empty() ? relPath : ChphysPath(m_ShapeCacheDir, cacheKey);
+
+		std::vector<uint8_t> bytes;
+		if (auto* am = ServiceLocator::TryGet<AssetManager>())
+		{
+			bytes = am->ReadProjectAsset(fullPath);
+			if (bytes.empty())
+			{
+				bytes = am->ReadAssetData(relPath.generic_string());
+			}
+			if (bytes.empty())
+			{
+				bytes = am->ReadAssetData((std::filesystem::path("assets") / relPath).generic_string());
+			}
+		}
+
+		if (bytes.empty() && std::filesystem::exists(fullPath))
+		{
+			std::ifstream file(fullPath, std::ios::binary | std::ios::ate);
+			if (file.is_open())
+			{
+				auto size = file.tellg();
+				if (size >= static_cast<std::streamoff>(sizeof(uint32_t)))
+				{
+					file.seekg(0);
+					bytes.resize(static_cast<size_t>(size));
+					file.read(reinterpret_cast<char*>(bytes.data()), size);
+				}
+			}
+		}
+
+		if (bytes.size() < sizeof(uint32_t))
+		{
+			return nullptr;
+		}
+
+		// Verify magic / version stamp — rejects stale files from old Jolt builds
+		uint32_t magic = 0;
+		std::memcpy(&magic, bytes.data(), sizeof(magic));
+		if (magic != kDiskCacheMagic)
+		{
+			CH_CORE_TRACE("Physics: .chphys version mismatch for '{}' — will rebuild.", cacheKey);
+			return nullptr;
+		}
+
+		MemoryStreamBuf sbuf(bytes.data() + sizeof(magic), bytes.size() - sizeof(magic));
+		std::istream streamObj(&sbuf);
+		JPH::StreamInWrapper stream(streamObj);
+		JPH::Shape::IDToShapeMap shapeMap;
+		JPH::Shape::IDToMaterialMap matMap;
+		auto result = JPH::Shape::sRestoreWithChildren(stream, shapeMap, matMap);
+
+		if (result.HasError())
+		{
+			CH_CORE_WARN("Physics: Failed to load .chphys for '{}': {}", cacheKey,
+						 std::string(result.GetError().c_str()));
+			return nullptr;
+		}
+
+		return result.Get();
+	}
+
+	void JoltPhysicsWorld::SaveShapeToDisk(const std::string& cacheKey, const JPH::Shape* shape)
+	{
+		if (m_ShapeCacheDir.empty() || cacheKey.empty() || !shape)
+		{
+			return;
+		}
+
+		std::filesystem::path path = ChphysPath(m_ShapeCacheDir, cacheKey);
+
+		std::error_code ec;
+		std::filesystem::create_directories(path.parent_path(), ec);
+		if (ec)
+		{
+			CH_CORE_WARN("Physics: Cannot create dir for .chphys '{}': {}", path.string(), ec.message());
+			return;
+		}
+
+		std::ofstream file(path, std::ios::binary | std::ios::trunc);
+		if (!file.is_open())
+		{
+			CH_CORE_WARN("Physics: Cannot write .chphys '{}' — skipping.", path.string());
+			return;
+		}
+
+		file.write(reinterpret_cast<const char*>(&kDiskCacheMagic), sizeof(kDiskCacheMagic));
+
+		JPH::StreamOutWrapper stream(file);
+		JPH::Shape::ShapeToIDMap shapeMap;
+		JPH::Shape::MaterialToIDMap matMap;
+		shape->SaveWithChildren(stream, shapeMap, matMap);
+
+		if (stream.IsFailed())
+		{
+			CH_CORE_WARN("Physics: .chphys write failed for '{}' — removing partial file.", cacheKey);
+			file.close();
+			std::filesystem::remove(path, ec);
+		}
+		else
+		{
+			CH_CORE_TRACE("Physics: Saved .chphys [key='{}']", cacheKey);
+		}
 	}
 
 	void JoltPhysicsWorld::PrebuildShape(const PhysicsBodyDesc& desc)
@@ -462,6 +614,27 @@ namespace Chained
 				shape = FallbackUnitBox("Static MeshShape requested but no triangles provided and not in cache");
 				break;
 			}
+
+			// ── Try disk cache (.chphys sidecar) before expensive BVH build ──────────
+			bool loadedFromDisk = false;
+			if (!desc.CacheKey.empty())
+			{
+				if (JPH::ShapeRefC diskShape = TryLoadShapeFromDisk(desc.CacheKey))
+				{
+					baseShape = diskShape;
+					{
+						std::lock_guard<std::mutex> lock(m_CacheMutex);
+						if (!m_IsShuttingDown)
+						{
+							m_MeshShapeCache[desc.CacheKey] = baseShape;
+						}
+					}
+					CH_CORE_INFO("Physics: Loaded mesh BVH from .chphys [key='{}']", desc.CacheKey);
+					loadedFromDisk = true;
+				}
+			}
+
+			if (!loadedFromDisk)
 			{
 				const auto buildStart = std::chrono::steady_clock::now();
 				JPH::TriangleList joltTris;
@@ -501,10 +674,35 @@ namespace Chained
 				baseShape = result.Get();
 				if (!desc.CacheKey.empty())
 				{
-					std::lock_guard<std::mutex> lock(m_CacheMutex);
-					if (!m_IsShuttingDown)
 					{
-						m_MeshShapeCache[desc.CacheKey] = baseShape;
+						std::lock_guard<std::mutex> lock(m_CacheMutex);
+						if (!m_IsShuttingDown)
+						{
+							m_MeshShapeCache[desc.CacheKey] = baseShape;
+						}
+					}
+					// Save to disk asynchronously so it's ready on next engine start
+					if (auto* tp = ServiceLocator::TryGet<ThreadPool>())
+					{
+						std::string key = desc.CacheKey;
+						// AddRef keeps the shape alive until the background task completes
+						baseShape->AddRef();
+						const JPH::Shape* rawPtr = baseShape.GetPtr();
+						try
+						{
+							tp->QueueTask([this, key, rawPtr]() {
+								SaveShapeToDisk(key, rawPtr);
+								rawPtr->Release();
+							});
+						} catch (const std::exception&)
+						{
+							rawPtr->Release();
+							SaveShapeToDisk(key, baseShape.GetPtr());
+						}
+					}
+					else
+					{
+						SaveShapeToDisk(desc.CacheKey, baseShape.GetPtr());
 					}
 				}
 

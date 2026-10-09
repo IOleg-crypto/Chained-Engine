@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, opengl]
+    branches: [main, opengl, experimental-opengl]
     paths:
       - "**/*.cpp"
       - "**/*.h"
@@ -51,6 +51,8 @@ on:
       - ".github/workflows/valgrind.yml"
       - ".github/valgrind.supp"
       - ".github/lsan.supp"
+  schedule:
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       matrix_mode:
@@ -95,8 +97,14 @@ jobs:
             exit 0
           fi
 
-          echo "matrix_mode=full" >> "$GITHUB_OUTPUT"
-          echo "Mainline push (${{ github.ref_name }}) detected -> matrix_mode=full"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "matrix_mode=full" >> "$GITHUB_OUTPUT"
+            echo "Scheduled validation detected -> matrix_mode=full"
+            exit 0
+          fi
+
+          echo "matrix_mode=fast" >> "$GITHUB_OUTPUT"
+          echo "Branch push (${{ github.ref_name }}) detected -> matrix_mode=fast"
 
   linux:
     name: Linux
@@ -104,6 +112,7 @@ jobs:
     uses: ./.github/workflows/linux.yml
     with:
       matrix_mode: ${{ needs.resolve-mode.outputs.matrix_mode }}
+      run_managed_tests: true
     secrets: inherit
 
   windows:
@@ -112,6 +121,7 @@ jobs:
     uses: ./.github/workflows/windows.yml
     with:
       matrix_mode: ${{ needs.resolve-mode.outputs.matrix_mode }}
+      run_managed_tests: false
     secrets: inherit
 
   ci-success:

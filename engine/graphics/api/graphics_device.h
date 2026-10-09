@@ -154,7 +154,7 @@ namespace Chained
 		static std::unique_ptr<GraphicsDevice> Create();
 
 	private:
-		static API s_API;
+		inline static API s_API = API::OpenGL;
 
 	private:
 		std::mutex m_DeletionMutex;

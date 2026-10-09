@@ -2,7 +2,6 @@
 #include "engine/common/platform_detection.h"
 #include "engine/core/log.h"
 
-#include <algorithm>
 #include <cctype>
 
 namespace Chained
@@ -10,11 +9,6 @@ namespace Chained
 
 	namespace
 	{
-		static void NormalizeSlashes(std::string& s)
-		{
-			std::replace(s.begin(), s.end(), '\\', '/');
-		}
-
 		static void StripPrefix(std::string& input, const std::filesystem::path& base)
 		{
 			if (base.empty())
@@ -123,7 +117,6 @@ namespace Chained
 	std::string AssetPathResolver::ResolvePackKey(const std::string& assetPath) const
 	{
 		std::string packKey = assetPath;
-		NormalizeSlashes(packKey);
 		StripPrefix(packKey, m_EngineRoot);
 
 		// Strip the "engine/" virtual prefix — pack stores engine resources
@@ -159,7 +152,6 @@ namespace Chained
 		}
 
 		std::string cleanPath = path;
-		NormalizeSlashes(cleanPath);
 
 #if CH_PLATFORM_WINDOWS
 		if (IsWindowsAbsolutePath(cleanPath))

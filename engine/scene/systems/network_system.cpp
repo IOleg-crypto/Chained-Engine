@@ -2,6 +2,7 @@
 #include "engine/core/application_event_proxy.h"
 #include "engine/core/log.h"
 #include "engine/core/service_locator.h"
+#include "engine/project/project.h"
 #include "engine/scene/scene.h"
 #include "engine/scene/scene_events.h"
 #include "engine/scene/components/core/transform_component.h"
@@ -15,36 +16,6 @@ namespace Chained
 {
 	namespace NetworkSystem
 	{
-		static Scene* s_CurrentActiveScene = nullptr;
-		static Scene* s_ActiveReplicationScene = nullptr;
-		static std::vector<EntitySpawnMessage> s_PendingSpawns;
-
-		static std::string NormalizeToAssetPath(const std::string& path)
-		{
-			if (path.empty())
-			{
-				return "";
-			}
-			std::string s = path;
-			for (char& c : s)
-			{
-				if (c == '\\')
-				{
-					c = '/';
-				}
-			}
-			size_t pos = s.rfind("scenes/");
-			if (pos != std::string::npos)
-			{
-				return s.substr(pos);
-			}
-			pos = s.rfind("assets/");
-			if (pos != std::string::npos)
-			{
-				return s.substr(pos + 7);
-			}
-			return std::filesystem::path(s).filename().string();
-		}
 
 		static bool AreScenePathsMatching(const std::string& a, const std::string& b)
 		{
@@ -52,15 +23,7 @@ namespace Chained
 			{
 				return true;
 			}
-			std::string normA = NormalizeToAssetPath(a);
-			std::string normB = NormalizeToAssetPath(b);
-			if (normA == normB)
-			{
-				return true;
-			}
-			std::filesystem::path pA(normA);
-			std::filesystem::path pB(normB);
-			return !pA.filename().empty() && pA.filename() == pB.filename();
+			return std::filesystem::path(a).filename() == std::filesystem::path(b).filename();
 		}
 
 		SceneNetworkContext& GetOrCreateContext(Scene* scene)
@@ -306,15 +269,16 @@ namespace Chained
 				return;
 			}
 
-			s_CurrentActiveScene = scene;
-
 			if (ctx.CallbackRole == netSvc->GetRole() && netSvc->GetRole() != Role::Offline)
 			{
 				return;
 			}
 
 			ctx.CallbackRole = netSvc->GetRole();
-			netSvc->SetPacketCallback([netSvc](int clientIndex, MessageType type, const uint8_t* data, size_t len) {
+			std::weak_ptr<Scene> weakScene = scene->weak_from_this();
+
+			netSvc->SetPacketCallback([netSvc, weakScene](int clientIndex, MessageType type, const uint8_t* data,
+														  size_t len) {
 				ByteReader r(data, len);
 
 				// Global messages that do not require an active scene
@@ -333,6 +297,8 @@ namespace Chained
 					return;
 				}
 
+				Scene* activeScene = weakScene.lock().get();
+
 				if (type == MessageType_PlayerList)
 				{
 					PlayerListMessage msg;
@@ -348,8 +314,7 @@ namespace Chained
 					SceneChangeMessage msg;
 					if (msg.Decode(r))
 					{
-						std::string currentPath =
-							s_CurrentActiveScene ? s_CurrentActiveScene->GetSettings().ScenePath : "";
+						std::string currentPath = activeScene ? activeScene->GetSettings().ScenePath : "";
 						std::string newPath = msg.ScenePath;
 						if (!AreScenePathsMatching(currentPath, newPath))
 						{
@@ -366,7 +331,6 @@ namespace Chained
 					if (msg.Decode(r))
 					{
 						netSvc->SetLocalNetworkID(msg.NetworkID);
-						Scene* activeScene = s_CurrentActiveScene;
 						if (activeScene)
 						{
 							if (auto* sceneCtx = TryGetContext(activeScene))
@@ -383,7 +347,6 @@ namespace Chained
 					EntitySpawnMessage msg;
 					if (msg.Decode(r))
 					{
-						Scene* activeScene = s_CurrentActiveScene;
 						if (activeScene)
 						{
 							if (auto* sceneCtx = TryGetContext(activeScene))
@@ -392,9 +355,17 @@ namespace Chained
 								return;
 							}
 						}
-						s_PendingSpawns.push_back(msg);
-						CH_CORE_INFO("Network: Queued EntitySpawn for netID={} while scene is transitioning/loading.",
-									 msg.NetworkID);
+						// If scene is transitioning/loading, queue the spawn in the context of the active scene
+						if (activeScene)
+						{
+							if (auto* sceneCtx = TryGetContext(activeScene))
+							{
+								sceneCtx->PendingSpawns.push_back(msg);
+								CH_CORE_INFO(
+									"Network: Queued EntitySpawn for netID={} while scene is transitioning/loading.",
+									msg.NetworkID);
+							}
+						}
 					}
 					return;
 				}
@@ -404,7 +375,6 @@ namespace Chained
 					EntityDestroyMessage msg;
 					if (msg.Decode(r))
 					{
-						Scene* activeScene = s_CurrentActiveScene;
 						if (activeScene)
 						{
 							if (auto* sceneCtx = TryGetContext(activeScene))
@@ -416,7 +386,6 @@ namespace Chained
 					return;
 				}
 
-				Scene* activeScene = s_CurrentActiveScene;
 				if (!activeScene)
 				{
 					return;
@@ -460,31 +429,20 @@ namespace Chained
 							std::string clientScene = msg.ScenePath;
 							auto& deferredMap = sceneCtx->Replication.GetDeferredSceneLoaded();
 
-							Scene* replScene = s_ActiveReplicationScene ? s_ActiveReplicationScene : activeScene;
-							if (!replScene)
+							std::string hostScene = activeScene->GetSettings().ScenePath;
+							if (AreScenePathsMatching(hostScene, clientScene))
 							{
 								CH_CORE_INFO(
-									"Network: Client {} loaded scene '{}' — host still transitioning, deferring.",
-									clientIndex, clientScene);
-								deferredMap[clientIndex] = clientScene;
+									"Network: Client {} confirmed scene '{}' loaded matching host '{}', sync avatars.",
+									clientIndex, clientScene, hostScene);
+								sceneCtx->Replication.ResyncClientEntities(clientIndex, activeScene, netSvc,
+																		   sceneCtx->Session);
 							}
 							else
 							{
-								std::string hostScene = replScene->GetSettings().ScenePath;
-								if (AreScenePathsMatching(hostScene, clientScene))
-								{
-									CH_CORE_INFO("Network: Client {} confirmed scene '{}' loaded matching host '{}', "
-												 "sync avatars.",
-												 clientIndex, clientScene, hostScene);
-									sceneCtx->Replication.ResyncClientEntities(clientIndex, replScene, netSvc,
-																			   sceneCtx->Session);
-								}
-								else
-								{
-									CH_CORE_INFO("Network: Client {} loaded scene '{}' != host '{}', deferring sync.",
-												 clientIndex, clientScene, hostScene);
-									deferredMap[clientIndex] = clientScene;
-								}
+								CH_CORE_INFO("Network: Client {} loaded scene '{}' != host '{}', deferring sync.",
+											 clientIndex, clientScene, hostScene);
+								deferredMap[clientIndex] = clientScene;
 							}
 						}
 						break;
@@ -580,20 +538,6 @@ namespace Chained
 				}
 			}
 
-			if (scene == nullptr || s_ActiveReplicationScene == scene)
-			{
-				s_ActiveReplicationScene = nullptr;
-			}
-			if (scene == nullptr || s_CurrentActiveScene == scene)
-			{
-				s_CurrentActiveScene = nullptr;
-			}
-
-			if (scene == nullptr)
-			{
-				s_PendingSpawns.clear();
-			}
-
 			if (netSvc && scene == nullptr)
 			{
 				netSvc->ClearPendingSceneChange();
@@ -644,22 +588,21 @@ namespace Chained
 				return;
 			}
 
-			s_CurrentActiveScene = scene;
 			auto& ctx = GetOrCreateContext(scene);
 
-			if (s_ActiveReplicationScene != scene)
+			if (ctx.IsFirstPollForScene)
 			{
-				s_ActiveReplicationScene = scene;
+				ctx.IsFirstPollForScene = false;
 				ctx.Replication.ClearPendingStates();
 				if (netSvc->IsClient())
 				{
 					ctx.SceneLoadedPending = true;
-					for (auto& spawnMsg : s_PendingSpawns)
+					for (auto& spawnMsg : ctx.PendingSpawns)
 					{
 						ctx.Replication.ProcessEntitySpawnMessage(&spawnMsg, scene, ctx.Session);
 					}
-					s_PendingSpawns.clear();
-					ctx.Replication.FlushPendingSpawns(s_ActiveReplicationScene, ctx.Session);
+					ctx.PendingSpawns.clear();
+					ctx.Replication.FlushPendingSpawns(scene, ctx.Session);
 				}
 			}
 
@@ -668,7 +611,11 @@ namespace Chained
 			if (ctx.SceneLoadedPending && netSvc->IsClient() && netSvc->IsConnected())
 			{
 				ctx.SceneLoadedPending = false;
-				std::string relScenePath = NormalizeToAssetPath(scene->GetSettings().ScenePath);
+				std::string relScenePath = scene->GetSettings().ScenePath;
+				if (Project::GetActive())
+				{
+					relScenePath = Project::GetActive()->GetRelativePath(relScenePath);
+				}
 				SceneLoadedMessage msg;
 				std::strncpy(msg.ScenePath, relScenePath.c_str(), sizeof(msg.ScenePath) - 1);
 				msg.ScenePath[sizeof(msg.ScenePath) - 1] = '\0';

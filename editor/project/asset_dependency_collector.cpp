@@ -1,12 +1,11 @@
 #include "asset_dependency_collector.h"
 #include "project_serializer.h"
+#include "engine/common/string_utils.h"
 #include "engine/core/log.h"
 #include "engine/project/project.h"
 #include "engine/assets/loaders/model_loader.h"
 #include <memory>
 
-#include <algorithm>
-#include <cctype>
 #include <fstream>
 #include <sstream>
 
@@ -16,13 +15,6 @@ namespace Chained
 {
 	namespace
 	{
-		std::string StringToLower(std::string str)
-		{
-			std::transform(str.begin(), str.end(), str.begin(),
-						   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-			return str;
-		}
-
 		std::string NormalizeKey(const fs::path& p)
 		{
 			std::string s = p.generic_string();
@@ -421,8 +413,21 @@ namespace Chained
 			}
 
 			// Companion resolution for models
-			if (kModelExts.count(ext) > 0 && ext != ".chasset" && ext != ".chmesh")
+			if (kModelExts.count(ext) > 0 && ext != ".chasset" && ext != ".chmesh" && ext != ".chphys")
 			{
+				// Check for binary .chphys companion
+				fs::path chphysRel = currentRel;
+				chphysRel.replace_extension(".chphys");
+				std::string chphysKey = NormalizeKey(chphysRel);
+				auto chphysIt = allAssetsLower.find(chphysKey);
+				if (chphysIt != allAssetsLower.end())
+				{
+					if (referencedLower.insert(chphysKey).second)
+					{
+						workQueue.push_back(chphysIt->second);
+					}
+				}
+
 				// Check for binary .chasset companion
 				fs::path chassetRel = currentRel;
 				chassetRel.replace_extension(".chasset");

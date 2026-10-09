@@ -31,30 +31,51 @@ namespace Chained
 
 	private:
 		static class ServiceRegistry& GetRegistry();
+		inline static bool s_IsShutDown;
 	};
 
 	template <typename T> void ServiceLocator::Provide(std::unique_ptr<T> service)
 	{
+		if (s_IsShutDown)
+		{
+			return;
+		}
 		GetRegistry().Provide(std::move(service));
 	}
 
 	template <typename T, typename Factory> void ServiceLocator::Provide(Factory&& factory)
 	{
+		if (s_IsShutDown)
+		{
+			return;
+		}
 		GetRegistry().Provide<T>(factory());
 	}
 
 	template <typename T> T* ServiceLocator::Get()
 	{
+		if (s_IsShutDown)
+		{
+			return nullptr;
+		}
 		return GetRegistry().Get<T>();
 	}
 
 	template <typename T> T* ServiceLocator::TryGet()
 	{
+		if (s_IsShutDown)
+		{
+			return nullptr;
+		}
 		return GetRegistry().TryGet<T>();
 	}
 
 	template <typename T> bool ServiceLocator::Has()
 	{
+		if (s_IsShutDown)
+		{
+			return false;
+		}
 		return GetRegistry().Has<T>();
 	}
 

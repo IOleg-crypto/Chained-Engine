@@ -235,8 +235,8 @@ namespace Chained
 		std::string GetRelativePathInternal(const std::filesystem::path& path) const;
 		std::filesystem::path GetAbsolutePathInternal(const std::filesystem::path& path) const;
 
-		static std::shared_ptr<Project> s_ActiveProject;
-		static std::mutex s_Mutex;
+		inline static std::shared_ptr<Project> s_ActiveProject;
+		inline static std::mutex s_Mutex;
 
 		ProjectConfig m_Config;
 		std::shared_ptr<EnvironmentAsset> m_Environment;

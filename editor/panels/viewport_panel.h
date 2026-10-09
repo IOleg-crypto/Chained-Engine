@@ -12,6 +12,7 @@
 #include "viewport/viewport_toolbar.h"
 
 #include <memory>
+#include <array>
 #include <utility>
 #include <glm/glm.hpp>
 
@@ -84,6 +85,9 @@ namespace Chained
 		EditorState* m_EditorState = nullptr;
 		const EditorConfig* m_Config = nullptr;
 		CommandHistory* m_CommandHistory = nullptr;
+		std::array<float, 120> m_FrameTimeHistory{};
+		size_t m_FrameTimeIndex = 0;
+		bool m_ShowStatsGraph = true;
 
 	private:
 		void HandleResize(const ImVec2& viewportSize, Scene* activeScene);

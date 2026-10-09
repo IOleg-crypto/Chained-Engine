@@ -39,6 +39,7 @@ if(CH_ENABLE_UPNP)
     include(miniupnpc)
 endif()
 include(basis_universal)
+include(tracy)
 
 # Disable unity builds for third-party libraries to avoid symbol redefinitions
 # (e.g., zstd cover.h has no include guard, causing redefinition under unity build)
@@ -54,6 +55,7 @@ foreach(_ext_target
     Coral.Native
     assimp
     freetype engine_freetype_gl
+    engine_external_tracy
 )
     if(TARGET ${_ext_target})
         set_target_properties(${_ext_target} PROPERTIES UNITY_BUILD OFF)

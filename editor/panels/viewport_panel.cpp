@@ -15,10 +15,12 @@
 #include "engine/scene/scene.h"
 #include "engine/scene/scene_events.h"
 #include "engine/scene/prefab_serializer.h"
+#include "engine/core/profiler.h"
 #include "events.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <GLFW/glfw3.h>
+#include <format>
 
 namespace Chained
 {
@@ -189,6 +191,44 @@ namespace Chained
 			if (ImGui::IsMouseHoveringRect(p1, p2))
 			{
 				ImGui::GetWindowDrawList()->AddRect(p1, p2, IM_COL32(0, 255, 0, 255), 0, 0, 1.0f);
+			}
+		}
+
+		// Performance Stats HUD Overlay (FPS, Draw Calls, Entities, Graph)
+		{
+			const auto* inst = Instrumentor::TryGet();
+			const auto& stats = inst ? inst->GetStats() : ProfilerStats{};
+			float fps = ImGui::GetIO().Framerate;
+			float frameMs = 1000.0f / (fps > 0.0f ? fps : 60.0f);
+
+			m_FrameTimeHistory[m_FrameTimeIndex] = frameMs;
+			m_FrameTimeIndex = (m_FrameTimeIndex + 1) % m_FrameTimeHistory.size();
+
+			ImVec2 windowPos = ImVec2(viewportScreenPos.x + viewportSize.x - 280.0f, viewportScreenPos.y + 10.0f);
+			ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always);
+			ImGui::SetNextWindowBgAlpha(0.85f); // Transparent background
+
+			if (ImGui::Begin("##PerfStatsOverlay", nullptr,
+							 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking |
+								 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+								 ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+								 ImGuiWindowFlags_NoMove))
+			{
+				if (ImGui::ArrowButton("##ToggleGraph", m_ShowStatsGraph ? ImGuiDir_Down : ImGuiDir_Right))
+				{
+					m_ShowStatsGraph = !m_ShowStatsGraph;
+				}
+
+				ImGui::SameLine();
+				ImGui::Text("%.0f FPS (%.1f ms)", fps, frameMs);
+
+				if (m_ShowStatsGraph)
+				{
+					ImGui::Text("%u Draw Calls | %u Entities", stats.DrawCalls, stats.EntityCount);
+					ImGui::PlotLines("##FrameTimes", m_FrameTimeHistory.data(), (int)m_FrameTimeHistory.size(),
+									 (int)m_FrameTimeIndex, nullptr, 0.0f, 33.3f, ImVec2(250.0f, 40.0f));
+				}
+				ImGui::End();
 			}
 		}
 	}
