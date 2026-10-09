@@ -51,7 +51,7 @@ include(GoogleTest)
 # >5s (the CMake default) to start the freshly linked test exe.
 gtest_discover_tests(engine_tests_unit
     WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-    DISCOVERY_TIMEOUT 60
+    DISCOVERY_TIMEOUT 300
     PROPERTIES
         LABELS "Unit"
         ENVIRONMENT "ENGINE_ROOT=${CMAKE_SOURCE_DIR}"

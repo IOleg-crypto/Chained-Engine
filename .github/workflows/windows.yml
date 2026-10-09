@@ -20,6 +20,13 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   NODE_OPTIONS: "--no-deprecation"
+  # Keep dbghelp (Tracy's symbol worker) away from network symbol servers:
+  # on VS-preconfigured runners _NT_SYMBOL_PATH contains a srv* expression, so
+  # SymInitialize pulls in symsrv.dll, stalls in its init under Defender and
+  # blocks process exit (Tracy ~Profiler join) long enough to blow the gtest
+  # test-discovery timeout. "." = local search path only, no symsrv load.
+  _NT_SYMBOL_PATH: "."
+  _NT_ALT_SYMBOL_PATH: "."
 
 jobs:
   setup-matrix:

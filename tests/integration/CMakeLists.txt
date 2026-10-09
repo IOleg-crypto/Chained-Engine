@@ -58,7 +58,7 @@ include(GoogleTest)
 # on Windows and the overhead of running the discovery binary at test time.
 gtest_discover_tests(engine_tests_integration
     WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-    DISCOVERY_TIMEOUT 60
+    DISCOVERY_TIMEOUT 300
     PROPERTIES
         LABELS "Integration"
         ENVIRONMENT "ENGINE_ROOT=${CMAKE_SOURCE_DIR}"
