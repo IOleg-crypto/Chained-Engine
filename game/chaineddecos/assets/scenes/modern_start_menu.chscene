@@ -1,0 +1,79 @@
+Scene: Start Menu
+SceneType: 1
+Background:
+  Mode: 0
+  Color: [0, 0, 0, 255]
+  TexturePath: ""
+Canvas:
+  ReferenceResolution: [1920, 1080]
+  ScaleMode: 1
+  MatchWidthOrHeight: 0.5
+EnvironmentPath: environments/menu_environment.chenv
+Lighting:
+  Direction: [-1, -1, -1]
+  LightColor: [255, 255, 255, 255]
+  Ambient: 0.300000012
+Skybox:
+  TexturePath: ""
+  Mode: 0
+  Exposure: 0.99000001
+  Brightness: 0
+  Contrast: 1
+Fog:
+  Enabled: false
+  Color: [158, 148, 148, 255]
+  Density: 0.00100000005
+  Start: 10
+  End: 5000
+Grid:
+  Spacing: 1
+  SecondarySpacing: 10
+  Color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.400000006
+  FadeStart: 0
+  FadeEnd: 8000
+  PlaneSize: 15000
+DebugSettings:
+  DiagnosticMode: 0
+  DrawColliders: false
+  DrawHierarchy: false
+  DrawGrid: false
+  DrawSelection: true
+  DrawLights: true
+  DrawSpawnZones: true
+  CollisionWireframeMode: 0
+Entities:
+  - Entity: 1111111111111111111
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: MainCamera
+    IDComponent:
+      {}
+    CameraComponent:
+      ProjectionType: 1
+      PerspectiveFOV: 1.04719758
+      PerspectiveNear: 0.100000001
+      PerspectiveFar: 10000
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1
+      IsPrimary: true
+  - Entity: 2222222222222222222
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    TagComponent:
+      Tag: MenuManager
+    IDComponent:
+      {}
+    ManagedScriptComponent:
+      Scripts:
+        - ClassName: ChainedDecos.Scripts.ModernMainMenu
+        - ClassName: ChainedDecos.Scripts.GameStartup
