@@ -142,6 +142,7 @@ jobs:
             -DPython_EXECUTABLE="${PYTHON_EXE}" \
             -DPython3_EXECUTABLE="${PYTHON_EXE}" \
             -DCH_CI=ON \
+            -DCH_ENABLE_PROFILING=OFF \
             -DENABLE_UNITY_BUILD=OFF \
             -DENABLE_SANITIZERS=$SANITIZERS_FLAG \
             -DENABLE_LTO=OFF \
