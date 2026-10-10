@@ -19,6 +19,14 @@ namespace Chained
         /// <summary>Set to true by ConsumeEvent() to stop event propagation to lower-priority scripts.</summary>
         internal bool EventConsumed { get; private set; }
 
+        /// <summary>
+        /// Scene generation this script instance was instantiated under.
+        /// ScriptEngine skips dispatch (OnUpdate/OnGUI/OnEvent) for instances whose
+        /// epoch doesn't match the currently active scene — this freezes suspended
+        /// gameplay scripts instead of letting them leak into menu scenes.
+        /// </summary>
+        internal ulong SceneEpoch;
+
         /// <summary>Call to stop this event from reaching scripts with lower priority.</summary>
         protected void ConsumeEvent() => EventConsumed = true;
 

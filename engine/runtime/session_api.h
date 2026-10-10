@@ -16,6 +16,10 @@ namespace Chained::SessionAPI
 	// Resumes the previously suspended gameplay session.
 	inline std::function<void()> ResumeSuspendedSession;
 
+	// Suspends the current gameplay scene and opens the start menu.
+	// Deferred internally — safe to call from C# script update.
+	inline std::function<void()> SuspendToMenu;
+
 } // namespace Chained::SessionAPI
 
 #endif // CH_SESSION_API_H

@@ -74,6 +74,16 @@ namespace Chained
 			return m_IsStartingUp;
 		}
 
+		// Monotonic per-scene generation used to scope C# script dispatch.
+		// Scripts instantiated while this scene was current only receive
+		// OnUpdate/OnGUI/OnEvent while this scene is the active one; a
+		// suspended gameplay scene keeps its epoch so its scripts freeze
+		// (instead of leaking into menus) and unfreeze on Resume.
+		uint64_t GetScriptEpoch() const
+		{
+			return m_ScriptEpoch;
+		}
+
 		// Validation setters — prefer these over direct GetSettings() mutation
 		void SetSceneName(const std::string& name)
 		{
@@ -197,6 +207,9 @@ namespace Chained
 
 		bool m_IsStartingUp = false;
 		bool m_PhysicsStartupInitialized = false;
+
+		// Script generation stamp (see GetScriptEpoch).
+		uint64_t m_ScriptEpoch = 0;
 
 		mutable std::vector<entt::entity> m_CachedRoots;
 		mutable bool m_RootsDirty = true;

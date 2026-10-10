@@ -92,4 +92,26 @@ namespace Chained
 		}
 	}
 
+	CH_SCRIPT_FUNC void Scene_QuitToMenu(const Coral::UCChar* path, uint8_t keepSession)
+	{
+		if (keepSession)
+		{
+			// Suspend current gameplay so the player can Resume from the menu.
+			// Deferred inside RuntimeLayer — safe to call from script update.
+			if (SessionAPI::SuspendToMenu)
+			{
+				SessionAPI::SuspendToMenu();
+			}
+			return;
+		}
+
+		// End of session — plain scene change (previous Scene.LoadScene behavior).
+		if (!path)
+		{
+			return;
+		}
+		SceneChangeRequestEvent e(ch_u16_to_string(path));
+		ApplicationEventProxy::Dispatch(e);
+	}
+
 } // namespace Chained

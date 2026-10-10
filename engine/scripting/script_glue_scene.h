@@ -14,6 +14,7 @@ namespace Chained
 	CH_SCRIPT_FUNC const Coral::UCChar* Scene_GetCurrentScenePath();
 	CH_SCRIPT_FUNC uint8_t Scene_HasSuspendedSession();
 	CH_SCRIPT_FUNC void Scene_ResumeSuspendedSession();
+	CH_SCRIPT_FUNC void Scene_QuitToMenu(const Coral::UCChar* path, uint8_t keepSession);
 
 } // namespace Chained
 #endif

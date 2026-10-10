@@ -1,5 +1,7 @@
 #include "script_glue_system.h"
 #include "engine/project/project.h"
+#include "engine/audio/audio.h"
+#include "engine/core/service_locator.h"
 #include <GLFW/glfw3.h>
 #include "engine/app/application.h"
 #include <set>
@@ -120,6 +122,10 @@ namespace Chained
 
 	float Audio_GetMasterVolume()
 	{
+		if (auto audio = ServiceLocator::TryGet<Audio>())
+		{
+			return audio->GetMasterVolume();
+		}
 		if (auto project = Project::GetActive())
 		{
 			return project->GetConfig().Audio.MasterVolume;
@@ -129,9 +135,14 @@ namespace Chained
 
 	void Audio_SetMasterVolume(float volume)
 	{
+		float clamped = std::clamp(volume, 0.0f, 1.0f);
 		if (auto project = Project::GetActive())
 		{
-			project->SetMasterVolume(volume);
+			project->SetMasterVolume(clamped);
+		}
+		if (auto audio = ServiceLocator::TryGet<Audio>())
+		{
+			audio->SetMasterVolume(clamped);
 		}
 	}
 

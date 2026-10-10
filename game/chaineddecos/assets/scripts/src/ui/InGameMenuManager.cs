@@ -63,7 +63,7 @@ namespace ChainedDecos.Scripts
                     Network.Disconnect();
                 }
                 
-                Scene.LoadScene("scenes/start_menu.chscene");
+                Scene.QuitToMenu("scenes/start_menu.chscene", keepSession: false);
             }
 
             UI.Text(""); // Spacing

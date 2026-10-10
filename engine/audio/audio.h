@@ -62,6 +62,8 @@ namespace Chained
 		void SetInstancePosition(AssetHandle handle, const glm::vec3& pos);
 		void SetVolume(AssetHandle handle, float volume);
 		void SetPitch(AssetHandle handle, float pitch);
+		void SetMasterVolume(float volume);
+		float GetMasterVolume() const;
 
 		void Stop(const std::string& filepath);
 		void Stop(AssetHandle handle);

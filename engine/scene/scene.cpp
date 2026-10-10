@@ -27,11 +27,17 @@
 #include "engine/runtime/session_api.h"
 #include "engine/core/application_event_proxy.h"
 
+#include <atomic>
+
 namespace Chained
 {
 
 	Scene::Scene()
 	{
+		// Unique script-dispatch generation for this scene instance.
+		static std::atomic<uint64_t> s_NextScriptEpoch{1};
+		m_ScriptEpoch = s_NextScriptEpoch.fetch_add(1, std::memory_order_relaxed);
+
 		m_Registry = std::make_unique<entt::registry>();
 		auto& reg = *m_Registry;
 

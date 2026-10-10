@@ -59,7 +59,7 @@ namespace ChainedDecos.Scripts
                 if (m_DisconnectGraceFrames > DisconnectGraceLimit)
                 {
                     Log.Info("[PlayerController] Host disconnected — returning to menu.");
-                    Scene.LoadScene(MenuScene);
+                    Scene.QuitToMenu(MenuScene, keepSession: false);
                     return;
                 }
             }

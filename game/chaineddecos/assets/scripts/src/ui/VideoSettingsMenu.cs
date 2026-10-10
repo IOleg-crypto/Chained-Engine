@@ -35,13 +35,102 @@ namespace ChainedDecos.Scripts
 
         public override void OnCreate()
         {
-            m_VSync       = AppWindow.GetVSync();
-            m_Fullscreen  = AppWindow.GetFullscreen();
-            m_Shadows     = AppWindow.GetEnableShadows();
-            m_Master      = Audio.GetMasterVolume() * 100f;
-            m_Music       = Audio.GetMusicVolume()  * 100f;
-            m_SFX         = Audio.GetSFXVolume()    * 100f;
-            m_MuteAudio   = (m_Master < 0.1f);
+            LoadFromConfig();
+        }
+
+        public override void OnStart()
+        {
+            LoadFromConfig();
+        }
+
+        private void LoadFromConfig()
+        {
+            SettingsConfig.ApplyAll();
+            var cfg = SettingsConfig.Load();
+
+            // Resolution
+            if (cfg.TryGetValue("Resolution", out string? resStr) && !string.IsNullOrEmpty(resStr))
+            {
+                int idx = Array.IndexOf(k_Resolutions, resStr);
+                if (idx >= 0) m_ResIdx = idx;
+                else
+                {
+                    string curRes = $"{AppWindow.GetWidth()}x{AppWindow.GetHeight()}";
+                    int curIdx = Array.IndexOf(k_Resolutions, curRes);
+                    if (curIdx >= 0) m_ResIdx = curIdx;
+                }
+            }
+            else
+            {
+                string curRes = $"{AppWindow.GetWidth()}x{AppWindow.GetHeight()}";
+                int curIdx = Array.IndexOf(k_Resolutions, curRes);
+                if (curIdx >= 0) m_ResIdx = curIdx;
+            }
+
+            // Anti-Aliasing
+            if (cfg.TryGetValue("AntiAliasingSamples", out string? aaStr) && int.TryParse(aaStr, out int parsedAA))
+            {
+                int idx = Array.IndexOf(k_AAValues, parsedAA);
+                if (idx >= 0) m_AAIdx = idx;
+            }
+            else
+            {
+                int curAA = AppWindow.GetAntiAliasingSamples();
+                int idx = Array.IndexOf(k_AAValues, curAA);
+                if (idx >= 0) m_AAIdx = idx;
+            }
+
+            // Shadows
+            if (cfg.TryGetValue("EnableShadows", out string? shStr) && bool.TryParse(shStr, out bool sh))
+                m_Shadows = sh;
+            else
+                m_Shadows = AppWindow.GetEnableShadows();
+
+            // Shadow Resolution
+            if (cfg.TryGetValue("ShadowResolution", out string? srStr) && int.TryParse(srStr, out int parsedSR))
+            {
+                int idx = Array.IndexOf(k_ShadowVals, parsedSR);
+                if (idx >= 0) m_ShadowIdx = idx;
+            }
+            else
+            {
+                int curSR = AppWindow.GetShadowResolution();
+                int idx = Array.IndexOf(k_ShadowVals, curSR);
+                if (idx >= 0) m_ShadowIdx = idx;
+            }
+
+            // Fullscreen & VSync
+            if (cfg.TryGetValue("Fullscreen", out string? fsStr) && bool.TryParse(fsStr, out bool fs))
+                m_Fullscreen = fs;
+            else
+                m_Fullscreen = AppWindow.GetFullscreen();
+
+            if (cfg.TryGetValue("VSync", out string? vsStr) && bool.TryParse(vsStr, out bool vs))
+                m_VSync = vs;
+            else
+                m_VSync = AppWindow.GetVSync();
+
+            // Audio
+            if (cfg.TryGetValue("MuteAudio", out string? muteStr) && bool.TryParse(muteStr, out bool mute))
+                m_MuteAudio = mute;
+
+            if (cfg.TryGetValue("MasterVolume", out string? mvStr) &&
+                float.TryParse(mvStr, NumberStyles.Float, CultureInfo.InvariantCulture, out float mv))
+                m_Master = mv > 1.0f ? mv : mv * 100f;
+            else
+                m_Master = Audio.GetMasterVolume() * 100f;
+
+            if (cfg.TryGetValue("MusicVolume", out string? musStr) &&
+                float.TryParse(musStr, NumberStyles.Float, CultureInfo.InvariantCulture, out float mus))
+                m_Music = mus > 1.0f ? mus : mus * 100f;
+            else
+                m_Music = Audio.GetMusicVolume() * 100f;
+
+            if (cfg.TryGetValue("SFXVolume", out string? sfxStr) &&
+                float.TryParse(sfxStr, NumberStyles.Float, CultureInfo.InvariantCulture, out float sfx))
+                m_SFX = sfx > 1.0f ? sfx : sfx * 100f;
+            else
+                m_SFX = Audio.GetSFXVolume() * 100f;
         }
 
         public override void OnUpdate(float deltaTime)
@@ -157,9 +246,7 @@ namespace ChainedDecos.Scripts
         {
             SectionHeader("Volume");
             
-            DrawToggleRow("Mute All Audio", ref m_MuteAudio, w,
-                "Completely mutes all game audio.\n\n(Default: Off)");
-                
+             
             DrawSliderRow("Master Volume", ref m_Master, 0f, 100f, w,
                 "Controls the overall volume of all audio in the game.\n\n(Default: 100)");
 
@@ -263,6 +350,7 @@ namespace ChainedDecos.Scripts
                 ["SFXVolume"]           = m_SFX.ToString("F1",   CultureInfo.InvariantCulture),
             };
             SettingsConfig.Save(cfg);
+            SettingsConfig.SyncAllAudioEntities();
         }
 
         private void ResetCategory()

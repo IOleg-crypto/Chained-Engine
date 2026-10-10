@@ -46,6 +46,9 @@ public class CameraController : Script
 
         // Initialize camera orbit with reasonable script defaults
         camera.SetOrbit(Yaw, Pitch, Distance);
+
+        // Sync audio and display settings on scene start
+        SettingsConfig.ApplyAll();
     }
 
     public override void OnUpdate(float deltaTime)

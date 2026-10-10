@@ -5,6 +5,7 @@
 #include "engine/scene/components/audio/audio_component.h"
 #include "engine/scene/components/render/camera_component.h"
 #include "engine/scene/components/core/transform_component.h"
+#include "engine/project/project.h"
 
 namespace Chained::AudioSystem
 {
@@ -94,19 +95,37 @@ namespace Chained::AudioSystem
 			{
 				auto& transform = audioView.get<TransformComponent>(entity);
 				glm::vec3 worldPos = glm::vec3(transform.WorldTransform[3]);
-				audioSvc->Play(audio.SoundHandle, audio.Volume, audio.Pitch, audio.Loop, audio.Spatialized, worldPos);
+				float categoryVolume = 1.0f;
+				if (auto project = Project::GetActive())
+				{
+					categoryVolume =
+						audio.Loop ? project->GetConfig().Audio.MusicVolume : project->GetConfig().Audio.SFXVolume;
+				}
+				audioSvc->Play(audio.SoundHandle, audio.Volume * categoryVolume, audio.Pitch, audio.Loop,
+							   audio.Spatialized, worldPos);
 			}
 			// IsPlaying=false but sound is still running — stop it
 			else if (!audio.IsPlaying && actuallyPlaying)
 			{
 				audioSvc->Stop(audio.SoundHandle);
 			}
-			// IsPlaying=true and sound is running and spatialized — keep position in sync
-			else if (audio.IsPlaying && actuallyPlaying && audio.Spatialized)
+			// IsPlaying=true and sound is running — keep volume and position in sync
+			else if (audio.IsPlaying && actuallyPlaying)
 			{
-				auto& transform = audioView.get<TransformComponent>(entity);
-				glm::vec3 worldPos = glm::vec3(transform.WorldTransform[3]);
-				audioSvc->SetInstancePosition(audio.SoundHandle, worldPos);
+				float categoryVolume = 1.0f;
+				if (auto project = Project::GetActive())
+				{
+					categoryVolume =
+						audio.Loop ? project->GetConfig().Audio.MusicVolume : project->GetConfig().Audio.SFXVolume;
+				}
+				audioSvc->SetVolume(audio.SoundHandle, audio.Volume * categoryVolume);
+
+				if (audio.Spatialized)
+				{
+					auto& transform = audioView.get<TransformComponent>(entity);
+					glm::vec3 worldPos = glm::vec3(transform.WorldTransform[3]);
+					audioSvc->SetInstancePosition(audio.SoundHandle, worldPos);
+				}
 			}
 		}
 	}

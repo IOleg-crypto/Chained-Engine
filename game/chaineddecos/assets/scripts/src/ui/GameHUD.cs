@@ -74,7 +74,7 @@ namespace ChainedDecos.Scripts
                 SpectatorState.Reset();
                 if (Network.IsConnected)
                     Network.Disconnect();
-                Scene.LoadScene("scenes/start_menu.chscene");
+                Scene.QuitToMenu("scenes/start_menu.chscene", keepSession: false);
             }
 
             UI.EndWindow();

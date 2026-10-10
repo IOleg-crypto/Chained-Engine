@@ -32,8 +32,21 @@ namespace Chained
         private static List<Script> s_GlobalScripts = new List<Script>();
         private static HashSet<Assembly> s_ScannedAssemblies = new HashSet<Assembly>();
 
+        // Scene generation stamp pushed by C++ each frame (SceneScriptingManager).
+        // Scripts instantiated under a different generation are skipped by
+        // dispatch — this freezes a suspended gameplay scene's scripts while a
+        // menu/UI scene is active, without wiping their instances.
+        private static ulong s_CurrentSceneEpoch = 0;
+
         // AutoAttach mappings: Tag -> list of script Types
         private static Dictionary<string, List<Type>> s_AutoAttachByTag = new Dictionary<string, List<Type>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Called by C++ (via interop) to set the currently active scene generation.</summary>
+        [UnmanagedCallersOnly]
+        public static void SetSceneEpoch(ulong epoch)
+        {
+            s_CurrentSceneEpoch = epoch;
+        }
 
         /// <summary>
         /// Scans all loaded assemblies across all AssemblyLoadContexts for [Autoload] and [AutoAttach] attributes.
@@ -102,6 +115,7 @@ namespace Chained
                                     if (Activator.CreateInstance(type) is Script globalInst)
                                     {
                                         globalInst.__Init(0); // Global entity ID
+                                        globalInst.SceneEpoch = 0; // 0 = always dispatch (not scene-scoped)
                                         s_GlobalScripts.Add(globalInst);
                                         s_ScriptsNeedingCreate.Add(globalInst);
                                         Log.Info($"[ScriptEngine] Autoload script registered: {type.FullName}");
@@ -208,6 +222,7 @@ namespace Chained
                 }
 
                 script.__Init(entityId);
+                script.SceneEpoch = s_CurrentSceneEpoch; // scene-scoped: frozen when another scene is active
 
                 if (!s_EntityScripts.TryGetValue(entityId, out var scriptList))
                 {
@@ -459,6 +474,11 @@ namespace Chained
                 s_ScriptsNeedingCreate.Clear();
                 foreach (var script in batch)
                 {
+                    if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                    {
+                        s_ScriptsNeedingCreate.Add(script); // frozen scene — retry when it becomes active
+                        continue;
+                    }
                     try
                     {
                         script.OnCreate();
@@ -479,6 +499,11 @@ namespace Chained
                 s_ScriptsNeedingStart.Clear();
                 foreach (var script in batch)
                 {
+                    if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                    {
+                        s_ScriptsNeedingStart.Add(script); // frozen scene — retry when it becomes active
+                        continue;
+                    }
                     try
                     {
                         script.OnStart();
@@ -492,10 +517,12 @@ namespace Chained
                 s_ActiveScripts.Sort((a, b) => a.Priority.CompareTo(b.Priority));
             }
 
-            // 3. OnUpdate for all active scripts
+            // 3. OnUpdate for all active scripts belonging to the current scene
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
                 var script = s_ActiveScripts[i];
+                if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                    continue; // frozen: belongs to a suspended/inactive scene
                 try
                 {
                     script.OnUpdate(deltaTime);
@@ -513,6 +540,8 @@ namespace Chained
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
                 var script = s_ActiveScripts[i];
+                if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                    continue;
                 script.__ResetEventState();
                 try
                 {
@@ -532,6 +561,8 @@ namespace Chained
             for (int i = 0; i < s_ActiveScripts.Count; i++)
             {
                 var script = s_ActiveScripts[i];
+                if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                    continue;
                 script.__ResetEventState();
                 try
                 {
@@ -552,6 +583,8 @@ namespace Chained
             {
                 foreach (var script in scriptsA)
                 {
+                    if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                        continue;
                     try
                     {
                         script.OnCollisionEnter(entityB);
@@ -567,6 +600,8 @@ namespace Chained
             {
                 foreach (var script in scriptsB)
                 {
+                    if (script.SceneEpoch != 0 && script.SceneEpoch != s_CurrentSceneEpoch)
+                        continue;
                     try
                     {
                         script.OnCollisionEnter(entityA);

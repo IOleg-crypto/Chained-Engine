@@ -40,7 +40,7 @@ namespace ChainedDecos.Scripts
                     if (m_DisconnectGraceFrames > DisconnectGraceLimit)
                     {
                         Log.Info("[LobbyUI] Host disconnected — returning to menu.");
-                        Scene.LoadScene("scenes/start_menu.chscene");
+                        Scene.QuitToMenu("scenes/start_menu.chscene", keepSession: false);
                         return;
                     }
                 }

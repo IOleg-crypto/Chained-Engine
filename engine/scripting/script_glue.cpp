@@ -36,6 +36,7 @@ namespace Chained
 	void (*g_ScriptClearAll)() = nullptr;
 	uint8_t (*g_ScriptInstantiate)(uint64_t, const char16_t*) = nullptr;
 	void (*g_ScriptDestroy)(uint64_t, const char16_t*) = nullptr;
+	void (*g_ScriptSetSceneEpoch)(uint64_t) = nullptr;
 
 	// C# registers each lifecycle callback directly — no struct, no round-trip.
 	static void ScriptGlue_RegisterUpdateCallback(void (*cb)(float))
@@ -66,6 +67,10 @@ namespace Chained
 	{
 		g_ScriptDestroy = cb;
 	}
+	static void ScriptGlue_RegisterSetSceneEpochCallback(void (*cb)(uint64_t))
+	{
+		g_ScriptSetSceneEpoch = cb;
+	}
 
 	void ScriptGlue::RegisterInternalCalls(Coral::ManagedAssembly& assembly)
 	{
@@ -84,6 +89,8 @@ namespace Chained
 								 (void*)&ScriptGlue_RegisterInstantiateCallback);
 		assembly.AddInternalCall("Chained.Interop", "ScriptGlue_RegisterDestroyCallback_Ptr",
 								 (void*)&ScriptGlue_RegisterDestroyCallback);
+		assembly.AddInternalCall("Chained.Interop", "ScriptGlue_RegisterSetSceneEpochCallback_Ptr",
+								 (void*)&ScriptGlue_RegisterSetSceneEpochCallback);
 
 		// ── Entity ────────────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Entity", "Entity_HasComponent_Ptr", (void*)&Entity_HasComponent);
@@ -332,6 +339,7 @@ namespace Chained
 		assembly.AddInternalCall("Chained.Scene", "Scene_HasSuspendedSession_Ptr", (void*)&Scene_HasSuspendedSession);
 		assembly.AddInternalCall("Chained.Scene", "Scene_ResumeSuspendedSession_Ptr",
 								 (void*)&Scene_ResumeSuspendedSession);
+		assembly.AddInternalCall("Chained.Scene", "Scene_QuitToMenu_Ptr", (void*)&Scene_QuitToMenu);
 
 		// ── Audio static ──────────────────────────────────────────────────
 		assembly.AddInternalCall("Chained.Audio", "Audio_Play_Ptr", (void*)&Audio_Play);

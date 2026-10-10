@@ -28,9 +28,11 @@
 #include "engine/scene/systems/network_system.h"
 #include "engine/scripting/scene_scripting_manager.h"
 #include "engine/scripting/scriptengine.h"
+#include "yaml-cpp/yaml.h"
 
 #include <cctype>
 #include <cmath>
+#include <fstream>
 
 namespace
 {
@@ -71,6 +73,7 @@ namespace Chained
 		// Populate lightweight session API pointers used by engine_scripting.
 		SessionAPI::HasSuspendedSession = [this]() -> bool { return HasSuspendedSession(); };
 		SessionAPI::ResumeSuspendedSession = [this]() { ResumeSuspendedSession(); };
+		SessionAPI::SuspendToMenu = [this]() { SuspendCurrentGameplaySceneAndGoToMenuDeferred(); };
 	}
 
 	RuntimeLayer::~RuntimeLayer()
@@ -81,6 +84,7 @@ namespace Chained
 		}
 		SessionAPI::HasSuspendedSession = nullptr;
 		SessionAPI::ResumeSuspendedSession = nullptr;
+		SessionAPI::SuspendToMenu = nullptr;
 	}
 
 	void RuntimeLayer::OnAttach()
@@ -147,6 +151,13 @@ namespace Chained
 		{
 			m_PendingResume = false;
 			ExecuteResumeSuspendedSession();
+			return;
+		}
+
+		if (m_PendingSuspendToMenu)
+		{
+			m_PendingSuspendToMenu = false;
+			SuspendCurrentGameplaySceneAndGoToMenu();
 			return;
 		}
 
@@ -425,6 +436,61 @@ namespace Chained
 	}
 
 	//-----------------------------------------------------------------------------
+	// Purpose: Read only the top-level "SceneType" key of a scene file (disk or
+	// packed) without deserializing the whole scene. Returns nullopt on failure.
+	//-----------------------------------------------------------------------------
+	static std::optional<SceneType> ReadSceneTypeHeader(const std::filesystem::path& scenePath, AssetManager* assets)
+	{
+		std::string text;
+		if (FileExists(scenePath))
+		{
+			std::ifstream in(scenePath, std::ios::binary);
+			if (!in)
+			{
+				return std::nullopt;
+			}
+			text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+		}
+		else if (assets)
+		{
+			const std::vector<uint8_t> bytes = assets->ReadProjectAsset(scenePath);
+			if (bytes.empty())
+			{
+				return std::nullopt;
+			}
+			text.assign(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+		}
+		else
+		{
+			return std::nullopt;
+		}
+
+		try
+		{
+			const YAML::Node root = YAML::Load(text);
+			const YAML::Node typeNode = root["SceneType"];
+			if (!typeNode)
+			{
+				return std::nullopt;
+			}
+
+			const int type = typeNode.as<int>();
+			if (type == static_cast<int>(SceneType::Default))
+			{
+				return SceneType::Default;
+			}
+			if (type == static_cast<int>(SceneType::UI))
+			{
+				return SceneType::UI;
+			}
+			return std::nullopt;
+		} catch (const std::exception&)
+		{
+			return std::nullopt;
+		}
+	}
+
+	//-----------------------------------------------------------------------------
 	// Purpose: Load a new scene from file
 	//-----------------------------------------------------------------------------
 	void RuntimeLayer::LoadScene(const std::string& path)
@@ -435,27 +501,6 @@ namespace Chained
 		{
 			CH_CORE_WARN("RuntimeSystem: Ignoring empty scene path request.");
 			return;
-		}
-
-		// If user is loading a new gameplay scene from scratch (not a menu/UI scene),
-		// discard any old suspended gameplay session so it starts fresh!
-		if (m_SuspendedGameplayScene)
-		{
-			std::string lowerPath = normalizedPath;
-			std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
-			bool isMenu =
-				(lowerPath.find("menu") != std::string::npos || lowerPath.find("lobby") != std::string::npos ||
-				 lowerPath.find("setup") != std::string::npos || lowerPath.find("waiting") != std::string::npos ||
-				 lowerPath.find("info") != std::string::npos || lowerPath.find("option") != std::string::npos ||
-				 lowerPath.find("video") != std::string::npos || lowerPath.find("setting") != std::string::npos ||
-				 lowerPath.find("audio") != std::string::npos || lowerPath.find("config") != std::string::npos);
-			if (!isMenu)
-			{
-				CH_CORE_INFO("RuntimeLayer: Discarding old suspended gameplay scene for new gameplay scene '{}'",
-							 normalizedPath);
-				m_SuspendedGameplayScene->OnRuntimeStop();
-				m_SuspendedGameplayScene = nullptr;
-			}
 		}
 
 		std::filesystem::path scenePath = normalizedPath;
@@ -487,6 +532,36 @@ namespace Chained
 			return;
 		}
 
+		// Session lifetime: a suspended gameplay session must survive navigation
+		// between menu/UI screens and is discarded only when a real gameplay
+		// (SceneType::Default) scene is loaded. Decision is based on the target
+		// scene's SceneType — NOT on filename keywords — so menu scenes with
+		// arbitrary names (e.g. "game_mode_selection.chscene") no longer
+		// silently destroy the session the player can Resume from.
+		if (m_SuspendedGameplayScene)
+		{
+			const std::optional<SceneType> targetType = ReadSceneTypeHeader(scenePath, m_AssetManager);
+			if (targetType == SceneType::Default)
+			{
+				CH_CORE_INFO("RuntimeLayer: Discarding suspended gameplay scene '{}' → loading gameplay scene '{}'",
+							 m_SuspendedGameplayScene->GetSettings().ScenePath, scenePath.string());
+				m_SuspendedGameplayScene->OnRuntimeStop();
+				m_SuspendedGameplayScene = nullptr;
+			}
+			else if (targetType == SceneType::UI)
+			{
+				CH_CORE_TRACE("RuntimeLayer: Preserving suspended session while loading UI scene '{}'",
+							  scenePath.string());
+			}
+			else
+			{
+				// Header unreadable — fail safe: keep the session rather than
+				// destroying the player's progress on a parse hiccup.
+				CH_CORE_WARN("RuntimeLayer: Could not read SceneType of '{}' — preserving suspended session.",
+							 scenePath.string());
+			}
+		}
+
 		if (!TransitionToScene(scenePath))
 		{
 			CH_CORE_ERROR("RuntimeSystem: Failed to transition to scene '{}'.", scenePath.string());
@@ -507,6 +582,18 @@ namespace Chained
 		m_Scene = nullptr;
 
 		LoadScene("scenes/start_menu.chscene");
+	}
+
+	void RuntimeLayer::SuspendCurrentGameplaySceneAndGoToMenuDeferred()
+	{
+		if (!m_Scene || m_Scene->GetSettings().Type != SceneType::Default)
+		{
+			CH_CORE_WARN("RuntimeLayer: SuspendToMenu ignored — no active gameplay scene to suspend.");
+			return;
+		}
+
+		// Scene swap must not happen while scripts are being iterated (C# OnUpdate).
+		m_PendingSuspendToMenu = true;
 	}
 
 	void RuntimeLayer::ResumeSuspendedSession()

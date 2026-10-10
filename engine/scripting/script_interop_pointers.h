@@ -17,6 +17,7 @@ namespace Chained
 	extern void (*g_ScriptClearAll)();
 	extern uint8_t (*g_ScriptInstantiate)(uint64_t, const char16_t*);
 	extern void (*g_ScriptDestroy)(uint64_t, const char16_t*);
+	extern void (*g_ScriptSetSceneEpoch)(uint64_t);
 
 } // namespace Chained
 

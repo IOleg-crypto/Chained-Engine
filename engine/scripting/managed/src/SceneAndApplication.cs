@@ -18,6 +18,7 @@ namespace Chained
         internal static unsafe delegate* unmanaged<char*> Scene_GetCurrentScenePath_Ptr;
         internal static unsafe delegate* unmanaged<byte> Scene_HasSuspendedSession_Ptr;
         internal static unsafe delegate* unmanaged<void> Scene_ResumeSuspendedSession_Ptr;
+        internal static unsafe delegate* unmanaged<char*, byte, void> Scene_QuitToMenu_Ptr;
 #pragma warning restore 0649
 
         /// <summary>Returns true if there is an active gameplay scene suspended in the background.</summary>
@@ -32,6 +33,17 @@ namespace Chained
         {
             if (Scene_ResumeSuspendedSession_Ptr == null) return;
             Scene_ResumeSuspendedSession_Ptr();
+        }
+
+        /// <summary>
+        /// Quits to the given menu scene. keepSession=true suspends the current gameplay
+        /// scene so the player can Resume it from the menu; false ends the session
+        /// (gameplay scene is discarded on load).
+        /// </summary>
+        public static unsafe void QuitToMenu(string path, bool keepSession)
+        {
+            if (Scene_QuitToMenu_Ptr == null) return;
+            fixed (char* ptr = path) Scene_QuitToMenu_Ptr(ptr, (byte)(keepSession ? 1 : 0));
         }
 
         /// <summary>Returns the current scene file path (e.g. 'scenes/test_platform_scene.chscene').</summary>

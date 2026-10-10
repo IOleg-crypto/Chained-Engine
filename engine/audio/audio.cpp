@@ -41,6 +41,13 @@ namespace Chained
 		}
 		else
 		{
+			float masterVolume = 1.0f;
+			if (auto project = Project::GetActive())
+			{
+				masterVolume = project->GetConfig().Audio.MasterVolume;
+			}
+			ma_engine_set_volume(m_engine.get(), std::clamp(masterVolume, 0.0f, 1.0f));
+
 			ma_device* pDevice = ma_engine_get_device(m_engine.get());
 			const char* backendName =
 				(pDevice && pDevice->pContext) ? ma_get_backend_name(pDevice->pContext->backend) : "Default";
@@ -336,6 +343,23 @@ namespace Chained
 				ma_sound_set_pitch(&instance->Sound, pitch);
 			}
 		}
+	}
+
+	void Audio::SetMasterVolume(float volume)
+	{
+		if (m_engine)
+		{
+			ma_engine_set_volume(m_engine.get(), std::clamp(volume, 0.0f, 1.0f));
+		}
+	}
+
+	float Audio::GetMasterVolume() const
+	{
+		if (m_engine)
+		{
+			return ma_engine_get_volume(m_engine.get());
+		}
+		return 1.0f;
 	}
 
 	void Audio::Stop(const std::string& filepath)

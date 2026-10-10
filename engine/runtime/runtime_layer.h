@@ -78,6 +78,9 @@ namespace Chained
 
 		void ResumeSuspendedSession();
 		void SuspendCurrentGameplaySceneAndGoToMenu();
+		// Safe entry point for script/API callers: actual suspend happens at the
+		// start of the next OnUpdate so we never swap scenes mid script iteration.
+		void SuspendCurrentGameplaySceneAndGoToMenuDeferred();
 
 	private:
 		bool InitProject(const std::string& projectPath);
@@ -122,6 +125,7 @@ namespace Chained
 
 		std::string m_PendingScenePath;
 		bool m_PendingResume = false;
+		bool m_PendingSuspendToMenu = false;
 		std::shared_ptr<Framebuffer> m_HDRFramebuffer;
 		uint32_t m_MSAAFramebufferSamples = 0;
 		bool m_IsPaused = false;

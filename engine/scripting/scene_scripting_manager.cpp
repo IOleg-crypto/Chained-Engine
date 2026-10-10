@@ -76,9 +76,15 @@ namespace Chained
 	{
 		SceneScriptingManager::Unregister(this);
 
+		// Mirror the OnRuntimeStop guard: when a gameplay session is suspended,
+		// the suspended scene's C# script instances must survive — wiping them
+		// here would leave native IsInstantiated flags stale and the scripts
+		// would never re-instantiate after Resume.
+		const bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
+
 		if (m_Scene && ServiceLocator::IsAvailable())
 		{
-			if (m_Scene->IsSimulationRunning())
+			if (m_Scene->IsSimulationRunning() && !hasSuspended)
 			{
 				auto ctx = AcquireScriptEngine();
 				if (ctx.engine && ctx.scriptEngineType)
@@ -130,14 +136,36 @@ namespace Chained
 		}
 
 		bool hasSuspended = (SessionAPI::HasSuspendedSession && SessionAPI::HasSuspendedSession());
-		if (!hasSuspended)
+		auto ctx = AcquireScriptEngine();
+		if (ctx.engine && ctx.scriptEngineType && !m_ReloadInProgress)
 		{
-			auto ctx = AcquireScriptEngine();
-			if (ctx.engine && ctx.scriptEngineType && !m_ReloadInProgress)
+			if (!hasSuspended)
 			{
 				if (g_ScriptClearAll)
 				{
 					g_ScriptClearAll();
+				}
+			}
+			else if (m_Scene)
+			{
+				// A gameplay session is suspended: global ClearAll would wipe the
+				// suspended scene's C# scripts too. Destroy only THIS scene's
+				// scripts per-entity so menu/UI scripts cannot leak into later
+				// scenes (they would keep ticking/drawing via the global active
+				// list). The suspended scene keeps its instances for Resume.
+				auto& registry = m_Scene->GetRegistry();
+				auto view = registry.view<ManagedScriptComponent>();
+				for (auto entity : view)
+				{
+					auto& msc = registry.get<Chained::ManagedScriptComponent>(entity);
+					for (auto& script : msc.Scripts)
+					{
+						if (script.HasInstance() && !script.ClassName.empty() && g_ScriptDestroy)
+						{
+							std::u16string classNameStr = ch_utf8_to_u16(script.ClassName);
+							g_ScriptDestroy(static_cast<uint64_t>(entity), classNameStr.c_str());
+						}
+					}
 				}
 			}
 		}
@@ -170,6 +198,13 @@ namespace Chained
 		}
 
 		ctx.engine->SetContextScene(m_Scene);
+
+		// Scope C# dispatch to this scene: scripts stamped with a different
+		// epoch (e.g. a suspended gameplay scene) are skipped by ScriptEngine.
+		if (g_ScriptSetSceneEpoch)
+		{
+			g_ScriptSetSceneEpoch(m_Scene->GetScriptEpoch());
+		}
 
 		auto& registry = m_Scene->GetRegistry();
 		auto view = registry.view<ManagedScriptComponent>();
@@ -342,6 +377,11 @@ namespace Chained
 
 		ctx.engine->SetContextScene(m_Scene);
 
+		if (g_ScriptSetSceneEpoch)
+		{
+			g_ScriptSetSceneEpoch(m_Scene->GetScriptEpoch());
+		}
+
 		if (ctx.scriptEngineType)
 		{
 			if (g_ScriptOnEvent)
@@ -367,6 +407,11 @@ namespace Chained
 		}
 
 		ctx.engine->SetContextScene(m_Scene);
+
+		if (g_ScriptSetSceneEpoch)
+		{
+			g_ScriptSetSceneEpoch(m_Scene->GetScriptEpoch());
+		}
 
 		if (ctx.scriptEngineType)
 		{

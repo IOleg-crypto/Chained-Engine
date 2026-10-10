@@ -51,7 +51,7 @@ DebugSettings:
   MeshColliderAsBBox: true
   ColliderAlpha: 0.600000024
 Entities:
-  - Entity: 1785576353264979782
+  - Entity: 3484833498689602798
     ManagedScriptComponent:
       Scripts:
         - ClassName: ChainedDecos.Scripts.VideoSettingsMenu
@@ -63,7 +63,7 @@ Entities:
       Tag: VideoSettingsMenuManager
     IDComponent:
       {}
-  - Entity: 12247051753239941563
+  - Entity: 13058456798545988499
     CameraComponent:
       Primary: true
       FixedAspectRatio: false

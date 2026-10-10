@@ -6,8 +6,6 @@ namespace ChainedDecos.Scripts
     // Resets all static gameplay state every time the menu loads.
     public class GameStartup : Script
     {
-        private static bool s_Applied;
-
         public override void OnStart()
         {
             // Always reset gameplay state on every menu visit
@@ -23,9 +21,7 @@ namespace ChainedDecos.Scripts
                 Network.Disconnect();
             }
 
-            // Apply settings only once per process lifetime
-            if (s_Applied) return;
-            s_Applied = true;
+            // Always apply settings from config file on every menu visit so nothing gets reset
             SettingsConfig.ApplyAll();
         }
     }

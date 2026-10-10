@@ -20,6 +20,7 @@ namespace Chained
         internal static delegate* unmanaged<delegate* unmanaged<void>, void> ScriptGlue_RegisterClearAllCallback_Ptr;
         internal static delegate* unmanaged<delegate* unmanaged<ulong, char*, byte>, void> ScriptGlue_RegisterInstantiateCallback_Ptr;
         internal static delegate* unmanaged<delegate* unmanaged<ulong, char*, void>, void> ScriptGlue_RegisterDestroyCallback_Ptr;
+        internal static delegate* unmanaged<delegate* unmanaged<ulong, void>, void> ScriptGlue_RegisterSetSceneEpochCallback_Ptr;
 
         /// <summary>
         /// Called once from C++ after assemblies are loaded.
@@ -41,6 +42,10 @@ namespace Chained
             ScriptGlue_RegisterClearAllCallback_Ptr(&ScriptEngine.ClearAll);
             ScriptGlue_RegisterInstantiateCallback_Ptr(&ScriptEngine.InstantiateScript);
             ScriptGlue_RegisterDestroyCallback_Ptr(&ScriptEngine.DestroyScript);
+            if (ScriptGlue_RegisterSetSceneEpochCallback_Ptr != null)
+            {
+                ScriptGlue_RegisterSetSceneEpochCallback_Ptr(&ScriptEngine.SetSceneEpoch);
+            }
 
             Console.WriteLine("[C# Interop] Managed callbacks registered successfully.");
             VerifyInternalCalls();

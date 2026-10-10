@@ -4,6 +4,8 @@ namespace ChainedDecos.Scripts
 {
     public class ResumeButtonScript : Script
     {
+        private bool m_LastHasSession = false;
+
         public override void OnCreate()
         {
             UpdateVisibility();
@@ -20,7 +22,14 @@ namespace ChainedDecos.Scripts
             if (btn == null) return;
 
             bool hasSession = Scene.HasActiveSession();
-            
+
+            if (hasSession != m_LastHasSession)
+            {
+                Log.Info($"[ResumeButton] Session state changed: {m_LastHasSession} -> {hasSession} " +
+                         $"(current scene: {Scene.GetCurrentScenePath()})");
+                m_LastHasSession = hasSession;
+            }
+
             // Sync active state to ECS ControlComponent
             if (btn.IsActive != hasSession)
             {
