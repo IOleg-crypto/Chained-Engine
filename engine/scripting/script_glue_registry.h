@@ -60,36 +60,32 @@ namespace Chained
 		template <typename Comp, typename FieldType, FieldType Comp::* Field> struct ComponentBinder<Field>
 		{
 			// GET: Primitive
-			template <typename T = FieldType>
-			static std::enable_if_t<!IsGlmVector_v<T> && !std::is_same_v<T, bool>, T> Get(uint64_t entityID)
+			static FieldType GetPrimitive(uint64_t entityID)
 			{
 				auto e = GetEntity(entityID);
-				return (e && e.HasComponent<Comp>()) ? e.GetComponent<Comp>().*Field : T{};
+				return (e && e.HasComponent<Comp>()) ? e.GetComponent<Comp>().*Field : FieldType{};
 			}
 
 			// GET: Bool -> uint8_t
-			template <typename T = FieldType>
-			static std::enable_if_t<std::is_same_v<T, bool>, uint8_t> Get(uint64_t entityID)
+			static uint8_t GetBool(uint64_t entityID)
 			{
 				auto e = GetEntity(entityID);
 				return (e && e.HasComponent<Comp>()) ? (e.GetComponent<Comp>().*Field ? 1 : 0) : 0;
 			}
 
 			// GET: Vector/Struct -> via out ptr
-			template <typename T = FieldType>
-			static std::enable_if_t<IsGlmVector_v<T>, void> Get(uint64_t entityID, T* outVal)
+			static void GetVector(uint64_t entityID, FieldType* outVal)
 			{
 				if (!outVal)
 				{
 					return;
 				}
 				auto e = GetEntity(entityID);
-				*outVal = (e && e.HasComponent<Comp>()) ? e.GetComponent<Comp>().*Field : T{};
+				*outVal = (e && e.HasComponent<Comp>()) ? e.GetComponent<Comp>().*Field : FieldType{};
 			}
 
 			// SET: Primitive
-			template <typename T = FieldType>
-			static std::enable_if_t<!IsGlmVector_v<T> && !std::is_same_v<T, bool>, void> Set(uint64_t entityID, T value)
+			static void SetPrimitive(uint64_t entityID, FieldType value)
 			{
 				auto e = GetEntity(entityID);
 				if (e && e.HasComponent<Comp>())
@@ -99,8 +95,7 @@ namespace Chained
 			}
 
 			// SET: Bool <- uint8_t
-			template <typename T = FieldType>
-			static std::enable_if_t<std::is_same_v<T, bool>, void> Set(uint64_t entityID, uint8_t value)
+			static void SetBool(uint64_t entityID, uint8_t value)
 			{
 				auto e = GetEntity(entityID);
 				if (e && e.HasComponent<Comp>())
@@ -110,8 +105,7 @@ namespace Chained
 			}
 
 			// SET: Vector/Struct <- via in ptr
-			template <typename T = FieldType>
-			static std::enable_if_t<IsGlmVector_v<T>, void> Set(uint64_t entityID, T* inVal)
+			static void SetVector(uint64_t entityID, FieldType* inVal)
 			{
 				if (!inVal)
 				{
@@ -123,18 +117,46 @@ namespace Chained
 					e.GetComponent<Comp>().*Field = *inVal;
 				}
 			}
+
+			static void* GetAddress()
+			{
+				if constexpr (std::is_same_v<FieldType, bool>)
+				{
+					return (void*)&GetBool;
+				}
+				else if constexpr (IsGlmVector_v<FieldType>)
+				{
+					return (void*)&GetVector;
+				}
+				else
+				{
+					return (void*)&GetPrimitive;
+				}
+			}
+
+			static void* SetAddress()
+			{
+				if constexpr (std::is_same_v<FieldType, bool>)
+				{
+					return (void*)&SetBool;
+				}
+				else if constexpr (IsGlmVector_v<FieldType>)
+				{
+					return (void*)&SetVector;
+				}
+				else
+				{
+					return (void*)&SetPrimitive;
+				}
+			}
 		};
 	} // namespace Detail
 
 #define CH_BIND_COMPONENT_GETTER(Assembly, CsClass, CsMethod, CompType, Field)                                         \
-	(Assembly).AddInternalCall(                                                                                        \
-		CsClass, CsMethod,                                                                                             \
-		(void*)&::Chained::Detail::ComponentBinder<&CompType::Field>::template Get<decltype(CompType::Field)>)
+	(Assembly).AddInternalCall(CsClass, CsMethod, ::Chained::Detail::ComponentBinder<&CompType::Field>::GetAddress())
 
 #define CH_BIND_COMPONENT_SETTER(Assembly, CsClass, CsMethod, CompType, Field)                                         \
-	(Assembly).AddInternalCall(                                                                                        \
-		CsClass, CsMethod,                                                                                             \
-		(void*)&::Chained::Detail::ComponentBinder<&CompType::Field>::template Set<decltype(CompType::Field)>)
+	(Assembly).AddInternalCall(CsClass, CsMethod, ::Chained::Detail::ComponentBinder<&CompType::Field>::SetAddress())
 
 } // namespace Chained
 
